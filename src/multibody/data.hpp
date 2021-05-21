@@ -154,14 +154,12 @@ namespace pinocchio
     ///        and expressed in the local frame of the joint..
     PINOCCHIO_ALIGNED_STD_VECTOR(Inertia) Ycrb;
 
-    /// \brief Vector of sub-tree composite coriolis terms
-    PINOCCHIO_ALIGNED_STD_VECTOR(Coriolis) oBcrb;
-
-
-
     /// \brief Vector of sub-tree composite rigid body inertia time derivatives \f$ \dot{Y}_{crb}\f$. See Data::Ycrb for more details.
     PINOCCHIO_ALIGNED_STD_VECTOR(Matrix6) dYcrb; // TODO: change with dense symmetric matrix6
     
+    /// \brief Vector of sub-tree composite coriolis terms
+    PINOCCHIO_ALIGNED_STD_VECTOR(Coriolis) oBcrb;
+
     /// \brief The joint space inertia matrix (a square matrix of dim model.nv).
     MatrixXs M;
     

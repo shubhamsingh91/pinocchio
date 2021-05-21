@@ -39,19 +39,13 @@ namespace pinocchio
     {
       typedef typename Model::JointIndex JointIndex;
       typedef typename Data::Motion Motion;
-      typedef typename Data::Matrix6 Matrix6;
-      typedef typename Data::Matrix3 Matrix3;
-      typedef typename Data::Vector3 Vector3;
       typedef typename Data::Inertia Inertia;
-      typedef typename Symmetric3::AlphaSkewSquare AlphaSkewSquare;
 
       const JointIndex & i = jmodel.id();
       const JointIndex & parent = model.parents[i];
       Motion & ov = data.ov[i];
       Motion & oa = data.oa[i];
       Motion & vJ = data.vJ[i];
-      const Inertia & Y = model.inertias[i];
-      
 
       jmodel.calc(jdata.derived(),q.derived(),v.derived());
       
@@ -143,6 +137,12 @@ namespace pinocchio
       ColsBlock tmp3 = jmodel.jointCols(data.Ftmp3);
       ColsBlock tmp4 = jmodel.jointCols(data.Ftmp4);
 
+      const Eigen::Index joint_idx  = (Eigen::Index) jmodel.idx_v();
+      const Eigen::Index joint_dofs = (Eigen::Index) jmodel.nv();
+      const Eigen::Index subtree_dofs = (Eigen::Index) data.nvSubtree[i];
+      const Eigen::Index successor_idx = joint_idx + joint_dofs;
+      const Eigen::Index successor_dofs = subtree_dofs -joint_dofs;
+
       Inertia & oYcrb = data.oYcrb[i];
       Coriolis& oBcrb = data.oBcrb[i];
 
@@ -163,22 +163,26 @@ namespace pinocchio
 
       motionSet::coriolisTransposeAction(oBcrb,J_cols,tmp4);
 
-      rnea_partial_dq_.block(jmodel.idx_v(),jmodel.idx_v(),jmodel.nv(),data.nvSubtree[i]).noalias()
-        = J_cols.transpose()*data.Ftmp3.middleCols(jmodel.idx_v(),data.nvSubtree[i]);
 
-      rnea_partial_dq_.block(jmodel.idx_v(),jmodel.idx_v(),data.nvSubtree[i],jmodel.nv()).noalias()
-        = data.Ftmp1.middleCols(jmodel.idx_v(),data.nvSubtree[i]).transpose()*ddJ_cols 
-          + data.Ftmp4.middleCols(jmodel.idx_v(),data.nvSubtree[i]).transpose()*dJ_cols;
+      if( successor_dofs > 0 ) 
+      {
+      	rnea_partial_dq_.block( joint_idx, successor_idx, joint_dofs, successor_dofs ).noalias()
+        	= J_cols.transpose()*data.Ftmp3.middleCols( successor_idx, successor_dofs );
 
-      rnea_partial_dv_.block(jmodel.idx_v(),jmodel.idx_v(),jmodel.nv(),data.nvSubtree[i]).noalias()
-        = J_cols.transpose()*data.Ftmp2.middleCols(jmodel.idx_v(),data.nvSubtree[i]);
+        rnea_partial_dv_.block( joint_idx, successor_idx, joint_dofs, successor_dofs ).noalias()
+        	= J_cols.transpose()*data.Ftmp2.middleCols( successor_idx, successor_dofs );
+      }
 
-      rnea_partial_dv_.block(jmodel.idx_v(),jmodel.idx_v(),data.nvSubtree[i],jmodel.nv()).noalias()
-        = data.Ftmp1.middleCols(jmodel.idx_v(),data.nvSubtree[i]).transpose()*vdJ_cols
-          + data.Ftmp4.middleCols(jmodel.idx_v(),data.nvSubtree[i]).transpose()*J_cols;
+      rnea_partial_dq_.block( joint_idx, joint_idx, subtree_dofs, joint_dofs ).noalias()
+        =  data.Ftmp1.middleCols( joint_idx, subtree_dofs ).transpose()*ddJ_cols 
+         + data.Ftmp4.middleCols( joint_idx, subtree_dofs ).transpose()*dJ_cols;
+
+      rnea_partial_dv_.block( joint_idx, joint_idx, subtree_dofs, joint_dofs ).noalias()
+        =   data.Ftmp1.middleCols( joint_idx, subtree_dofs ).transpose()*vdJ_cols
+          + data.Ftmp4.middleCols( joint_idx, subtree_dofs ).transpose()*J_cols;
       
-      rnea_partial_da_.block(jmodel.idx_v(),jmodel.idx_v(),jmodel.nv(),data.nvSubtree[i]).noalias() =
-        J_cols.transpose()*data.Ftmp1.middleCols(jmodel.idx_v(),data.nvSubtree[i]);
+      rnea_partial_da_.block( joint_idx, joint_idx, joint_dofs, subtree_dofs ).noalias() =
+        J_cols.transpose()*data.Ftmp1.middleCols( joint_idx, subtree_dofs );
 
 
       if(parent>0)

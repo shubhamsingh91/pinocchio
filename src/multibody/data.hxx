@@ -25,6 +25,7 @@ namespace pinocchio
   , a_gf((std::size_t)model.njoints,Motion::Zero())
   , oa_gf((std::size_t)model.njoints,Motion::Zero())
   , v((std::size_t)model.njoints,Motion::Zero())
+  , vJ((std::size_t)model.njoints,Motion::Zero())
   , ov((std::size_t)model.njoints,Motion::Zero())
   , f((std::size_t)model.njoints,Force::Zero())
   , of((std::size_t)model.njoints,Force::Zero())
@@ -38,10 +39,7 @@ namespace pinocchio
   , oMf((std::size_t)model.nframes,SE3::Identity())
   , Ycrb((std::size_t)model.njoints,Inertia::Zero())
   , dYcrb((std::size_t)model.njoints,Inertia::Zero())
-  // new stuff
-  , vJ((std::size_t)model.njoints,Motion::Zero())
   , oBcrb((std::size_t)model.njoints,Coriolis::Zero())
-  // end new stuff
   , M(MatrixXs::Zero(model.nv,model.nv))
   , Minv(MatrixXs::Zero(model.nv,model.nv))
   , C(MatrixXs::Zero(model.nv,model.nv))
