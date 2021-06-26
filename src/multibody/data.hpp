@@ -170,7 +170,7 @@ namespace pinocchio
     RowMatrixXs Minv_mat_prod;
 
     /// \brief tau_mat   new variable for Minv_v2, dim(nx2n)
-    RowMatrixXs tau_mat;
+    RowMatrixXs tau_mat_v2;
 
     /// \brief The Coriolis matrix (a square matrix of dim model.nv).
     MatrixXs C;

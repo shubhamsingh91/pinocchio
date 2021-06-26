@@ -170,16 +170,12 @@ namespace pinocchio
         // added lines here
 
         qdd_mat.block(jmodel.idx_v(),0,jmodel.nv(),2*model.nv).noalias() = 
-        jdata.Dinv()*data.tau_mat.block(jmodel.idx_v(),0,jmodel.nv(),2*model.nv)
+        jdata.Dinv()*data.tau_mat_v2.block(jmodel.idx_v(),0,jmodel.nv(),2*model.nv)
         - SDinv_cols.transpose() * data.Fcrb_v2[i];
 
 
       if(nv_children > 0)
       {
-        // ColsBlock J_cols = jmodel.jointCols(data.J);
-        // ColsBlock SDinv_cols = jmodel.jointCols(data.SDinv);
-        // SDinv_cols.noalias() = J_cols * jdata.Dinv();
-        
         Minv.block(jmodel.idx_v(),jmodel.idx_v()+jmodel.nv(),jmodel.nv(),nv_children).noalias()
         = -SDinv_cols.transpose() * Fcrb.middleCols(jmodel.idx_v()+jmodel.nv(),nv_children);
       
@@ -269,7 +265,7 @@ namespace pinocchio
 
   template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl, typename ConfigVectorType,  typename MatrixType1>
   inline const typename DataTpl<Scalar,Options,JointCollectionTpl>::RowMatrixXs &
-  computeMinverse_v2(const ModelTpl<Scalar,Options,JointCollectionTpl> & model,
+  computeMinv_AZA(const ModelTpl<Scalar,Options,JointCollectionTpl> & model,
                   DataTpl<Scalar,Options,JointCollectionTpl> & data,
                   const Eigen::MatrixBase<ConfigVectorType> & q,
                   const Eigen::MatrixBase<MatrixType1> & tau_mat)
@@ -289,7 +285,7 @@ namespace pinocchio
     }
     
     // added line here
-    data.tau_mat = tau_mat; 
+    data.tau_mat_v2 = tau_mat; 
 
     data.Fcrb[0].setZero();
     typedef ComputeMinverseBackward_v2_Step<Scalar,Options,JointCollectionTpl> Pass2;

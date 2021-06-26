@@ -16,7 +16,7 @@ namespace pinocchio
 
   template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl, typename ConfigVectorType, typename MatrixType1>
   inline const typename DataTpl<Scalar,Options,JointCollectionTpl>::RowMatrixXs &
-  computeMinverse_v2(const ModelTpl<Scalar,Options,JointCollectionTpl> & model,
+  computeMinv_AZA(const ModelTpl<Scalar,Options,JointCollectionTpl> & model,
                   DataTpl<Scalar,Options,JointCollectionTpl> & data,
                   const Eigen::MatrixBase<ConfigVectorType> & q,
                   const Eigen::MatrixBase<MatrixType1> & tau_mat);

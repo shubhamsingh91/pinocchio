@@ -165,8 +165,7 @@ int main(int argc, const char ** argv)
     qdots[i]  = Eigen::VectorXd::Random(model.nv);
     qddots[i] = Eigen::VectorXd::Random(model.nv);
     taus[i] = Eigen::VectorXd::Random(model.nv);
-    tau_mat[i] = Eigen::MatrixXd::Identity(model.nv,2*model.nv); // new variable
-
+    tau_mat[i] = Eigen::MatrixXd::Zero(model.nv,2*model.nv); // new variable
   }
   
   PINOCCHIO_EIGEN_PLAIN_ROW_MAJOR_TYPE(MatrixXd) drnea_dq(MatrixXd::Zero(model.nv,model.nv));
@@ -215,6 +214,48 @@ int main(int argc, const char ** argv)
   }
   std::cout << "RNEA derivatives v2= \t\t"; timer.toc(std::cout,NBT);
 
+
+    taus[0] = data.tau;  // input tau taken from RNEA_derivs- SS
+
+  timer.tic();
+  SMOOTH(NBT)
+  {
+    computeABADerivatives(model,data,qs[_smooth],qdots[_smooth],taus[_smooth],
+                          daba_dq,daba_dv,daba_dtau);
+  }
+  std::cout << "ABA derivatives= \t\t"; timer.toc(std::cout,NBT);
+
+  //----------------------------------------------------------------------------//
+  //--------------------- New Minv_v2 = Minv + AZA multicol---------------------//
+  //---------------------- SS 6/26/21 ------------------------------------------//
+  //----------------------------------------------------------------------------//
+
+    tau_mat[0] << -drnea_dq,-drnea_dv; // concatenating partial wrt q and qdot
+
+    timer.tic();
+    SMOOTH(NBT)
+    {
+        computeMinv_AZA(model,data,qs[_smooth],tau_mat[_smooth]);
+    }
+  std::cout << "Minv_v2 + AZA = \t\t"; timer.toc(std::cout,NBT);
+
+//-------------------------------------------------------------------------------------------
+
+   // difference matrix - if using this, then NBT=1
+
+    MatrixXd diff_daba_dq2(MatrixXd::Zero(model.nv,model.nv));
+    MatrixXd diff_daba_dqd2(MatrixXd::Zero(model.nv,model.nv));
+
+    diff_daba_dq2 = daba_dq-data.Minv_mat_prod.middleCols(0,model.nv);
+    diff_daba_dqd2 = daba_dv-data.Minv_mat_prod.middleCols(model.nv,model.nv);
+
+    std::cout << "------------------------------------------------------" << std::endl;
+    std::cout << "difference matrix for AZA from orig FD partial wrt q is " << diff_daba_dq2.squaredNorm() << std::endl;
+    std::cout << "difference matrix for AZA from orig FD partial wrt qd is " << diff_daba_dqd2.squaredNorm() << std::endl;
+    std::cout << "--------------------------------------------------------" << std::endl;
+
+//-------------------------------------------------------------------------------------------
+
 #ifndef NO_FINITE_DIFFS
   timer.tic();
   SMOOTH(NBT/100)
@@ -232,41 +273,8 @@ int main(int argc, const char ** argv)
   }
   std::cout << "ABA= \t\t"; timer.toc(std::cout,NBT);
   
-  timer.tic();
-  SMOOTH(NBT)
-  {
-    computeABADerivatives(model,data,qs[_smooth],qdots[_smooth],taus[_smooth],
-                          daba_dq,daba_dv,daba_dtau);
-  }
-  std::cout << "ABA derivatives= \t\t"; timer.toc(std::cout,NBT);
-  
-//---- New Minv_v2 = Minv + AZA multicol---------------------//
-//---- SS 6/26/21 -------------------------------------------//
-//-----------------------------------------------------------//
-
-    tau_mat[0] << -drnea_dq,-drnea_dv; // concatenating partial wrt q and qdot
-
-    timer.tic();
-    SMOOTH(NBT)
-    {
-        computeMinverse_v2(model,data,qs[_smooth],tau_mat[_smooth]);
-    }
-  std::cout << "Minv_v2 + AZA = \t\t"; timer.toc(std::cout,NBT);
 
 
-// difference matrix - if using this, then NBT=1
-
- 
-    MatrixXd diff_daba_dq2(MatrixXd::Zero(model.nv,model.nv));
-    MatrixXd diff_daba_dqd2(MatrixXd::Zero(model.nv,model.nv));
-
-    diff_daba_dq2 = daba_dq-data.Minv_mat_prod.middleCols(0,model.nv);
-    diff_daba_dqd2 = daba_dv-data.Minv_mat_prod.middleCols(model.nv,model.nv);
-
-    std::cout << "Norm of the difference matrix for AZA FD partial wrt q from orig FD partial wrt q is " << diff_daba_dq2.squaredNorm() << std::endl;
-    std::cout << "Norm of the difference matrix for AZA FD partial wrt qd from orig FD partial wrt qd is " << diff_daba_dqd2.squaredNorm() << std::endl;
-
-//-------------------------------------------------------------------------------------------
 
 #ifndef NO_FINITE_DIFFS
   timer.tic();
@@ -285,8 +293,6 @@ int main(int argc, const char ** argv)
   }
   std::cout << "M.inverse() from ABA = \t\t"; timer.toc(std::cout,NBT);
   
-
-
 //--------
 
   MatrixXd Minv(model.nv,model.nv); Minv.setZero();

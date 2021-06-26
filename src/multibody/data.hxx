@@ -87,7 +87,7 @@ namespace pinocchio
   // end other new stuff
   // new stuff- SS
   , Minv_mat_prod(MatrixXs::Zero(model.nv,2*model.nv))
-  , tau_mat(MatrixXs::Zero(model.nv,2*model.nv))
+  , tau_mat_v2(MatrixXs::Zero(model.nv,2*model.nv))
   , Fcrb_v2((std::size_t)model.njoints,Matrix6x::Zero(6,2*model.nv)) // new variable
   , Pcrb_v2((std::size_t)model.njoints,Matrix6x::Zero(6,2*model.nv)) // new variable  
   , Fcrb_v2_tmp(Matrix6x::Zero(6,2*model.nv)) // new variable  
