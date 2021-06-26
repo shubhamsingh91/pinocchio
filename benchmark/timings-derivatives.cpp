@@ -240,8 +240,9 @@ int main(int argc, const char ** argv)
   std::cout << "Minv + AZA = \t\t"; timer.toc(std::cout,NBT);
 
 //-------------------------------------------------------------------------------------------
-
-   // difference matrix - if using this, then NBT=1
+// UNCOMMENT and use NBT=1 for testing this
+// Recommended to use for systems with N>60
+//-------------------------------------------------------------------------------------------
 
     // MatrixXd diff_daba_dq2(MatrixXd::Zero(model.nv,model.nv));
     // MatrixXd diff_daba_dqd2(MatrixXd::Zero(model.nv,model.nv));
