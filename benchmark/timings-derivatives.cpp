@@ -120,7 +120,7 @@ int main(int argc, const char ** argv)
 
   PinocchioTicToc timer(PinocchioTicToc::US);
   #ifdef NDEBUG
-  const int NBT = 1;
+  const int NBT = 1000*100;
   #else
     const int NBT = 1;
     std::cout << "(the time score in debug mode is not relevant) " << std::endl;
@@ -237,22 +237,22 @@ int main(int argc, const char ** argv)
     {
         computeMinv_AZA(model,data,qs[_smooth],tau_mat[_smooth]);
     }
-  std::cout << "Minv_v2 + AZA = \t\t"; timer.toc(std::cout,NBT);
+  std::cout << "Minv + AZA = \t\t"; timer.toc(std::cout,NBT);
 
 //-------------------------------------------------------------------------------------------
 
    // difference matrix - if using this, then NBT=1
 
-    MatrixXd diff_daba_dq2(MatrixXd::Zero(model.nv,model.nv));
-    MatrixXd diff_daba_dqd2(MatrixXd::Zero(model.nv,model.nv));
+    // MatrixXd diff_daba_dq2(MatrixXd::Zero(model.nv,model.nv));
+    // MatrixXd diff_daba_dqd2(MatrixXd::Zero(model.nv,model.nv));
 
-    diff_daba_dq2 = daba_dq-data.Minv_mat_prod.middleCols(0,model.nv);
-    diff_daba_dqd2 = daba_dv-data.Minv_mat_prod.middleCols(model.nv,model.nv);
+    // diff_daba_dq2 = daba_dq-data.Minv_mat_prod.middleCols(0,model.nv);
+    // diff_daba_dqd2 = daba_dv-data.Minv_mat_prod.middleCols(model.nv,model.nv);
 
-    std::cout << "------------------------------------------------------" << std::endl;
-    std::cout << "difference matrix for AZA from orig FD partial wrt q is " << diff_daba_dq2.squaredNorm() << std::endl;
-    std::cout << "difference matrix for AZA from orig FD partial wrt qd is " << diff_daba_dqd2.squaredNorm() << std::endl;
-    std::cout << "--------------------------------------------------------" << std::endl;
+    // std::cout << "------------------------------------------------------" << std::endl;
+    // std::cout << "difference matrix for AZA from orig FD partial wrt q is " << diff_daba_dq2.squaredNorm() << std::endl;
+    // std::cout << "difference matrix for AZA from orig FD partial wrt qd is " << diff_daba_dqd2.squaredNorm() << std::endl;
+    // std::cout << "--------------------------------------------------------" << std::endl;
 
 //-------------------------------------------------------------------------------------------
 
