@@ -89,6 +89,11 @@ namespace pinocchio
       ov += vJ;
       oa += (ov ^ vJ) + data.oMi[i].act( jdata.S() * jmodel.jointVelocitySelector(a) + jdata.c() );
 
+     // joint frame variables here
+
+      data.a[i] = data.oMi[i].actInv(oa+model.gravity); // a in joint frame- this one is working 
+      data.v[i] = data.oMi[i].actInv(ov); // v in joint frame
+   
       // Composite rigid body inertia
       Inertia & oY =  data.oYcrb[i] ;
 
@@ -146,10 +151,12 @@ namespace pinocchio
       Inertia & oYcrb = data.oYcrb[i];
       Coriolis& oBcrb = data.oBcrb[i];
 
-      
       MatrixType1 & rnea_partial_dq_ = PINOCCHIO_EIGEN_CONST_CAST(MatrixType1,rnea_partial_dq);
       MatrixType2 & rnea_partial_dv_ = PINOCCHIO_EIGEN_CONST_CAST(MatrixType2,rnea_partial_dv);
       MatrixType3 & rnea_partial_da_ = PINOCCHIO_EIGEN_CONST_CAST(MatrixType3,rnea_partial_da);
+   
+      // tau -- added joint torques here
+      jmodel.jointVelocitySelector(data.tau).noalias() = J_cols.transpose()*data.of[i].toVector();
 
       motionSet::inertiaAction(oYcrb,J_cols,tmp1);
       
