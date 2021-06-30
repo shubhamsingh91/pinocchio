@@ -91,7 +91,7 @@ namespace pinocchio
 
      // joint frame variables here
 
-      data.a[i] = data.oMi[i].actInv(oa+model.gravity); // a in joint frame- this one is working 
+      data.a[i] = data.oMi[i].actInv(oa+model.gravity); // a in joint frame
       data.v[i] = data.oMi[i].actInv(ov); // v in joint frame
    
       // Composite rigid body inertia
