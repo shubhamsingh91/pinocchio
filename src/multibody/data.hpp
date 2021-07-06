@@ -165,13 +165,7 @@ namespace pinocchio
     
     /// \brief The inverse of the joint space inertia matrix (a square matrix of dim model.nv).
     RowMatrixXs Minv;
-
-    /// \brief Minv_mat_prod // new variable dim=nx2n
-    RowMatrixXs Minv_mat_prod;
-
-    /// \brief tau_mat   new variable for Minv_v2, dim(nx2n)
-    RowMatrixXs tau_mat_v2;
-
+    
     /// \brief The Coriolis matrix (a square matrix of dim model.nv).
     MatrixXs C;
 
@@ -257,15 +251,6 @@ namespace pinocchio
 
     /// \brief Spatial forces set, used in CRBA and CCRBA
     PINOCCHIO_ALIGNED_STD_VECTOR(Matrix6x) Fcrb;
-
-    /// \brief new variable - SS
-    PINOCCHIO_ALIGNED_STD_VECTOR(Matrix6x) Fcrb_v2;
-    
-    /// \brief new temp variable here -SS
-    Matrix6x Fcrb_v2_tmp;
-
-    /// \brief Snew variable - SS
-    PINOCCHIO_ALIGNED_STD_VECTOR(Matrix6x) Pcrb_v2;
 
     /// \brief Index of the last child (for CRBA)
     std::vector<int> lastChild;
