@@ -15,6 +15,7 @@
 #include "pinocchio/parsers/urdf.hpp"
 #include "pinocchio/parsers/sample-models.hpp"
 #include "pinocchio/container/aligned-vector.hpp"
+#include "pinocchio/algorithm/aba_v2.hpp"
 
 #include <iostream>
 
@@ -127,7 +128,7 @@ int main(int argc, const char ** argv)
     
   Model model;
 
-  std::string filename = PINOCCHIO_MODEL_DIR + std::string("/simple_humanoid.urdf");
+  std::string filename = "/home/ss86299/Desktop/pinocchio/models" + std::string("/simple_humanoid.urdf");
   if(argc>1) filename = argv[1];
   bool with_ff = true;
   
@@ -156,13 +157,15 @@ int main(int argc, const char ** argv)
   PINOCCHIO_ALIGNED_STD_VECTOR(VectorXd) qdots  (NBT);
   PINOCCHIO_ALIGNED_STD_VECTOR(VectorXd) qddots (NBT);
   PINOCCHIO_ALIGNED_STD_VECTOR(VectorXd) taus (NBT);
-  
+  PINOCCHIO_ALIGNED_STD_VECTOR(MatrixXd) tau_mat (NBT);  // added a new variable
+ 
   for(size_t i=0;i<NBT;++i)
   {
     qs[i]     = randomConfiguration(model,-qmax,qmax);
     qdots[i]  = Eigen::VectorXd::Random(model.nv);
     qddots[i] = Eigen::VectorXd::Random(model.nv);
     taus[i] = Eigen::VectorXd::Random(model.nv);
+    tau_mat[i] = Eigen::MatrixXd::Zero(model.nv,2*model.nv); // new variable
   }
   
   PINOCCHIO_EIGEN_PLAIN_ROW_MAJOR_TYPE(MatrixXd) drnea_dq(MatrixXd::Zero(model.nv,model.nv));
@@ -211,6 +214,49 @@ int main(int argc, const char ** argv)
   }
   std::cout << "RNEA derivatives v2= \t\t"; timer.toc(std::cout,NBT);
 
+
+    taus[0] = data.tau;  // input tau taken from RNEA_derivs- SS
+
+  timer.tic();
+  SMOOTH(NBT)
+  {
+    computeABADerivatives(model,data,qs[_smooth],qdots[_smooth],taus[_smooth],
+                          daba_dq,daba_dv,daba_dtau);
+  }
+  std::cout << "ABA derivatives= \t\t"; timer.toc(std::cout,NBT);
+
+  //----------------------------------------------------------------------------//
+  //--------------------- New Minv_v2 = Minv + AZA multicol---------------------//
+  //---------------------- SS 6/26/21 ------------------------------------------//
+  //----------------------------------------------------------------------------//
+
+    tau_mat[0] << -drnea_dq,-drnea_dv; // concatenating partial wrt q and qdot
+
+    timer.tic();
+    SMOOTH(NBT)
+    {
+        computeMinv_AZA(model,data,qs[_smooth],tau_mat[_smooth]);
+    }
+  std::cout << "Minv + AZA = \t\t"; timer.toc(std::cout,NBT);
+
+//-------------------------------------------------------------------------------------------
+// UNCOMMENT and use NBT=1 for testing this
+// Recommended to use for systems with N>60
+//-------------------------------------------------------------------------------------------
+
+    // MatrixXd diff_daba_dq2(MatrixXd::Zero(model.nv,model.nv));
+    // MatrixXd diff_daba_dqd2(MatrixXd::Zero(model.nv,model.nv));
+
+    // diff_daba_dq2 = daba_dq-data.Minv_mat_prod.middleCols(0,model.nv);
+    // diff_daba_dqd2 = daba_dv-data.Minv_mat_prod.middleCols(model.nv,model.nv);
+
+    // std::cout << "------------------------------------------------------" << std::endl;
+    // std::cout << "difference matrix for AZA from orig FD partial wrt q is " << diff_daba_dq2.squaredNorm() << std::endl;
+    // std::cout << "difference matrix for AZA from orig FD partial wrt qd is " << diff_daba_dqd2.squaredNorm() << std::endl;
+    // std::cout << "--------------------------------------------------------" << std::endl;
+
+//-------------------------------------------------------------------------------------------
+
 #ifndef NO_FINITE_DIFFS
   timer.tic();
   SMOOTH(NBT/100)
@@ -228,14 +274,9 @@ int main(int argc, const char ** argv)
   }
   std::cout << "ABA= \t\t"; timer.toc(std::cout,NBT);
   
-  timer.tic();
-  SMOOTH(NBT)
-  {
-    computeABADerivatives(model,data,qs[_smooth],qdots[_smooth],taus[_smooth],
-                          daba_dq,daba_dv,daba_dtau);
-  }
-  std::cout << "ABA derivatives= \t\t"; timer.toc(std::cout,NBT);
-  
+
+
+
 #ifndef NO_FINITE_DIFFS
   timer.tic();
   SMOOTH(NBT)
@@ -253,6 +294,8 @@ int main(int argc, const char ** argv)
   }
   std::cout << "M.inverse() from ABA = \t\t"; timer.toc(std::cout,NBT);
   
+//--------
+
   MatrixXd Minv(model.nv,model.nv); Minv.setZero();
   timer.tic();
   SMOOTH(NBT)
@@ -264,5 +307,8 @@ int main(int argc, const char ** argv)
   std::cout << "Minv from Cholesky = \t\t"; timer.toc(std::cout,NBT);
 
   std::cout << "--" << std::endl;
+
+
+
   return 0;
 }
