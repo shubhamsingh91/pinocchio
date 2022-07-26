@@ -93,8 +93,7 @@ int main(int argc, const char **argv) {
   std::cout << "Enter the model name " << endl;
   std::cin >> model_name;
   std::string filename =
-      "/home/shubham/Desktop/Pinocchio_SO_v2/pinocchio-master/models" +
-      std::string("/") + model_name + std::string(".urdf");
+      "../models" + std::string("/") + model_name + std::string(".urdf");
 
   if (argc > 1)
     filename = argv[1];
@@ -154,6 +153,8 @@ int main(int argc, const char **argv) {
     computeRNEADerivativesFaster(model, data, qs[_smooth], qdots[_smooth],
                                  qddots[_smooth], drnea_dq, drnea_dv, drnea_da);
   }
+  drnea_da.triangularView<Eigen::StrictlyLower>() =
+      drnea_da.transpose().triangularView<Eigen::StrictlyLower>();
 
   //  std::cout << "drnea_dq = " << drnea_dq << endl;
   //  std::cout << "drnea_dv = " << drnea_dv << endl;
@@ -178,9 +179,12 @@ int main(int argc, const char **argv) {
   Eigen::Tensor<double, 3> dtau2_dq(model.nv, model.nv, model.nv);
   Eigen::Tensor<double, 3> dtau2_dqd(model.nv, model.nv, model.nv);
   Eigen::Tensor<double, 3> dtau2_MSO(model.nv, model.nv, model.nv);
+  Eigen::Tensor<double, 3> M_FO(model.nv, model.nv, model.nv);
+
   dtau2_dq.setZero();
   dtau2_dqd.setZero();
   dtau2_MSO.setZero();
+  M_FO.setZero();
 
   VectorXd v_eps(VectorXd::Zero(model.nv));
   VectorXd q_plus(model.nq);
@@ -206,8 +210,14 @@ int main(int argc, const char **argv) {
     computeRNEADerivativesFaster(model, data, q_plus, qdots[_smooth],
                                  qddots[_smooth], drnea_dq_plus, drnea_dv_plus,
                                  drnea_da_plus);
+    drnea_da_plus.triangularView<Eigen::StrictlyLower>() =
+        drnea_da_plus.transpose().triangularView<Eigen::StrictlyLower>();
+
     temp_mat1 = (drnea_dq_plus - drnea_dq) / alpha;
+    temp_mat2 = (drnea_da_plus - drnea_da) / alpha;
     hess_assign_fd(dtau2_dq, temp_mat1, model.nv, k);
+    hess_assign_fd(M_FO, temp_mat2, model.nv, k);
+
     v_eps[k] -= alpha;
   }
 
@@ -227,7 +237,6 @@ int main(int argc, const char **argv) {
     hess_assign_fd(dtau2_MSO, temp_mat2, model.nv, k);
     v_eps[k] -= alpha;
   }
-  // std::cout << "dtau2_dq = "<< dtau2_dq << endl;
 
   // ----------------------------------------------------
   // ID SO v7 Analytical Partials ------------------------
@@ -258,7 +267,7 @@ int main(int argc, const char **argv) {
   temp1 = dtau2_dq - dtau2_dq_ana_v2;
   temp2 = dtau2_dqd - dtau2_dv_ana_v2;
   temp3 = dtau2_MSO - dtau2_dqv_ana_v2;
-  // temp4 = M_FO_v1 - M_FO_v2;
+  temp4 = M_FO - M_FO_v2;
 
   std::cout << "---------------------------------------------------"
             << std::endl;

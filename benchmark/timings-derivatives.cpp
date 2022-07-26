@@ -13,6 +13,7 @@
 #include "pinocchio/algorithm/rnea-derivatives-faster.hpp"
 #include "pinocchio/algorithm/rnea-derivatives.hpp"
 #include "pinocchio/algorithm/rnea.hpp"
+#include "pinocchio/algorithm/rnea_SO_derivatives.hpp"
 #include "pinocchio/container/aligned-vector.hpp"
 #include "pinocchio/parsers/sample-models.hpp"
 #include "pinocchio/parsers/urdf.hpp"
@@ -108,7 +109,8 @@ int main(int argc, const char **argv) {
 
   PinocchioTicToc timer(PinocchioTicToc::US);
 #ifdef NDEBUG
-  const int NBT = 1000 * 100;
+  const int NBT = 1000 * 10;
+
 #else
   const int NBT = 1;
   std::cout << "(the time score in debug mode is not relevant) " << std::endl;
@@ -164,12 +166,19 @@ int main(int argc, const char **argv) {
   MatrixXd daba_dv(MatrixXd::Zero(model.nv, model.nv));
   Data::RowMatrixXs daba_dtau(Data::RowMatrixXs::Zero(model.nv, model.nv));
 
+  // RNEA SO variables
+
+  Eigen::Tensor<double, 3> dtau2_dq(model.nv, model.nv, model.nv);
+  Eigen::Tensor<double, 3> dtau2_dv(model.nv, model.nv, model.nv);
+  Eigen::Tensor<double, 3> dtau2_dqv(model.nv, model.nv, model.nv);
+  Eigen::Tensor<double, 3> M_FO(model.nv, model.nv, model.nv);
+
   timer.tic();
   SMOOTH(NBT) {
     forwardKinematics(model, data, qs[_smooth], qdots[_smooth],
                       qddots[_smooth]);
   }
-  std::cout << "FK= \t\t";
+  std::cout << "FK= \t\t\t\t";
   timer.toc(std::cout, NBT);
 
   timer.tic();
@@ -184,7 +193,7 @@ int main(int argc, const char **argv) {
   SMOOTH(NBT) {
     rnea(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth]);
   }
-  std::cout << "RNEA= \t\t";
+  std::cout << "RNEA= \t\t\t\t";
   timer.toc(std::cout, NBT);
 
   timer.tic();
@@ -213,39 +222,20 @@ int main(int argc, const char **argv) {
   std::cout << "ABA derivatives= \t\t";
   timer.toc(std::cout, NBT);
 
-  //----------------------------------------------------------------------------//
-  //--------------------- New Minv_v2 = Minv + AZA
-  //multicol---------------------//
-  //---------------------- SS 6/26/21
-  //------------------------------------------//
-  //----------------------------------------------------------------------------//
-
   tau_mat[0] << -drnea_dq, -drnea_dv; // concatenating partial wrt q and qdot
 
   timer.tic();
   SMOOTH(NBT) { computeMinv_AZA(model, data, qs[_smooth], tau_mat[_smooth]); }
-  std::cout << "Minv + AZA = \t\t";
+  std::cout << "Minv + AZA = \t\t\t";
   timer.toc(std::cout, NBT);
 
-  //-------------------------------------------------------------------------------------------
-  // UNCOMMENT and use NBT=1 for testing this
-  // Recommended to use for systems with N>60
-  //-------------------------------------------------------------------------------------------
-
-  // MatrixXd diff_daba_dq2(MatrixXd::Zero(model.nv,model.nv));
-  // MatrixXd diff_daba_dqd2(MatrixXd::Zero(model.nv,model.nv));
-
-  // diff_daba_dq2 = daba_dq-data.Minv_mat_prod.middleCols(0,model.nv);
-  // diff_daba_dqd2 = daba_dv-data.Minv_mat_prod.middleCols(model.nv,model.nv);
-
-  // std::cout << "------------------------------------------------------" <<
-  // std::endl; std::cout << "difference matrix for AZA from orig FD partial wrt
-  // q is " << diff_daba_dq2.squaredNorm() << std::endl; std::cout <<
-  // "difference matrix for AZA from orig FD partial wrt qd is " <<
-  // diff_daba_dqd2.squaredNorm() << std::endl; std::cout <<
-  // "--------------------------------------------------------" << std::endl;
-
-  //-------------------------------------------------------------------------------------------
+  timer.tic();
+  SMOOTH(NBT) {
+    computeRNEA_SO_derivs(model, data, qs[_smooth], qdots[_smooth],
+                          qddots[_smooth], dtau2_dq, dtau2_dv, dtau2_dqv, M_FO);
+  }
+  std::cout << "RNEA SO derivatives= \t\t";
+  timer.toc(std::cout, NBT);
 
 #ifndef NO_FINITE_DIFFS
   timer.tic();
@@ -253,23 +243,23 @@ int main(int argc, const char **argv) {
     rnea_fd(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth], drnea_dq,
             drnea_dv, drnea_da);
   }
-  std::cout << "RNEA finite differences= \t\t";
+  std::cout << "RNEA finite differences= \t";
   timer.toc(std::cout, NBT / 100);
 #endif
 
   timer.tic();
   SMOOTH(NBT) { aba(model, data, qs[_smooth], qdots[_smooth], taus[_smooth]); }
-  std::cout << "ABA= \t\t";
+  std::cout << "ABA= \t\t\t\t";
   timer.toc(std::cout, NBT);
 
 #ifndef NO_FINITE_DIFFS
   timer.tic();
-  SMOOTH(NBT) {
+  SMOOTH(NBT / 100) {
     aba_fd(model, data, qs[_smooth], qdots[_smooth], taus[_smooth], daba_dq,
            daba_dv, daba_dtau);
   }
-  std::cout << "ABA finite differences= \t\t";
-  timer.toc(std::cout, NBT);
+  std::cout << "ABA finite differences= \t";
+  timer.toc(std::cout, NBT / 100);
 #endif
 
   timer.tic();
