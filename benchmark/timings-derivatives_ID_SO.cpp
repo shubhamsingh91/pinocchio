@@ -225,8 +225,7 @@ int main(int argc, const char **argv) {
   SMOOTH(NBT)
   for (int k = 0; k < model.nv; ++k) {
     v_eps[k] += alpha;
-    qd_plus = qdots[_smooth] +
-              v_eps; // This is used to add the v_eps to q in the k^th direction
+    qd_plus = qdots[_smooth] + v_eps;
     computeRNEADerivativesFaster(model, data, qs[_smooth], qd_plus,
                                  qddots[_smooth], drnea_dq_plus, drnea_dv_plus,
                                  drnea_da_plus);
