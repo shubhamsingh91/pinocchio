@@ -1,10 +1,9 @@
 //
 // Copyright (c) 2017-2020 CNRS INRIA
-// ID RNEA SO partials algo
-// Author - SS
-// This RNEA SO analytical algo is only for accuracy and run-times
-// created on 4/8/22  - triple loop solution- with all intermediate variables as
-// vectors
+/*
+/ RNEA SO derivatives algorithm
+  Author- Shubham Singh singh281@utexas.edu
+*/
 
 #ifndef __pinocchio_rnea_SO_derivatives_hxx__
 #define __pinocchio_rnea_SO_derivatives_hxx__
@@ -68,32 +67,21 @@ struct computeRNEA_SO_derivsForwardStep
 
     typedef typename SizeDepType<JointModel::NV>::template ColsReturn<
         typename Data::Matrix6x>::Type ColsBlock;
-    ColsBlock J_cols = jmodel.jointCols(
-        data.J); // data.J has all the phi (in ground frame) stacked in columns
-    ColsBlock dJ_cols =
-        jmodel.jointCols(data.dJ); // dJ_cols is the psi_dot in ground frame
-    ColsBlock ddJ_cols = jmodel.jointCols(
-        data.ddJ); // ddJ_cols is the psi_dotdot in ground frame
-    ColsBlock phidJ_cols =
-        jmodel.jointCols(data.phidJ); // This here is phi_dot in ground frame
+    ColsBlock J_cols = jmodel.jointCols(data.J);
+    ColsBlock dJ_cols = jmodel.jointCols(data.dJ);
+    ColsBlock ddJ_cols = jmodel.jointCols(data.ddJ);
+    ColsBlock phidJ_cols = jmodel.jointCols(data.phidJ);
 
-    J_cols.noalias() = data.oMi[i].act(
-        jdata.S()); // J_cols is just the phi in ground frame for a joint
+    J_cols.noalias() = data.oMi[i].act(jdata.S());
     vJ = data.oMi[i].act(jdata.v());
-    motionSet::motionAction(ov, J_cols,
-                            dJ_cols); // This ov here is v(p(i)), psi_dot calcs
-    motionSet::motionAction(
-        oa, J_cols, ddJ_cols); // This oa here is a(p(i)) , psi_dotdot calcs
-    motionSet::motionAction<ADDTO>(
-        ov, dJ_cols, ddJ_cols); // This ov here is v(p(i)) , psi_dotdot calcs
+    motionSet::motionAction(ov, J_cols, dJ_cols);
+    motionSet::motionAction(oa, J_cols, ddJ_cols);
+    motionSet::motionAction<ADDTO>(ov, dJ_cols, ddJ_cols);
     ov += vJ;
     oa += (ov ^ vJ) +
           data.oMi[i].act(jdata.S() * jmodel.jointVelocitySelector(a) +
                           jdata.c());
-    motionSet::motionAction(
-        ov, J_cols,
-        phidJ_cols); // This here is phi_dot, here ov used is v(p(i)) + vJ
-                     // Composite rigid body inertia
+    motionSet::motionAction(ov, J_cols, phidJ_cols);
     Inertia &oY = data.oYcrb[i];
 
     oY = data.oMi[i].act(model.inertias[i]);
@@ -133,19 +121,12 @@ struct computeRNEA_SO_derivsBackwardStep
     typedef typename SizeDepType<JointModel::NV>::template ColsReturn<
         typename Data::Matrix6x>::Type ColsBlock;
 
-    ColsBlock J_cols =
-        jmodel.jointCols(data.J); // gives the phi matrix for this joint S{i}
-    ColsBlock dJ_cols = jmodel.jointCols(
-        data.dJ); // gives the psi_dot matrix for this joint psi_dot{i}
-    ColsBlock ddJ_cols = jmodel.jointCols(
-        data.ddJ); // gives the psid_dot matrix for this joint  psi_ddot{i}
-    ColsBlock phidJ_cols = jmodel.jointCols(
-        data.phidJ); // gives the phi_dot for this joint   phi_dot{i}
+    ColsBlock J_cols = jmodel.jointCols(data.J);
+    ColsBlock dJ_cols = jmodel.jointCols(data.dJ);
+    ColsBlock ddJ_cols = jmodel.jointCols(data.ddJ);
+    ColsBlock phidJ_cols = jmodel.jointCols(data.phidJ);
 
-    const Eigen::Index joint_idx =
-        (Eigen::Index)
-            jmodel.idx_v(); //  beginning index of this joint, for eg for
-                            //  floatbase, it's 0, and then for next one it's 6
+    const Eigen::Index joint_idx = (Eigen::Index)jmodel.idx_v();
     const Eigen::Index joint_dofs =
         (Eigen::Index)jmodel.nv(); // no of joint DOFs
 
@@ -177,13 +158,11 @@ struct computeRNEA_SO_derivsBackwardStep
 
       S_dm = J_cols.col(p);        // S{i}(:,p)
       psid_dm = dJ_cols.col(p);    // psi_dot for p DOF
-      psidd_dm = ddJ_cols.col(p);  // psi_dot for p DOF
+      psidd_dm = ddJ_cols.col(p);  // psi_ddot for p DOF
       phid_dm = phidJ_cols.col(p); // phi_dot for p DOF
 
-      data.oBicphii[0] =
-          Coriolis(oYcrb, S_dm); // Bic_phii matrix in ground frame
-      data.oBicpsidot[0] =
-          Coriolis(oYcrb, psid_dm); // Bic_psii_dot matrix in ground frame
+      data.oBicphii[0] = Coriolis(oYcrb, S_dm);      // Bic_phii matrix
+      data.oBicpsidot[0] = Coriolis(oYcrb, psid_dm); // Bic_psii_dot matrix
       motionSet::inertiaAction(oYcrb, S_dm.toVector(),
                                data.ftemp1); // IC{i}S{i}(:,p)
       F_var1 = data.ftemp1;
@@ -193,43 +172,29 @@ struct computeRNEA_SO_derivsBackwardStep
       data.r3[0].noalias() =
           (data.oBicpsidot[0]).matrix_impl() -
           ((S_dm.toActionMatrix_impl()).transpose()) * (oBcrb.matrix_impl()) -
-          (oBcrb.matrix_impl()) *
-              (S_dm.toActionMatrix_impl()); // Bicpsidot + S{i}(p)x*BC{i}-
-                                            // BC{i}S{i}(p)x
-                                            // r4
+          (oBcrb.matrix_impl()) * (S_dm.toActionMatrix_impl());
       motionSet::coriolisTransposeAction(oBcrb, S_dm.toVector(), data.ftemp1);
       F_var1 = data.ftemp1;
-      ForceCrossMatrix(F_var1, data.r4[0]); // cmf_bar(BC{i}.'S{i}(:,p))
-      // r5
-      tempmat1.noalias() =
-          -((S_dm.toActionMatrix_impl()).transpose()); // cmf(S{i}(:,p))
+      ForceCrossMatrix(F_var1, data.r4[0]);
+      tempmat1.noalias() = -((S_dm.toActionMatrix_impl()).transpose());
       motionSet::coriolisAction(oBcrb, psid_dm.toVector(), data.ftemp1);
       motionSet::inertiaAction<ADDTO>(oYcrb, psidd_dm.toVector(), data.ftemp1);
       data.ftemp1.noalias() += tempmat1 * data.of[i].toVector();
       F_var1 = data.ftemp1;
-      ForceCrossMatrix(
-          F_var1,
-          data.r5
-              [0]); // cmf_bar(BC{i}psi_dot{i}(:,p)+IC{i}psi_ddot{i}(:,p)+S{i}(:,p)x*f{i})
+      ForceCrossMatrix(F_var1, data.r5[0]);
       // r6
-      data.r6[0].noalias() =
-          tempmat1 * oYcrb.matrix_impl() + data.r0[0]; // S{i}(:,p)x* IC{i} + r0
+      data.r6[0].noalias() = tempmat1 * oYcrb.matrix_impl() + data.r0[0];
       // r7
       motionSet::coriolisAction(oBcrb, S_dm.toVector(), data.ftemp1);
       motionSet::inertiaAction<ADDTO>(
           oYcrb, psid_dm.toVector() + phid_dm.toVector(), data.ftemp1);
       F_var1 = data.ftemp1;
-      ForceCrossMatrix(F_var1,
-                       data.r7[0]); // cmf_bar(BC{i}S{i}(:,p) +
-                                    // IC{i}(psi_dot{i}(:,p)+phi_dot{i}(:,p)))
+      ForceCrossMatrix(F_var1, data.r7[0]);
 
       j = i;
 
       while (j > 0) {
-        joint_idx_j =
-            (Eigen::Index)(model.joints[j])
-                .idx_v(); //  beginning index of this joint, for eg for
-                          //  floatbase, it's 0, and then for next one it's 6
+        joint_idx_j = (Eigen::Index)(model.joints[j]).idx_v();
         joint_dofs_j = (Eigen::Index)(model.joints[j]).nv(); // no of joint DOFs
         Jcols_j = (model.joints[j]).jointCols(data.J);       //  S{j}
         dJ_cols_j = (model.joints[j]).jointCols(data.dJ);    //  psi_dot{j}
@@ -267,10 +232,7 @@ struct computeRNEA_SO_derivsBackwardStep
           k = j;
 
           while (k > 0) {
-            joint_idx_k = (Eigen::Index)(model.joints[k])
-                              .idx_v(); //  beginning index of this joint, for
-                                        //  eg for floatbase, it's 0, and then
-                                        //  for next one it's 6
+            joint_idx_k = (Eigen::Index)(model.joints[k]).idx_v();
             joint_dofs_k =
                 (Eigen::Index)(model.joints[k]).nv();      // no of joint DOFs
             Jcols_k = (model.joints[k]).jointCols(data.J); //  S{k}
