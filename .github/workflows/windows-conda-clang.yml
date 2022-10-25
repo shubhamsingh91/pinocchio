@@ -1,4 +1,4 @@
-name: Build Pinocchio for Windows (CLANG) via Conda
+name: CI - Windows (CLANG) via Conda
 on:
   pull_request:
   push:
@@ -17,7 +17,7 @@ jobs:
             compiler: clang-cl
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Checkout submodules
       run: |
         git submodule update --init
@@ -31,7 +31,8 @@ jobs:
     - name: Install cmake and update conda
       run: |
         conda install cmake -c main
-    
+        conda list
+
     - name: Build Pinocchio
       shell: cmd /C CALL {0}
       env:
@@ -44,7 +45,7 @@ jobs:
         set PATH=%PATH:C:\hostedtoolcache\windows\Boost\1.72.0;=%
 
         call "%programfiles(x86)%\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" amd64
-    
+
         :: Create build directory
         mkdir build
         pushd build
@@ -59,6 +60,7 @@ jobs:
           -DBUILD_WITH_URDF_SUPPORT=ON ^
           -DBUILD_PYTHON_INTERFACE=ON ^
           -DBUILD_WITH_COLLISION_SUPPORT=ON ^
+          -DINSTALL_DOCUMENTATION=ON ^
           ..
 
         :: Build

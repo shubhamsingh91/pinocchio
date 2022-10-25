@@ -203,6 +203,7 @@ namespace pinocchio
       res.nframes = nframes;
       res.parents = parents;
       res.names = names;
+      res.supports = supports;      
       res.subtrees = subtrees;
       res.gravity = gravity.template cast<NewScalar>();
       res.name = name;
@@ -548,6 +549,20 @@ namespace pinocchio
     template<typename D>
     inline bool check(const AlgorithmCheckerBase<D> & checker = AlgorithmCheckerBase<D>()) const
     { return checker.checkModel(*this); }
+
+    ///
+    /// \brief Check if joints have configuration limits
+    ///
+    /// \return Returns list of boolean of size model.nq.
+    ///
+    std::vector<bool> hasConfigurationLimit();
+
+    ///
+    /// \brief Check if joints have configuration limits
+    ///
+    /// \return Returns list of boolean of size model.nq.
+    ///
+    std::vector<bool> hasConfigurationLimitInTangent();
 
     /// Run check(fusion::list) with DEFAULT_CHECKERS as argument.
     inline bool check() const;

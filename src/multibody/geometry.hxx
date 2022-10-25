@@ -81,6 +81,28 @@ namespace pinocchio
   , outerObjects (other.outerObjects)
   {}
 
+  inline GeometryData& GeometryData::operator=(const GeometryData & other)
+  {
+    if (this != &other)
+    {
+      oMg = other.oMg;
+      activeCollisionPairs = other.activeCollisionPairs;
+#ifdef PINOCCHIO_WITH_HPP_FCL
+      distanceRequests = other.distanceRequests;
+      distanceResults = other.distanceResults;
+      collisionRequests = other.collisionRequests;
+      collisionResults = other.collisionResults;
+      radius = other.radius;
+      collisionPairIndex = other.collisionPairIndex;
+      collision_functors = other.collision_functors;
+      distance_functors = other.distance_functors;
+#endif // PINOCCHIO_WITH_HPP_FCL
+      innerObjects = other.innerObjects;
+      outerObjects = other.outerObjects;
+    }
+    return *this;
+  }
+
   inline GeometryData::~GeometryData() {}
 
   template<typename S2, int O2, template<typename,int> class JointCollectionTpl>
@@ -102,6 +124,30 @@ namespace pinocchio
     GeomIndex idx = (GeomIndex) (ngeoms ++);
     geometryObjects.push_back(object);
     return idx;
+  }
+
+  inline void GeometryModel::removeGeometryObject(const std::string& name)
+  {
+    GeomIndex i=0;
+    GeometryObjectVector::iterator it;
+    for (it=geometryObjects.begin(); it!=geometryObjects.end(); ++it, ++i){
+      if (it->name == name){
+        break;
+      }
+    }
+    PINOCCHIO_THROW(it != geometryObjects.end(),std::invalid_argument, (std::string("Object ") + name + std::string(" does not belong to model")).c_str());
+    // Remove all collision pairs that contain i as first or second index,
+    for (CollisionPairVector::iterator itCol = collisionPairs.begin(); itCol != collisionPairs.end(); ++itCol){
+      if ((itCol->first == i) || (itCol->second == i)) {
+        itCol = collisionPairs.erase(itCol); itCol--;
+      } else {
+        // Indices of objects after the one that is removed should be decreased by one.
+        if (itCol->first > i)  itCol->first--;
+        if (itCol->second > i) itCol->second--;
+      }
+    }
+    geometryObjects.erase(it);
+    ngeoms--;
   }
 
   inline GeomIndex GeometryModel::getGeometryId(const std::string & name) const

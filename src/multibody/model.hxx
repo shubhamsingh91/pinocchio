@@ -76,6 +76,7 @@ namespace pinocchio
     PINOCCHIO_CHECK_ARGUMENT_SIZE(max_config.size(),joint_model.nq(),"The joint upper configuration bound is not of right size");
     PINOCCHIO_CHECK_ARGUMENT_SIZE(joint_friction.size(),joint_model.nv(),"The joint friction vector is not of right size");
     PINOCCHIO_CHECK_ARGUMENT_SIZE(joint_damping.size(),joint_model.nv(),"The joint damping vector is not of right size");
+    PINOCCHIO_CHECK_INPUT_ARGUMENT(parent < (JointIndex)njoints, "The index of the parent joint is not valid.");
 
     JointIndex idx = (JointIndex)(njoints++);
     
@@ -96,6 +97,7 @@ namespace pinocchio
     parents        .push_back(parent);
     jointPlacements.push_back(joint_placement);
     names          .push_back(joint_name);
+
     
     nq += joint_nq; nqs.push_back(joint_nq); idx_qs.push_back(joint_idx_q);
     nv += joint_nv; nvs.push_back(joint_nv); idx_vs.push_back(joint_idx_v);
@@ -279,7 +281,7 @@ namespace pinocchio
   addFrame(const Frame & frame, const bool append_inertia)
   {
     PINOCCHIO_CHECK_INPUT_ARGUMENT(frame.parent < (JointIndex)njoints,
-                                   "The index of the parent frame is not valid.");
+                                   "The index of the parent joint is not valid.");
     
 //    TODO: fix it
 //    PINOCCHIO_CHECK_INPUT_ARGUMENT(frame.inertia.isValid(),
@@ -305,6 +307,34 @@ namespace pinocchio
     
     // Also add joint_id to the universe
     subtrees[0].push_back(joint_id);
+  }
+
+  template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl>
+  std::vector<bool> ModelTpl<Scalar,Options,JointCollectionTpl>::hasConfigurationLimit()
+  {
+    std::vector<bool> vec;
+    for(Index i=1;i<(Index)(njoints);++i)
+    {
+      const std::vector<bool> & cf_limits = joints[i].hasConfigurationLimit();
+      vec.insert(vec.end(),
+                 cf_limits.begin(),
+                 cf_limits.end());
+    }    
+    return vec;
+  }
+
+  template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl>
+  std::vector<bool> ModelTpl<Scalar,Options,JointCollectionTpl>::hasConfigurationLimitInTangent()
+  {
+    std::vector<bool> vec;
+    for(Index i=1;i<(Index)(njoints);++i)
+    {
+      const std::vector<bool> & cf_limits = joints[i].hasConfigurationLimitInTangent();
+      vec.insert(vec.end(),
+                 cf_limits.begin(),
+                 cf_limits.end());
+    }    
+    return vec;
   }
 
 } // namespace pinocchio

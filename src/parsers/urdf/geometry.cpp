@@ -165,9 +165,18 @@ namespace pinocchio
           bool convex = tree.isMeshConvex (linkName, geomName);
           if (convex) {
             bvh->buildConvexRepresentation (false);
+#if HPP_FCL_MAJOR_VERSION < 2
             geometry = bvh->convex;
-          } else
+#else
+            geometry = boost::shared_ptr<fcl::CollisionGeometry>(bvh->convex.get(), [bvh](...) mutable { bvh->convex.reset(); });
+#endif  // HPP_FCL_MAJOR_VERSION
+          } else {
+#if HPP_FCL_MAJOR_VERSION < 2
             geometry = bvh;
+#else
+            geometry = boost::shared_ptr<fcl::CollisionGeometry>(bvh.get(), [bvh](...) mutable { bvh.reset(); });
+#endif  // HPP_FCL_MAJOR_VERSION
+          }
 #else
           geometry = meshLoader->load (meshPath, scale);
 #endif
@@ -221,7 +230,7 @@ namespace pinocchio
         
         if (!geometry)
         {
-          throw std::invalid_argument("The polyhedron retrived is empty");
+          throw std::invalid_argument("The polyhedron retrieved is empty");
         }
 
         return geometry;
@@ -360,7 +369,7 @@ namespace pinocchio
 
           FrameIndex frame_id;
           UrdfGeomVisitorBase::Frame frame = visitor.getBodyFrame (link_name, frame_id);
-          SE3 body_placement = frame.placement;
+          const SE3 & body_placement = frame.placement;
 
           std::size_t objectId = 0;
           for (typename VectorSharedT::const_iterator i = geometries_array.begin();i != geometries_array.end(); ++i)
@@ -391,7 +400,7 @@ namespace pinocchio
             std::string meshTexturePath;
             bool overrideMaterial = getVisualMaterial<GeometryType>((*i), meshTexturePath, meshColor, package_dirs);
 
-            SE3 geomPlacement = body_placement * convertFromUrdf((*i)->origin);
+            const SE3 geomPlacement = body_placement * convertFromUrdf((*i)->origin);
             std::ostringstream geometry_object_suffix;
             geometry_object_suffix << "_" << objectId;
             const std::string & geometry_object_name = std::string(link_name + geometry_object_suffix.str());
@@ -408,7 +417,7 @@ namespace pinocchio
 
       /**
        * @brief      Recursive procedure for reading the URDF tree, looking for geometries
-       *             This function fill the geometric model whith geometry objects retrieved from the URDF tree
+       *             This function fill the geometric model with geometry objects retrieved from the URDF tree
        *
        * @param[in]  tree           The URDF kinematic tree
        * @param[in]  meshLoader     The FCL mesh loader to avoid duplications of already loaded geometries

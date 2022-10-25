@@ -69,8 +69,11 @@ namespace pinocchio
           throw eigenpy::Exception("Pickle was not able to reconstruct the model from the loaded data.\n"
                                    "The entry is not a string.");
         }
-
+        
       }
+      
+      static bool getstate_manages_dict() { return true; }
+      
     };
     
     template<typename Model>
@@ -202,6 +205,8 @@ namespace pinocchio
         
         .def("check",(bool (Model::*)(const Data &) const) &Model::check,bp::args("self","data"),
              "Check consistency of data wrt model.")
+        .def("hasConfigurationLimit",&Model::hasConfigurationLimit, bp::args("self"), "Returns list of boolean if joints have configuration limit.")
+        .def("hasConfigurationLimitInTangent",&Model::hasConfigurationLimitInTangent, bp::args("self"), "Returns list of boolean if joints have configuration limit in tangent space  .")
         
         .def(bp::self == bp::self)
         .def(bp::self != bp::self)
