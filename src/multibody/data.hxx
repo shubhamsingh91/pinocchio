@@ -25,6 +25,7 @@ namespace pinocchio
   , a_gf((std::size_t)model.njoints,Motion::Zero())
   , oa_gf((std::size_t)model.njoints,Motion::Zero())
   , v((std::size_t)model.njoints,Motion::Zero())
+  , vJ((std::size_t)model.njoints, Motion::Zero())
   , ov((std::size_t)model.njoints,Motion::Zero())
   , f((std::size_t)model.njoints,Force::Zero())
   , of((std::size_t)model.njoints,Force::Zero())

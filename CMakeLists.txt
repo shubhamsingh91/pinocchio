@@ -57,14 +57,14 @@ ENDIF(WIN32)
 # --- OPTIONS ----------------------------------------
 OPTION(BUILD_BENCHMARK "Build the benchmarks" OFF)
 OPTION(BUILD_UTILS "Build the utils" OFF)
-OPTION(BUILD_PYTHON_INTERFACE "Build the Python bindings" ON)
+OPTION(BUILD_PYTHON_INTERFACE "Build the Python bindings" OFF)
 OPTION(BUILD_WITH_COMMIT_VERSION "Build libraries by setting specific commit version" OFF)
 
 IF(DEFINED BUILD_UNIT_TESTS)
   MESSAGE(AUTHOR_WARNING "BUILD_UNIT_TESTS is deprecated. Use BUILD_TESTING instead.\
     If you are manually building Pinocchio from source in an existing build folder,\
     we suggest that you delete your build folder and make a new one.")
-  SET(BUILD_TESTING ${BUILD_UNIT_TESTS})
+  #SET(BUILD_TESTING ${BUILD_UNIT_TESTS})
 ENDIF(DEFINED BUILD_UNIT_TESTS)
 
 OPTION(BUILD_ADVANCED_TESTING "Build the advanced tests (multiprecision, etc.) of Pinocchio" OFF)
@@ -288,13 +288,13 @@ ADD_SUBDIRECTORY(bindings)
 ADD_SUBDIRECTORY(utils)
 
 # --- UNIT TESTS ---------------------------------------------------------------
-ADD_SUBDIRECTORY(unittest)
+#ADD_SUBDIRECTORY(unittest)
 
 # --- CHECK EXAMPLES -----------------------------------------------------------
-ADD_SUBDIRECTORY(examples)
+#ADD_SUBDIRECTORY(examples)
 
 # --- BENCHMARKS ---------------------------------------------------------------
-ADD_SUBDIRECTORY(benchmark)
+#ADD_SUBDIRECTORY(benchmark)
 
 # --- PACKAGING ----------------------------------------------------------------
 MACRO(EXPORT_VARIABLE var_name var_value)

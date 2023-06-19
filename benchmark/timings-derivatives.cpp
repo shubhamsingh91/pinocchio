@@ -119,7 +119,7 @@ int main(int argc, const char ** argv)
 
   PinocchioTicToc timer(PinocchioTicToc::US);
   #ifdef NDEBUG
-  const int NBT = 1000*100;
+  const int NBT = 1000*10;
   #else
     const int NBT = 1;
     std::cout << "(the time score in debug mode is not relevant) " << std::endl;
@@ -127,7 +127,9 @@ int main(int argc, const char ** argv)
     
   Model model;
 
-  std::string filename = PINOCCHIO_MODEL_DIR + std::string("/simple_humanoid.urdf");
+  //std::string filename = PINOCCHIO_MODEL_DIR + std::string("/simple_humanoid.urdf");
+  std::string filename =  std::string("../models/simple_humanoid.urdf");
+
   if(argc>1) filename = argv[1];
   bool with_ff = true;
   
