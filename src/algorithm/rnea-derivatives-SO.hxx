@@ -252,7 +252,6 @@ struct ComputeRNEADerivativesSOBackwardStep
               }
 
               if (k != j) {
-<<<<<<< HEAD
                 p3 = -u11 * S_k.toVector();
                 p5 = S_k.toVector().dot(u9);
                 d2tau_dqdq_(ip, kr, jq) = p2;
@@ -277,32 +276,6 @@ struct ComputeRNEADerivativesSOBackwardStep
 
               } else {
                 d2tau_dvdv_(ip, jq, kr) = -u2 * S_k.toVector();
-=======
-                p3 = -u11 * Sdmv;
-                p5 = Sdmv.dot(u9);
-                dtau_dq2_(ip, kr, jq) = p2;
-                dtau_dq2_(kr, ip, jq) = Sdmv.dot(u3);
-                dtau_dv2_(ip, jq, kr) = p3;
-                dtau_dv2_(ip, kr, jq) = p3;
-                dtau_dqdv_(ip, jq, kr) = Sdmv.dot(u5 + u8);
-                dtau_dqdv_(ip, jq, kr) += u9.dot(psid_dmv + phid_dmv);
-                dtau_dqdv_(kr, jq, ip) = Sdmv.dot(u6);
-                dtau_dadq_(kr, ip, jq) = p5;
-                dtau_dadq_(ip, kr, jq) = p5;
-                if (j != i) {
-                  p6 = Sdmv.dot(u10);
-                  dtau_dq2_(kr, jq, ip) = dtau_dq2_(kr, ip, jq);
-                  dtau_dv2_(kr, ip, jq) = p6;
-                  dtau_dv2_(kr, jq, ip) = p6;
-                  dtau_dqdv_(kr, ip, jq) = Sdmv.dot(u7);
-
-                } else {
-                  dtau_dv2_(kr, jq, ip) = Sdmv.dot(u4);
-                }
-
-              } else {
-                dtau_dv2_(ip, jq, kr) = -u2 * Sdmv;
->>>>>>> e5d57e881ba8c90c894f562aeb506d0c0acd30f3
               }
             }
 
@@ -312,7 +285,6 @@ struct ComputeRNEADerivativesSOBackwardStep
         j = model.parents[j];
       }
     }
-<<<<<<< HEAD
         
         if (parent > 0) {
             data.oYcrb[parent] += data.oYcrb[i];
@@ -388,102 +360,6 @@ inline void computeRNEADerivativesSO(const ModelTpl<Scalar, Options, JointCollec
                                         const_cast<tensortype2&>(d2tau_dvdv), const_cast<tensortype3&>(dtau_dqdv),
                                         const_cast<tensortype4&>(dtau_dadq)));
     }
-=======
-    if (parent > 0) {
-      data.oYcrb[parent] += data.oYcrb[i];
-      data.doYcrb[parent] += data.doYcrb[i];
-      data.of[parent] += data.of[i];
-    }
-  }
-
-  // Function for cmf_bar operator
-  template <typename ForceDerived, typename M6>
-  static void ForceCrossMatrix(const ForceDense<ForceDerived> &f,
-                               const Eigen::MatrixBase<M6> &mout) {
-    M6 &mout_ = PINOCCHIO_EIGEN_CONST_CAST(M6, mout);
-    mout_.template block<3, 3>(ForceDerived::LINEAR, ForceDerived::LINEAR)
-        .setZero();
-    mout_.template block<3, 3>(ForceDerived::LINEAR, ForceDerived::ANGULAR) =
-        mout_.template block<3, 3>(ForceDerived::ANGULAR,
-                                   ForceDerived::LINEAR) = skew(-f.linear());
-    mout_.template block<3, 3>(ForceDerived::ANGULAR, ForceDerived::ANGULAR) =
-        skew(-f.angular());
-  }
-  template <typename ForceDerived, typename M6>
-
-  static void addForceCrossMatrix(const ForceDense<ForceDerived> &f,
-                                  const Eigen::MatrixBase<M6> &mout) {
-    M6 &mout_ = PINOCCHIO_EIGEN_CONST_CAST(M6, mout);
-    addSkew(-f.linear(), mout_.template block<3, 3>(ForceDerived::LINEAR,
-                                                    ForceDerived::ANGULAR));
-    addSkew(-f.linear(), mout_.template block<3, 3>(ForceDerived::ANGULAR,
-                                                    ForceDerived::LINEAR));
-    addSkew(-f.angular(), mout_.template block<3, 3>(ForceDerived::ANGULAR,
-                                                     ForceDerived::ANGULAR));
-  }
-};
-
-template <typename Scalar, int Options,
-          template <typename, int> class JointCollectionTpl,
-          typename ConfigVectorType, typename TangentVectorType1,
-          typename TangentVectorType2, typename tensortype1,
-          typename tensortype2, typename tensortype3, typename tensortype4>
-inline void computeRNEADerivativesSO(
-    const ModelTpl<Scalar, Options, JointCollectionTpl> &model,
-    DataTpl<Scalar, Options, JointCollectionTpl> &data,
-    const Eigen::MatrixBase<ConfigVectorType> &q,
-    const Eigen::MatrixBase<TangentVectorType1> &v,
-    const Eigen::MatrixBase<TangentVectorType2> &a, const tensortype1 &dtau_dq2,
-    const tensortype2 &dtau_dv2, const tensortype3 &dtau_dqdv,
-    const tensortype4 &dtau_dadq) {
-  // Extra safety here
-  PINOCCHIO_CHECK_ARGUMENT_SIZE(
-      q.size(), model.nq,
-      "The joint configuration vector is not of right size");
-  PINOCCHIO_CHECK_ARGUMENT_SIZE(
-      v.size(), model.nv, "The joint velocity vector is not of right size");
-  PINOCCHIO_CHECK_ARGUMENT_SIZE(
-      a.size(), model.nv, "The joint acceleration vector is not of right size");
-  PINOCCHIO_CHECK_ARGUMENT_SIZE(dtau_dq2.dimension(0), model.nv);
-  PINOCCHIO_CHECK_ARGUMENT_SIZE(dtau_dq2.dimension(1), model.nv);
-  PINOCCHIO_CHECK_ARGUMENT_SIZE(dtau_dq2.dimension(2), model.nv);
-  PINOCCHIO_CHECK_ARGUMENT_SIZE(dtau_dv2.dimension(0), model.nv);
-  PINOCCHIO_CHECK_ARGUMENT_SIZE(dtau_dv2.dimension(1), model.nv);
-  PINOCCHIO_CHECK_ARGUMENT_SIZE(dtau_dv2.dimension(2), model.nv);
-  PINOCCHIO_CHECK_ARGUMENT_SIZE(dtau_dqdv.dimension(0), model.nv);
-  PINOCCHIO_CHECK_ARGUMENT_SIZE(dtau_dqdv.dimension(1), model.nv);
-  PINOCCHIO_CHECK_ARGUMENT_SIZE(dtau_dqdv.dimension(2), model.nv);
-  PINOCCHIO_CHECK_ARGUMENT_SIZE(dtau_dadq.dimension(0), model.nv);
-  PINOCCHIO_CHECK_ARGUMENT_SIZE(dtau_dadq.dimension(1), model.nv);
-  PINOCCHIO_CHECK_ARGUMENT_SIZE(dtau_dadq.dimension(2), model.nv);
-  assert(model.check(data) && "data is not consistent with model.");
-
-  typedef ModelTpl<Scalar, Options, JointCollectionTpl> Model;
-  typedef typename Model::JointIndex JointIndex;
-
-  typedef ComputeRNEADerivativesSOForwardStep<
-      Scalar, Options, JointCollectionTpl, ConfigVectorType, TangentVectorType1,
-      TangentVectorType2>
-      Pass1;
-  for (JointIndex i = 1; i < (JointIndex)model.njoints; ++i) {
-    Pass1::run(model.joints[i], data.joints[i],
-               typename Pass1::ArgsType(model, data, q.derived(), v.derived(),
-                                        a.derived()));
-  }
-
-  typedef ComputeRNEADerivativesSOBackwardStep<
-      Scalar, Options, JointCollectionTpl, tensortype1, tensortype2,
-      tensortype3, tensortype4>
-      Pass2;
-  for (JointIndex i = (JointIndex)(model.njoints - 1); i > 0; --i) {
-    Pass2::run(model.joints[i],
-               typename Pass2::ArgsType(model, data,
-                                        const_cast<tensortype1 &>(dtau_dq2),
-                                        const_cast<tensortype2 &>(dtau_dv2),
-                                        const_cast<tensortype3 &>(dtau_dqdv),
-                                        const_cast<tensortype4 &>(dtau_dadq)));
-  }
->>>>>>> e5d57e881ba8c90c894f562aeb506d0c0acd30f3
 }
 
 } // namespace pinocchio
