@@ -16,18 +16,11 @@ SET(PROJECT_USE_KEYWORD_LINK_LIBRARIES TRUE)
 SET(CXX_DISABLE_WERROR True)
 SET(CMAKE_VERBOSE_MAKEFILE True)
 
-<<<<<<< HEAD
 # ----------------------------------------------------
 # --- OPTIONS  ---------------------------------------
 # Need to be set before including base.cmake
 # ----------------------------------------------------
 OPTION(INSTALL_DOCUMENTATION "Generate and install the documentation" OFF)
-=======
-# new settings
-# SET(CMAKE_BUILD_TYPE Release)
-# SET(CMAKE_CXX_FLAGS_RELEASE "-O3")
-# SET(CMAKE_CXX_FLAGS_RELEASE "-march=native")
->>>>>>> master
 
 # Check if the submodule cmake have been initialized
 IF(NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/cmake/base.cmake")
@@ -79,9 +72,9 @@ OPTION(BUILD_ADVANCED_TESTING "Build the advanced tests (multiprecision, etc.) o
 # --- OPTIONAL DEPENDENCIES -------------------------
 OPTION(BUILD_WITH_URDF_SUPPORT "Build the library with the URDF format support" ON)
 OPTION(BUILD_WITH_COLLISION_SUPPORT "Build the library with the collision support (required HPP-FCL)" OFF)
-OPTION(BUILD_WITH_AUTODIFF_SUPPORT "Build the library with the automatic differentiation support (via CppAD)" ON)
+OPTION(BUILD_WITH_AUTODIFF_SUPPORT "Build the library with the automatic differentiation support (via CppAD)" OFF)
 OPTION(BUILD_WITH_CASADI_SUPPORT "Build the library with the support of CASADI" OFF)
-OPTION(BUILD_WITH_CODEGEN_SUPPORT "Build the library with the support of code generation (via CppADCodeGen)" ON)
+OPTION(BUILD_WITH_CODEGEN_SUPPORT "Build the library with the support of code generation (via CppADCodeGen)" OFF)
 OPTION(BUILD_WITH_OPENMP_SUPPORT "Build the library with the OpenMP support" OFF)
 cmake_dependent_option(LINK_PYTHON_INTERFACE_TO_OPENMP "Link OpenMP to the Python interface" ON
   "BUILD_PYTHON_INTERFACE;BUILD_WITH_OPENMP_SUPPORT" OFF)
@@ -153,17 +146,12 @@ ENDIF(BUILD_WITH_OPENMP_SUPPORT)
 
 SET(BOOST_REQUIRED_COMPONENTS filesystem serialization system)
 
-#SET_BOOST_DEFAULT_OPTIONS()
-#EXPORT_BOOST_DEFAULT_OPTIONS()
-SET(BOOST_BUILD_COMPONENTS unit_test_framework)
-SET(BOOST_OPTIONAL_COMPONENTS "")
-find_package(Boost COMPONENTS python38 REQUIRED)
-
+SET_BOOST_DEFAULT_OPTIONS()
+EXPORT_BOOST_DEFAULT_OPTIONS()
 ADD_PROJECT_DEPENDENCY(Boost REQUIRED COMPONENTS ${BOOST_REQUIRED_COMPONENTS})
 
 IF(BUILD_PYTHON_INTERFACE)
   MESSAGE(STATUS "The Python bindings of Pinocchio will be compiled along the main library. If you want to disable this feature, please set the option BUILD_PYTHON_INTERFACE to OFF.")
-<<<<<<< HEAD
 
   set(PYTHON_COMPONENTS Interpreter Development.Module NumPy)
   IF(BUILD_WITH_LIBPYTHON)
@@ -185,11 +173,6 @@ IF(BUILD_PYTHON_INTERFACE)
       MESSAGE(STATUS "PyPy detected, therefore libpython is not available and BUILD_WITH_LIBPYTHON set to OFF.")
     ENDIF()
   ENDIF()
-=======
-  FINDPYTHON(REQUIRED)
-  #SEARCH_FOR_BOOST_PYTHON(REQUIRED)
-  #ADD_PROJECT_DEPENDENCY(eigenpy 2.6.2 REQUIRED)
->>>>>>> master
 ELSE(BUILD_PYTHON_INTERFACE)
   MESSAGE(STATUS "Pinocchio won't be compiled with its Python bindings. If you want to enable this feature, please set the option BUILD_PYTHON_INTERFACE to ON.")
 ENDIF(BUILD_PYTHON_INTERFACE)
@@ -299,13 +282,13 @@ LIST(APPEND HEADERS
 ADD_SUBDIRECTORY(src)
 
 # --- BINDINGS -----------------------------------------------------------------
-# ADD_SUBDIRECTORY(bindings)
+ADD_SUBDIRECTORY(bindings)
 
 # --- EXECUTABLES --------------------------------------------------------------
 ADD_SUBDIRECTORY(utils)
 
 # --- UNIT TESTS ---------------------------------------------------------------
-# ADD_SUBDIRECTORY(unittest)
+ADD_SUBDIRECTORY(unittest)
 
 # --- CHECK EXAMPLES -----------------------------------------------------------
 #ADD_SUBDIRECTORY(examples)
