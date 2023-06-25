@@ -32,6 +32,7 @@ namespace pinocchio
           typedef _Scalar Scalar;
           typedef SE3Tpl<Scalar,Options> SE3;
           typedef InertiaTpl<Scalar,Options> Inertia;
+          typedef CoriolisTpl<Scalar, Options> Coriolis;
 
           typedef Eigen::Matrix<Scalar, 3, 1> Vector3;
           typedef Eigen::Matrix<Scalar, Eigen::Dynamic, 1> Vector;
@@ -96,7 +97,8 @@ namespace pinocchio
           typedef typename Base::VectorConstRef VectorConstRef;
           typedef typename Base::SE3            SE3;
           typedef typename Base::Inertia        Inertia;
-
+          typedef typename Base::Coriolis Coriolis;   
+ 
           typedef ModelTpl<Scalar,Options,JointCollectionTpl> Model;
           typedef typename Model::JointCollection JointCollection;
           typedef typename Model::JointModel JointModel;

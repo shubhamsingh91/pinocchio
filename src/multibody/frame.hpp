@@ -7,6 +7,7 @@
 
 #include "pinocchio/spatial/se3.hpp"
 #include "pinocchio/spatial/inertia.hpp"
+#include "pinocchio/spatial/spatial-coriolis.hpp"
 #include "pinocchio/multibody/fwd.hpp"
 
 #include <string>

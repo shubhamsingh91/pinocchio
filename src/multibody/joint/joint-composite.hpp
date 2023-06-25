@@ -162,7 +162,8 @@ namespace pinocchio
     typedef SE3Tpl<Scalar,Options> SE3;
     typedef MotionTpl<Scalar,Options> Motion;
     typedef InertiaTpl<Scalar,Options> Inertia;
-  
+    typedef CoriolisTpl<Scalar, Options> Coriolis;
+
     typedef PINOCCHIO_ALIGNED_STD_VECTOR(JointModel) JointModelVector;
     
     using Base::id;
