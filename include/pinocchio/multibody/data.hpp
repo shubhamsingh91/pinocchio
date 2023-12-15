@@ -344,7 +344,6 @@ namespace pinocchio
     /// \brief psiddot Second Derivative of Jacobian w.r.t to the parent body
     /// moving a(p(j)) x Sj + v(p(j)) x psidj
     Matrix6x psidd;
-<<<<<<< HEAD:src/multibody/data.hpp
    /// \brief Other term needed for derivatives
     Matrix6x vdJ;
       //----------------------------------------------------------
@@ -355,9 +354,6 @@ namespace pinocchio
     Matrix6x Ftmp3;
     Matrix6x Ftmp4;
     
-=======
-
->>>>>>> 97a00a983e66fc0a58667f9671e2d806ba9b730b:include/pinocchio/multibody/data.hpp
     /// \brief Variation of the spatial velocity set with respect to the joint configuration.
     Matrix6x dVdq;
     
