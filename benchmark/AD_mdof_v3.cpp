@@ -567,9 +567,9 @@ int main(int argc, const char* argv[])
         //     cas_mat4(model.nv, model.nv);
 
         // for (int k = 0; k < model.nv; k++) {
-        //     get_mat_from_tens3_v2(adc_data.d2tau_dq, cas_mat1, model.nv, k);
-        //     get_mat_from_tens3_v2(adc_data.d2tau_dv, cas_mat2, model.nv, k);
-        //     get_mat_from_tens3_v2(adc_data.d2tau_dqv, cas_mat3, model.nv, k);
+        //     get_mat_from_tens3_v2(adc_data.d2tau_dqdq, cas_mat1, model.nv, k);
+        //     get_mat_from_tens3_v2(adc_data.d2tau_dvdv, cas_mat2, model.nv, k);
+        //     get_mat_from_tens3_v2(adc_data.d2tau_dqdv, cas_mat3, model.nv, k);
         //     get_mat_from_tens3_v2(adc_data.M_FO, cas_mat4, model.nv, k);
 
         //     for (int j = 0; j < model.nv; j++) {

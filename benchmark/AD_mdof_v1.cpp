@@ -29,7 +29,7 @@ This version compares the CPU Runtime for
 #include "pinocchio/parsers/urdf.hpp"
 #include "pinocchio/parsers/sample-models.hpp"
 #include "pinocchio/container/aligned-vector.hpp"
-#include "pinocchio/algorithm/rnea-derivatives-SO.hpp"
+#include "pinocchio/algorithm/rnea-second-order-derivatives.hpp"
 #include "pinocchio/algorithm/rnea-derivatives-faster.hpp"
 #include "pinocchio/codegen/code-generator-algo.hpp"
 #include <iostream>
@@ -66,14 +66,14 @@ int main(int argc, const char* argv[])
     std::cout << "(the time score in debug mode is not relevant) " << std::endl;
 #endif
 
-    int n_models = 1;
+    int n_models = 5;
     string str_robotname[n_models];
 
     str_robotname[0] = "double_pendulum"; // double pendulum
-    // str_robotname[1] = "ur3_robot";       // UR3
-    // str_robotname[2] = "hyq";             // hyq
-    // str_robotname[3] = "baxter_simple";   // baxter_simple
-    // str_robotname[4] = "atlas";           // atlas
+    str_robotname[1] = "ur3_robot";       // UR3
+    str_robotname[2] = "hyq";             // hyq
+    str_robotname[3] = "baxter_simple";   // baxter_simple
+    str_robotname[4] = "atlas";           // atlas
     // str_robotname[5] = "talos_full_v2";   // talos_full_v2
 
     char tmp[256];
@@ -155,10 +155,12 @@ int main(int argc, const char* argv[])
         //----------------------------------------------------//
         // Compute RNEA FO derivatives faster-----------------//
         //----------------------------------------------------//
+        std::cout << "Running first case!" << std::endl;
 
         MatrixXd drnea_dq(MatrixXd::Zero(model.nv, model.nv));
         MatrixXd drnea_dv(MatrixXd::Zero(model.nv, model.nv));
         MatrixXd drnea_da(MatrixXd::Zero(model.nv, model.nv));
+        std::cout << "Running first case algo!" << std::endl;
 
         timer.tic();
         SMOOTH(NBT)
@@ -173,7 +175,8 @@ int main(int argc, const char* argv[])
         //----------------------------------------------------------//
         // Compute RNEA FO derivatives using CppAD (w/out codegen)--//
         //----------------------------------------------------------//
-
+       
+        
         typedef double Scalar;
         typedef AD<Scalar> ADScalar;
 
@@ -349,7 +352,7 @@ int main(int argc, const char* argv[])
         timer.tic();
         SMOOTH(NBT_SO)
         {
-            computeRNEADerivativesSO(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth], dtau2_dq_ana, dtau2_dv_ana,
+            ComputeRNEASecondOrderDerivatives(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth], dtau2_dq_ana, dtau2_dv_ana,
                 dtau2_dqv_ana, M_FO_ana);
         }
         time_ABA[3] = timer.toc() / NBT_SO; //
@@ -460,27 +463,27 @@ int main(int argc, const char* argv[])
         typename Data::Tensor3x d2tau_dq2_ADc, d2tau_dv2_ADc, d2tau_dqv_ADc, d2tau_daq_ADc;
 
         std::string strfun_d2tdq = robot_name + std::string("_d2tau_dq");
-        ::casadi::SX d2tau_dq = jacobian(cs_dtau_dq, cs_v_int);
+        ::casadi::SX d2tau_dqdq = jacobian(cs_dtau_dq, cs_v_int);
         ::casadi::Function eval_d2tau_dq(
-            strfun_d2tdq, ::casadi::SXVector {cs_q, cs_v_int, cs_v, cs_a}, ::casadi::SXVector {d2tau_dq});
+            strfun_d2tdq, ::casadi::SXVector {cs_q, cs_v_int, cs_v, cs_a}, ::casadi::SXVector {d2tau_dqdq});
 
         // d2tau_dv2
         std::string strfun_d2tdv = robot_name + std::string("_d2tau_dv");
-        ::casadi::SX d2tau_dv = jacobian(cs_dtau_dv, cs_v);
+        ::casadi::SX d2tau_dvdv = jacobian(cs_dtau_dv, cs_v);
         ::casadi::Function eval_d2tau_dv(
-            strfun_d2tdv, ::casadi::SXVector {cs_q, cs_v_int, cs_v, cs_a}, ::casadi::SXVector {d2tau_dv});
+            strfun_d2tdv, ::casadi::SXVector {cs_q, cs_v_int, cs_v, cs_a}, ::casadi::SXVector {d2tau_dvdv});
 
         // d2tau_dqdv
         std::string strfun_d2tdqv = robot_name + std::string("_d2tau_dqv");
-        ::casadi::SX d2tau_dqv = jacobian(cs_dtau_dq, cs_v);
+        ::casadi::SX d2tau_dqdv = jacobian(cs_dtau_dq, cs_v);
         ::casadi::Function eval_d2tau_dqv(
-            strfun_d2tdqv, ::casadi::SXVector {cs_q, cs_v_int, cs_v, cs_a}, ::casadi::SXVector {d2tau_dqv});
+            strfun_d2tdqv, ::casadi::SXVector {cs_q, cs_v_int, cs_v, cs_a}, ::casadi::SXVector {d2tau_dqdv});
 
         // d2tau_dqda
         std::string strfun_d2tdaq = robot_name + std::string("_d2tau_daq");
-        ::casadi::SX d2tau_daq = jacobian(cs_dtau_da, cs_v_int);
+        ::casadi::SX d2tau_dadq = jacobian(cs_dtau_da, cs_v_int);
         ::casadi::Function eval_d2tau_daq(
-            strfun_d2tdaq, ::casadi::SXVector {cs_q, cs_v_int, cs_v, cs_a}, ::casadi::SXVector {d2tau_daq});
+            strfun_d2tdaq, ::casadi::SXVector {cs_q, cs_v_int, cs_v, cs_a}, ::casadi::SXVector {d2tau_dadq});
 
         string compile_command;
 
@@ -547,7 +550,7 @@ int main(int argc, const char* argv[])
         //----------------------------------------------------------------------//
         //--------------NOT TIMED ----------------------------------------------//
 
-        computeRNEADerivativesSO(adc_model, adc_data, q_int_ad, v_ad, a_ad);
+        ComputeRNEASecondOrderDerivatives(adc_model, adc_data, q_int_ad, v_ad, a_ad);
 
         std::string strfun_d2tdq_ana_cg = robot_name + std::string("_d2tau_dq_ana_cg");
         std::string strfun_d2tdv_ana_cg = robot_name + std::string("_d2tau_dv_ana_cg");
@@ -562,8 +565,8 @@ int main(int argc, const char* argv[])
             cas_mat4(model.nv, model.nv);
 
         for (int k = 0; k < model.nv; k++) {
-            get_mat_from_tens3_v2(adc_data.d2tau_dq, cas_mat1, model.nv, k);
-            get_mat_from_tens3_v2(adc_data.d2tau_dv, cas_mat2, model.nv, k);
+            get_mat_from_tens3_v2(adc_data.d2tau_dqdq, cas_mat1, model.nv, k);
+            get_mat_from_tens3_v2(adc_data.d2tau_dvdv, cas_mat2, model.nv, k);
             get_mat_from_tens3_v2(adc_data.d2tau_dqdv, cas_mat3, model.nv, k);
             get_mat_from_tens3_v2(adc_data.d2tau_dadq, cas_mat4, model.nv, k);
 
@@ -612,7 +615,10 @@ int main(int argc, const char* argv[])
                 = "gcc -fPIC -shared -O3 -march=native " + strfun_MFO_ana_cg + ".c -o " + strfun_MFO_ana_cg + ".so ";
             flag = system(compile_command.c_str());
         }
-
+        
+     
+     
+     
         //------------------------------------------------//
         // Writing all the timings to the file
         //------------------------------------------------//

@@ -213,7 +213,6 @@ namespace pinocchio
     RowMatrix6 M6tmpR;
     RowMatrix6 M6tmpR2;
       
-<<<<<<< HEAD:src/multibody/data.hpp
     /// \brief Temporary for RNEA SO derivative algorithms
     Motion S_dm;
     Motion psid_dm;
@@ -252,8 +251,6 @@ namespace pinocchio
     Vector6r vecu11;
     Vector6r vecu12;
     Vector6c vecu13;
-=======
->>>>>>> 97a00a983e66fc0a58667f9671e2d806ba9b730b:include/pinocchio/multibody/data.hpp
     /// \brief The joint accelerations computed from ABA
     TangentVectorType ddq;
     
@@ -431,31 +428,8 @@ namespace pinocchio
 
     /// \brief Matrix related to joint torque regressor
     MatrixXs jointTorqueRegressor;
-<<<<<<< HEAD:src/multibody/data.hpp
     
-    /// \brief SO Partial derivative of the joint torque vector with respect to
-    /// the joint configuration.
-   Tensor3x d2tau_dq;
-
-    /// \brief SO Partial derivative of the joint torque vector with respect to
-    /// the joint velocity.
-    Tensor3x d2tau_dv;
-
-    /// \brief SO Cross-Partial derivative of the joint torque vector with
-    /// respect to the joint configuration/velocity.
-    Tensor3x d2tau_dqdv;
-
-    /// \brief SO Cross-Partial derivative of the joint torque vector with
-    /// respect to the joint acceleration/configuration. This also equals to the
-    /// First Order partial derivative of the Mass Matrix w.r.t joint
-    /// configuration
-    Tensor3x d2tau_dadq;
-
-    /// \brief Tensor containing the kinematic Hessian of all the joints.
-    Tensor3x kinematic_hessians;
-=======
-
-    /// \brief Tensor containing the kinematic Hessian of all the joints.
+      /// \brief Tensor containing the kinematic Hessian of all the joints.
     Tensor3x kinematic_hessians;
 
     /// \brief SO Partial derivative of the joint torque vector with respect to
@@ -476,7 +450,7 @@ namespace pinocchio
     /// configuration.
     Tensor3x d2tau_dadq;
 
->>>>>>> 97a00a983e66fc0a58667f9671e2d806ba9b730b:include/pinocchio/multibody/data.hpp
+
     ///
     /// \brief Default constructor of pinocchio::Data from a pinocchio::Model.
     ///

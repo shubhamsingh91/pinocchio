@@ -3,7 +3,7 @@
 # Copyright (c) 2015 Wandercraft, 86 rue de Paris 91400 Orsay, France.
 #
 
-include(${JRL_CMAKE_MODULES}/python-helpers.cmake)
+# include(${JRL_CMAKE_MODULES}/python-helpers.cmake)
 
 # --- PYTHON TARGET --- #
 SET(PYWRAP ${PROJECT_NAME}_pywrap)

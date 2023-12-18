@@ -107,8 +107,8 @@ int main(int argc, const char **argv) {
 
   computeRNEADerivativesSO(model, data, q, v, a, dtau2_dq_ana, dtau2_dv_ana,
                            dtau2_dqv_ana, dtau_dadq_ana);
-  //   dtau2_dq_ana = data.d2tau_dq;
-  //   dtau2_dv_ana = data.d2tau_dv;
+  //   dtau2_dq_ana = data.d2tau_dqdq;
+  //   dtau2_dv_ana = data.d2tau_dvdv;
   //   dtau2_dqv_ana = data.d2tau_dqdv;
   //   dtau_dadq_ana = data.d2tau_dadq;
 

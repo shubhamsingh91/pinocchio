@@ -52,7 +52,7 @@ ENDIF()
 # --- OPTIONS ----------------------------------------
 OPTION(BUILD_BENCHMARK "Build the benchmarks" OFF)
 OPTION(BUILD_UTILS "Build the utils" OFF)
-OPTION(BUILD_PYTHON_INTERFACE "Build the Python bindings" ON)
+OPTION(BUILD_PYTHON_INTERFACE "Build the Python bindings" OFF)
 option(GENERATE_PYTHON_STUBS "Generate the Python stubs associated to the Python library" OFF)
 OPTION(BUILD_WITH_COMMIT_VERSION "Build libraries by setting specific commit version" OFF)
 
@@ -68,13 +68,13 @@ OPTION(BUILD_ADVANCED_TESTING "Build the advanced tests (multiprecision, etc.) o
 # --- OPTIONAL DEPENDENCIES -------------------------
 OPTION(BUILD_WITH_URDF_SUPPORT "Build the library with the URDF format support" ON)
 OPTION(BUILD_WITH_COLLISION_SUPPORT "Build the library with the collision support (required HPP-FCL)" OFF)
-OPTION(BUILD_WITH_AUTODIFF_SUPPORT "Build the library with the automatic differentiation support (via CppAD)" OFF)
+OPTION(BUILD_WITH_AUTODIFF_SUPPORT "Build the library with the automatic differentiation support (via CppAD)" ON)
 OPTION(BUILD_WITH_CASADI_SUPPORT "Build the library with the support of CASADI" ON)
-OPTION(BUILD_WITH_CODEGEN_SUPPORT "Build the library with the support of code generation (via CppADCodeGen)" OFF)
+OPTION(BUILD_WITH_CODEGEN_SUPPORT "Build the library with the support of code generation (via CppADCodeGen)" ON)
 OPTION(BUILD_WITH_OPENMP_SUPPORT "Build the library with the OpenMP support" OFF)
 cmake_dependent_option(LINK_PYTHON_INTERFACE_TO_OPENMP "Link OpenMP to the Python interface" ON
   "BUILD_PYTHON_INTERFACE;BUILD_WITH_OPENMP_SUPPORT" OFF)
-cmake_dependent_option(BUILD_WITH_LIBPYTHON "Link to libpython to embed an interpreter for the python_parser feature" ON
+cmake_dependent_option(BUILD_WITH_LIBPYTHON "Link to libpython to embed an interpreter for the python_parser feature" OFF
   "BUILD_PYTHON_INTERFACE" OFF)
 
 OPTION(INITIALIZE_WITH_NAN "Initialize Eigen entries with NaN" OFF)
@@ -136,8 +136,8 @@ ENDIF(BUILD_WITH_OPENMP_SUPPORT)
 
 SET(BOOST_REQUIRED_COMPONENTS filesystem serialization system)
 
-SET_BOOST_DEFAULT_OPTIONS()
-EXPORT_BOOST_DEFAULT_OPTIONS()
+# SET_BOOST_DEFAULT_OPTIONS()
+# EXPORT_BOOST_DEFAULT_OPTIONS()
 ADD_PROJECT_DEPENDENCY(Boost REQUIRED COMPONENTS ${BOOST_REQUIRED_COMPONENTS})
 
 IF(Boost_VERSION_STRING VERSION_LESS 1.81)
@@ -158,7 +158,7 @@ IF(BUILD_PYTHON_INTERFACE)
     set(PYTHON_COMPONENTS ${PYTHON_COMPONENTS} Development)
   ENDIF()
 
-  ADD_PROJECT_DEPENDENCY(eigenpy 2.7.10 REQUIRED)
+  # ADD_PROJECT_DEPENDENCY(eigenpy 2.7.10 REQUIRED)
 
   IF(BUILD_WITH_LIBPYTHON)
     # Check wether this a PyPy Python

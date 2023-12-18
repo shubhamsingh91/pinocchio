@@ -98,7 +98,7 @@ inline void computeRNEADerivativesSO(
 /// \param[in] v The joint velocity vector (dim model.nv).
 /// \param[in] a The joint acceleration vector (dim model.nv).
 ///
-/// \returns The results are stored in data.d2tau_dq, data.d2tau_dv,
+/// \returns The results are stored in data.d2tau_dqdq, data.d2tau_dvdv,
 /// data.d2tau_dqdv, and data.d2tau_dadq which respectively correspond to the
 /// Second-Order partial derivatives of the joint torque vector with respect to
 /// the joint configuration, velocity and cross Second-Order partial derivatives
@@ -129,13 +129,13 @@ inline void computeRNEADerivativesSO(
     const Eigen::MatrixBase<ConfigVectorType> &q,
     const Eigen::MatrixBase<TangentVectorType1> &v,
     const Eigen::MatrixBase<TangentVectorType2> &a) {
-  (data.d2tau_dq).setZero();
-  (data.d2tau_dv).setZero();
+  (data.d2tau_dqdq).setZero();
+  (data.d2tau_dvdv).setZero();
   (data.d2tau_dqdv).setZero();
   (data.d2tau_dadq).setZero();
 
   computeRNEADerivativesSO(model, data, q.derived(), v.derived(), a.derived(),
-                           data.d2tau_dq, data.d2tau_dv, data.d2tau_dqdv,
+                           data.d2tau_dqdq, data.d2tau_dvdv, data.d2tau_dqdv,
                            data.d2tau_dadq);
 }
 
