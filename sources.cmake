@@ -26,6 +26,7 @@ SET(${PROJECT_NAME}_CORE_PUBLIC_HEADERS
   include/pinocchio/spatial/force.hpp
   include/pinocchio/spatial/force-dense.hpp
   include/pinocchio/spatial/inertia.hpp
+  include/pinocchio/spatial/spatial-coriolis.hpp
   include/pinocchio/spatial/log.hpp
   include/pinocchio/spatial/motion-tpl.hpp
   include/pinocchio/spatial/se3-tpl.hpp
@@ -55,13 +56,21 @@ SET(${PROJECT_NAME}_CORE_PUBLIC_HEADERS
   include/pinocchio/algorithm/kinematics-derivatives.hxx
   include/pinocchio/algorithm/jacobian.hxx
   include/pinocchio/algorithm/rnea-derivatives.hpp
+  include/pinocchio/algorithm/ID_FO_AZA.hpp
+  include/pinocchio/algorithm/rnea-derivatives-faster.hpp
+  include/pinocchio/algorithm/aba-derivatives-faster.hpp
   include/pinocchio/algorithm/rnea-second-order-derivatives.hxx
+  include/pinocchio/algorithm/rnea-derivatives-SO.hxx
+  include/pinocchio/algorithm/ID_FO_AZA.hxx
   include/pinocchio/algorithm/joint-configuration.hpp
   include/pinocchio/algorithm/model.hxx
   include/pinocchio/algorithm/contact-dynamics.hpp
   include/pinocchio/algorithm/centroidal.hxx
   include/pinocchio/algorithm/model.hpp
   include/pinocchio/algorithm/rnea-derivatives.hxx
+  include/pinocchio/algorithm/rnea-derivatives-faster.hxx
+  include/pinocchio/algorithm/aba-derivatives-faster.hxx
+  include/pinocchio/algorithm/rnea-derivatives-SO.hpp
   include/pinocchio/algorithm/compute-all-terms.hpp
   include/pinocchio/algorithm/jacobian.hpp
   include/pinocchio/algorithm/rnea-second-order-derivatives.hpp
@@ -110,6 +119,7 @@ SET(${PROJECT_NAME}_CORE_PUBLIC_HEADERS
   include/pinocchio/utils/file-explorer.hpp
   include/pinocchio/utils/cast.hpp
   include/pinocchio/utils/eigen-fix.hpp
+  include/pinocchio/utils/tensor_utils.hpp
   include/pinocchio/utils/static-if.hpp
   include/pinocchio/utils/timer.hpp
   include/pinocchio/deprecated-namespaces.hpp

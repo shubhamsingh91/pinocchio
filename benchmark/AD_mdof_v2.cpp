@@ -20,9 +20,9 @@ This version compares the CPU Runtime for
 #include "pinocchio/parsers/sample-models.hpp"
 #include "pinocchio/container/aligned-vector.hpp"
 #include "pinocchio/codegen/code-generator-algo.hpp"
-#include "pinocchio/algorithm/aza_so_v2.hpp"
-#include "pinocchio/algorithm/ID_FO_AZA.hpp"
-#include "pinocchio/algorithm/M_FO_v1.hpp"
+// #include "pinocchio/algorithm/aza_so_v2.hpp"
+// #include "pinocchio/algorithm/ID_FO_AZA.hpp"
+// #include "pinocchio/algorithm/M_FO_v1.hpp"
 #include <fstream>
 #include "pinocchio/utils/timer.hpp"
 #include <string>
@@ -58,14 +58,14 @@ int main(int argc, const char* argv[])
     std::cout << "(the time score in debug mode is not relevant) " << std::endl;
 #endif
 
-    int n_models = 4; // no of robots to be used
+    int n_models = 1; // no of robots to be used
     string str_robotname[n_models];
 
     str_robotname[0] = "double_pendulum"; // double pendulum
-    str_robotname[1] = "ur3_robot";       // UR3
-    str_robotname[2] = "hyq";             // hyq
-    str_robotname[3] = "baxter_simple";   // baxter_simple
-    str_robotname[4] = "atlas";           // atlas
+    // str_robotname[1] = "ur3_robot";       // UR3
+    // str_robotname[2] = "hyq";             // hyq
+    // str_robotname[3] = "baxter_simple";   // baxter_simple
+    // str_robotname[4] = "atlas";           // atlas
     // str_robotname[5] = "talos_full_v2";   // Talos
 
     char tmp[256];

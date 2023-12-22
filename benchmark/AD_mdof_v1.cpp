@@ -29,7 +29,7 @@ This version compares the CPU Runtime for
 #include "pinocchio/parsers/urdf.hpp"
 #include "pinocchio/parsers/sample-models.hpp"
 #include "pinocchio/container/aligned-vector.hpp"
-#include "pinocchio/algorithm/rnea-second-order-derivatives.hpp"
+#include "pinocchio/algorithm/rnea-derivatives-SO.hpp"
 #include "pinocchio/algorithm/rnea-derivatives-faster.hpp"
 #include "pinocchio/codegen/code-generator-algo.hpp"
 #include <iostream>
@@ -66,14 +66,14 @@ int main(int argc, const char* argv[])
     std::cout << "(the time score in debug mode is not relevant) " << std::endl;
 #endif
 
-    int n_models = 5;
+    int n_models = 1;
     string str_robotname[n_models];
 
     str_robotname[0] = "double_pendulum"; // double pendulum
-    str_robotname[1] = "ur3_robot";       // UR3
-    str_robotname[2] = "hyq";             // hyq
-    str_robotname[3] = "baxter_simple";   // baxter_simple
-    str_robotname[4] = "atlas";           // atlas
+    // str_robotname[1] = "ur3_robot";       // UR3
+    // str_robotname[2] = "hyq";             // hyq
+    // str_robotname[3] = "baxter_simple";   // baxter_simple
+    // str_robotname[4] = "atlas";           // atlas
     // str_robotname[5] = "talos_full_v2";   // talos_full_v2
 
     char tmp[256];
@@ -352,7 +352,7 @@ int main(int argc, const char* argv[])
         timer.tic();
         SMOOTH(NBT_SO)
         {
-            ComputeRNEASecondOrderDerivatives(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth], dtau2_dq_ana, dtau2_dv_ana,
+            computeRNEADerivativesSO(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth], dtau2_dq_ana, dtau2_dv_ana,
                 dtau2_dqv_ana, M_FO_ana);
         }
         time_ABA[3] = timer.toc() / NBT_SO; //
@@ -445,7 +445,7 @@ int main(int argc, const char* argv[])
         // ID SO derivatives using CasADi (w/out codegen) ----//
         //----------------------------------------------------//
 
-        pinocchio::computeRNEADerivativesFaster(adc_model, adc_data, q_int_ad, v_ad, a_ad);
+        pinocchio::computeRNEADerivatives(adc_model, adc_data, q_int_ad, v_ad, a_ad);
         (adc_data.M).triangularView<Eigen::StrictlyLower>()
             = (adc_data.M).transpose().triangularView<Eigen::StrictlyLower>();
 
@@ -550,7 +550,7 @@ int main(int argc, const char* argv[])
         //----------------------------------------------------------------------//
         //--------------NOT TIMED ----------------------------------------------//
 
-        ComputeRNEASecondOrderDerivatives(adc_model, adc_data, q_int_ad, v_ad, a_ad);
+       // computeRNEADerivativesSO(adc_model, adc_data, q_int_ad, v_ad, a_ad);
 
         std::string strfun_d2tdq_ana_cg = robot_name + std::string("_d2tau_dq_ana_cg");
         std::string strfun_d2tdv_ana_cg = robot_name + std::string("_d2tau_dv_ana_cg");

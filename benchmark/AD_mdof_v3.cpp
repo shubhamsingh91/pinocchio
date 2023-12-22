@@ -30,7 +30,7 @@ ToDo
 #include "pinocchio/parsers/urdf.hpp"
 #include "pinocchio/parsers/sample-models.hpp"
 #include "pinocchio/container/aligned-vector.hpp"
-#include "pinocchio/algorithm/rnea_SO_v7.hpp"
+// #include "pinocchio/algorithm/rnea_SO_v7.hpp"
 #include "pinocchio/algorithm/rnea-derivatives-faster.hpp"
 #include "pinocchio/codegen/code-generator-algo.hpp"
 #include <iostream>
