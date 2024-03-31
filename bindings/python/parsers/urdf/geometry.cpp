@@ -29,7 +29,10 @@ namespace pinocchio
       MeshLoaderPtr mesh_loader = MeshLoaderPtr();
       if (!py_mesh_loader.is_none()) {
 #ifdef PINOCCHIO_WITH_HPP_FCL
+PINOCCHIO_COMPILER_DIAGNOSTIC_PUSH
+PINOCCHIO_COMPILER_DIAGNOSTIC_IGNORED_MAYBE_UNINITIALIZED
         mesh_loader = bp::extract<::hpp::fcl::MeshLoaderPtr>(py_mesh_loader);
+PINOCCHIO_COMPILER_DIAGNOSTIC_POP
 #else
         PyErr_WarnEx(PyExc_UserWarning, "Mesh loader is ignored because Pinocchio is not built with hpp-fcl", 1);
 #endif
@@ -139,10 +142,20 @@ namespace pinocchio
       template <class ArgumentPackage>
       static PyObject* postcall(ArgumentPackage const& args_, PyObject* result)
       {
+        // If owner_arg exists, we run bp::return_internal_reference postcall
+        // result lifetime will be tied to the owner_arg lifetime
         PyObject* patient = bp::detail::get_prev<owner_arg>::execute(args_, result);
         if (patient != Py_None)
           return bp::return_internal_reference<owner_arg>::postcall(args_, result);
-        return result;
+        // If owner_arg doesn't exist, then Python will have to manage the result lifetime
+        bp::extract<GeometryModel*> geom_model_extract(result);
+        if (geom_model_extract.check())
+        {
+          return bp::to_python_indirect<GeometryModel, bp::detail::make_owning_holder>()(geom_model_extract());
+        }
+        // If returned value is not a GeometryModel*, then raise an error
+        PyErr_SetString(PyExc_RuntimeError, "pinocchio::python::return_value_policy only works on GeometryModel* data type");
+        return 0;
       }
     };
 

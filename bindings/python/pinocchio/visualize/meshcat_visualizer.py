@@ -6,7 +6,6 @@ from . import BaseVisualizer
 import os
 import warnings
 import numpy as np
-from distutils.version import LooseVersion
 
 try:
     import hppfcl
@@ -20,6 +19,14 @@ DEFAULT_COLOR_PROFILES = {
 }
 COLOR_PRESETS = DEFAULT_COLOR_PROFILES.copy()
 
+FRAME_AXIS_POSITIONS = np.array([
+    [0, 0, 0], [1, 0, 0],
+    [0, 0, 0], [0, 1, 0],
+    [0, 0, 0], [0, 0, 1]]).astype(np.float32).T
+FRAME_AXIS_COLORS = np.array([
+    [1, 0, 0], [1, 0.6, 0],
+    [0, 1, 0], [0.6, 1, 0],
+    [0, 0, 1], [0, 0.6, 1]]).astype(np.float32).T
 
 def isMesh(geometry_object):
     """Check whether the geometry object contains a Mesh supported by MeshCat"""
@@ -154,13 +161,7 @@ def loadMesh(mesh):
             tri = call_triangles(k)
             faces[k] = [tri[i] for i in range(3)]
 
-        if LooseVersion(hppfcl.__version__) >= LooseVersion("1.7.7"):
-            vertices = call_vertices()
-        else:
-            vertices = np.empty((num_vertices, 3))
-            for k in range(num_vertices):
-                vertices[k] = call_vertices(k)
-
+        vertices = call_vertices()
         vertices = vertices.astype(np.float32)
 
     if num_tris > 0:
@@ -445,19 +446,29 @@ class MeshcatVisualizer(BaseVisualizer):
         elif isinstance(obj, meshcat.geometry.Geometry):
             material = meshcat.geometry.MeshPhongMaterial()
             # Set material color from URDF, converting for triplet of doubles to a single int.
+
+            def to_material_color(rgba) -> int:
+                """Convert rgba color as list into rgba color as int"""
+                return (int(rgba[0] * 255) * 256**2
+                        + int(rgba[1] * 255) * 256
+                        + int(rgba[2] * 255)
+                        )
+
             if color is None:
                 meshColor = geometry_object.meshColor
             else:
                 meshColor = color
-            material.color = (
-                int(meshColor[0] * 255) * 256**2
-                + int(meshColor[1] * 255) * 256
-                + int(meshColor[2] * 255)
-            )
             # Add transparency, if needed.
+            material.color = to_material_color(meshColor)
+
             if float(meshColor[3]) != 1.0:
                 material.transparent = True
                 material.opacity = float(meshColor[3])
+            geom_material = geometry_object.meshMaterial
+            if geometry_object.overrideMaterial and isinstance(geom_material, pin.GeometryPhongMaterial):
+                material.emissive = to_material_color(geom_material.meshEmissionColor)
+                material.specular = to_material_color(geom_material.meshSpecularColor)
+                material.shininess = geom_material.meshShininess*100.
             self.viewer[viewer_name].set_object(obj, material)
 
         if is_mesh:  # Apply the scaling
@@ -478,16 +489,21 @@ class MeshcatVisualizer(BaseVisualizer):
         # Collisions
         self.viewerCollisionGroupName = self.viewerRootNodeName + "/" + "collisions"
 
-        for collision in self.collision_model.geometryObjects:
-            self.loadViewerGeometryObject(collision, pin.GeometryType.COLLISION, color)
+        if self.collision_model is not None:
+            for collision in self.collision_model.geometryObjects:
+                self.loadViewerGeometryObject(collision, pin.GeometryType.COLLISION, color)
         self.displayCollisions(False)
 
         # Visuals
         self.viewerVisualGroupName = self.viewerRootNodeName + "/" + "visuals"
-
-        for visual in self.visual_model.geometryObjects:
-            self.loadViewerGeometryObject(visual, pin.GeometryType.VISUAL, color)
+        if self.visual_model is not None:
+            for visual in self.visual_model.geometryObjects:
+                self.loadViewerGeometryObject(visual, pin.GeometryType.VISUAL, color)
         self.displayVisuals(True)
+
+        # Frames
+        self.viewerFramesGroupName = self.viewerRootNodeName + "/" + "frames"
+        self.displayFrames(False)
 
     def reload(self, new_geometry_object, geometry_type=None):
         """Reload a geometry_object given by its name and its type"""
@@ -521,6 +537,9 @@ class MeshcatVisualizer(BaseVisualizer):
 
         if self.display_visuals:
             self.updatePlacements(pin.GeometryType.VISUAL)
+
+        if self.display_frames:
+            self.updateFrames()
 
     def updatePlacements(self, geometry_type):
         if geometry_type == pin.GeometryType.VISUAL:
@@ -595,6 +614,48 @@ class MeshcatVisualizer(BaseVisualizer):
 
         if visibility:
             self.updatePlacements(pin.GeometryType.VISUAL)
+
+    def displayFrames(self, visibility, frame_ids=None, axis_length=0.2, axis_width=2):
+        """Set whether to display frames or not."""
+        self.display_frames = visibility
+        if visibility:
+            self.initializeFrames(frame_ids, axis_length, axis_width)
+        self.viewer[self.viewerFramesGroupName].set_property("visible", visibility)
+
+    def initializeFrames(self, frame_ids=None, axis_length=0.2, axis_width=2):
+        """Initializes the frame objects for display."""
+        import meshcat.geometry as mg
+        self.viewer[self.viewerFramesGroupName].delete()
+        self.frame_ids = []
+
+        for fid, frame in enumerate(self.model.frames):
+            if frame_ids is None or fid in frame_ids:
+                frame_viz_name = "%s/%s" % (self.viewerFramesGroupName, frame.name)
+                self.viewer[frame_viz_name].set_object(
+                    mg.LineSegments(
+                        mg.PointsGeometry(
+                            position=axis_length * FRAME_AXIS_POSITIONS,
+                            color=FRAME_AXIS_COLORS,
+                        ),
+                        mg.LineBasicMaterial(
+                            linewidth=axis_width,
+                            vertexColors=True,
+                        ),
+                    )
+                )
+                self.frame_ids.append(fid)
+
+    def updateFrames(self):
+        """
+        Updates the frame visualizations with the latest transforms from model data.
+        """
+        pin.updateFramePlacements(self.model, self.data)
+        for fid in self.frame_ids:
+            frame_name = self.model.frames[fid].name
+            frame_viz_name = "%s/%s" % (self.viewerFramesGroupName, frame_name)
+            self.viewer[frame_viz_name].set_transform(
+                self.data.oMf[fid].homogeneous
+            )
 
     def drawFrameVelocities(
         self, frame_id, v_scale=0.2, color=FRAME_VEL_COLOR
