@@ -45,10 +45,10 @@ IF(BUILD_PYTHON_INTERFACE)
   #  -Wconversion as the BOOST_PYTHON_FUNCTION_OVERLOADS implicitly converts.
   #  -Wcomment as latex equations have multi-line comments.
   #  -Wself-assign-overloaded as bp::self operations trigger this (Clang only)
-  CXX_FLAGS_BY_COMPILER_FRONTEND(
-    GNU -Wno-conversion -Wno-comment -Wno-self-assign-overloaded
-    OUTPUT PRIVATE_OPTIONS
-    FILTER)
+  # CXX_FLAGS_BY_COMPILER_FRONTEND(
+  #   GNU -Wno-conversion -Wno-comment -Wno-self-assign-overloaded
+  #   OUTPUT PRIVATE_OPTIONS
+  #   FILTER)
   TARGET_COMPILE_OPTIONS(${PYWRAP} PRIVATE ${PRIVATE_OPTIONS})
 
   SET_TARGET_PROPERTIES(${PYWRAP} PROPERTIES VERSION ${PROJECT_VERSION})

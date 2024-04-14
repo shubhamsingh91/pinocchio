@@ -8,9 +8,9 @@
 # --- MACROS ------------------------------------------------------------------
 
 # Compute flags outside the macro to avoid recomputing it for each tests
-CXX_FLAGS_BY_COMPILER_FRONTEND(
-  MSVC _USE_MATH_DEFINES
-  OUTPUT TEST_PRIVATE_DEFINITIONS)
+# CXX_FLAGS_BY_COMPILER_FRONTEND(
+#   MSVC _USE_MATH_DEFINES
+#   OUTPUT TEST_PRIVATE_DEFINITIONS)
 
 MACRO(ADD_TEST_CFLAGS target)
   foreach(ARG ${ARGN})
@@ -169,10 +169,10 @@ ADD_PINOCCHIO_UNIT_TEST(algo-check)
 # Warning ignore with pragma doesn't work for
 # a part of this test, so we ignore two warning
 # globally
-CXX_FLAGS_BY_COMPILER_FRONTEND(
-  GNU -Wno-maybe-uninitialized -Wuse-after-free=0
-  OUTPUT LIEGROUPS_OPTIONS
-  FILTER)
+# CXX_FLAGS_BY_COMPILER_FRONTEND(
+#   GNU -Wno-maybe-uninitialized -Wuse-after-free=0
+#   OUTPUT LIEGROUPS_OPTIONS
+#   FILTER)
 ADD_PINOCCHIO_UNIT_TEST(liegroups)
 ADD_TEST_CFLAGS(liegroups ${LIEGROUPS_OPTIONS})
 

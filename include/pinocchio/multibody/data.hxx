@@ -25,7 +25,6 @@ namespace pinocchio
   , a_gf((std::size_t)model.njoints,Motion::Zero())
   , oa_gf((std::size_t)model.njoints,Motion::Zero())
   , v((std::size_t)model.njoints,Motion::Zero())
-  , vJ((std::size_t)model.njoints, Motion::Zero())
   , ov((std::size_t)model.njoints,Motion::Zero())
   , f((std::size_t)model.njoints,Force::Zero())
   , of((std::size_t)model.njoints,Force::Zero())
@@ -106,10 +105,6 @@ namespace pinocchio
   , bodyRegressor(BodyRegressorType::Zero())
   , jointTorqueRegressor(MatrixXs::Zero(model.nv,10*(model.njoints-1)))
 #if EIGEN_VERSION_AT_LEAST(3,2,90) && !EIGEN_VERSION_AT_LEAST(3,2,93)
-  , d2tau_dq(std::max(1,model.nv),std::max(1,model.nv),std::max(1,model.nv)) // the minimum size should be 1 for compatibility reasons
-  , d2tau_dv(std::max(1,model.nv),std::max(1,model.nv),std::max(1,model.nv)) // the minimum size should be 1 for compatibility reasons
-  , d2tau_dqdv(std::max(1,model.nv),std::max(1,model.nv),std::max(1,model.nv)) // the minimum size should be 1 for compatibility reasons
-  , d2tau_dadq(std::max(1,model.nv),std::max(1,model.nv),std::max(1,model.nv)) // the minimum size should be 1 for compatibility reasons
   , kinematic_hessians(6,std::max(1,model.nv),std::max(1,model.nv)) // the minimum size should be 1 for compatibility reasons
   , d2tau_dqdq(std::max(1,model.nv),std::max(1,model.nv),std::max(1,model.nv)) // the minimum size should be 1 for compatibility reasons
   , d2tau_dvdv(std::max(1,model.nv),std::max(1,model.nv),std::max(1,model.nv)) // the minimum size should be 1 for compatibility reasons
@@ -145,10 +140,6 @@ namespace pinocchio
     /* Init universe states relatively to itself */
     a_gf[0] = -model.gravity;
     
-    d2tau_dq.setZero();
-    d2tau_dv.setZero();
-    d2tau_dqdv.setZero();
-    d2tau_dadq.setZero();
     kinematic_hessians.setZero();
     d2tau_dqdq.setZero();
     d2tau_dvdv.setZero();
