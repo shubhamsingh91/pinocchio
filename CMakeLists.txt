@@ -70,7 +70,7 @@ OPTION(BUILD_WITH_URDF_SUPPORT "Build the library with the URDF format support" 
 OPTION(BUILD_WITH_COLLISION_SUPPORT "Build the library with the collision support (required HPP-FCL)" OFF)
 OPTION(BUILD_WITH_AUTODIFF_SUPPORT "Build the library with the automatic differentiation support (via CppAD)" ON)
 OPTION(BUILD_WITH_CASADI_SUPPORT "Build the library with the support of CASADI" ON)
-OPTION(BUILD_WITH_CODEGEN_SUPPORT "Build the library with the support of code generation (via CppADCodeGen)" ON)
+OPTION(BUILD_WITH_CODEGEN_SUPPORT "Build the library with the support of code generation (via CppADCodeGen)" OFF)
 OPTION(BUILD_WITH_OPENMP_SUPPORT "Build the library with the OpenMP support" OFF)
 cmake_dependent_option(LINK_PYTHON_INTERFACE_TO_OPENMP "Link OpenMP to the Python interface" ON
   "BUILD_PYTHON_INTERFACE;BUILD_WITH_OPENMP_SUPPORT" OFF)
@@ -120,10 +120,10 @@ ENDIF(BUILD_WITH_URDF_SUPPORT)
 IF(BUILD_WITH_AUTODIFF_SUPPORT)
   # Check first CppADCodeGen
   IF(BUILD_WITH_CODEGEN_SUPPORT)
-    ADD_PROJECT_DEPENDENCY(cppadcg 2.4.1 REQUIRED PKG_CONFIG_REQUIRES "cppadcg >= 2.4.1") # CppADCodeGen 2.4.1 is the first version to check the minimal version of CppAD
+    ADD_PROJECT_DEPENDENCY(cppadcg PKG_CONFIG_REQUIRES "cppadcg >= 2.4.1") # CppADCodeGen 2.4.1 is the first version to check the minimal version of CppAD
   ENDIF(BUILD_WITH_CODEGEN_SUPPORT)
 
-  ADD_PROJECT_DEPENDENCY(cppad 20180000.0 REQUIRED PKG_CONFIG_REQUIRES "cppad >= 20180000.0")
+  ADD_PROJECT_DEPENDENCY(cppad PKG_CONFIG_REQUIRES "cppad >= 20180000.0")
 ENDIF(BUILD_WITH_AUTODIFF_SUPPORT)
 
 IF(BUILD_WITH_CASADI_SUPPORT)

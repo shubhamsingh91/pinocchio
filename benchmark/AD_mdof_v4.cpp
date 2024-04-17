@@ -22,6 +22,7 @@ This version compares the CPU Runtime for
 #include "pinocchio/parsers/sample-models.hpp"
 #include "pinocchio/container/aligned-vector.hpp"
 #include "pinocchio/algorithm/rnea-derivatives-SO.hpp"
+#include "pinocchio/algorithm/rnea-second-order-derivatives.hpp"
 #include "pinocchio/codegen/code-generator-algo.hpp"
 // #include "pinocchio/algorithm/aza_so_v2.hpp"
 #include "pinocchio/algorithm/ID_FO_AZA.hpp"
@@ -37,6 +38,7 @@ This version compares the CPU Runtime for
 #include "pinocchio/utils/tensor_utils.hpp"
 // #include "pinocchio/algorithm/aba_v2.hpp"
 #include "pinocchio/algorithm/aba-derivatives-faster.hpp"
+#include "pinocchio/algorithm/aba-derivatives.hpp"
 
 using namespace std;
 using namespace pinocchio;
@@ -276,10 +278,10 @@ int main(int argc, const char* argv[])
         timer.tic();
         SMOOTH(NBT_SO)
         {
-            pinocchio::computeABADerivativesFaster(
+            pinocchio::computeABADerivatives(
                 model, data, qs[_smooth], qdots[_smooth], taus[_smooth], daba_dq, daba_dv, daba_dtau);
 
-            computeRNEADerivativesSO(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth], dtau2_dq_ana, dtau2_dv_ana,
+            ComputeRNEASecondOrderDerivatives(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth], dtau2_dq_ana, dtau2_dv_ana,
                 dtau2_dqv_ana, M_FO);
 
             Minv = daba_dtau;
