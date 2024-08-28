@@ -57,23 +57,23 @@ int main(int argc, const char* argv[])
 
 #ifdef NDEBUG
     // int NBT= 1; // 50000 initially
-    int NBT = 10000;    // 50000 initially, then 1000*100
-    int NBT_SO = 10000; // 50000 initially, then 1000*100
+    int NBT = 50000;    // 50000 initially, then 1000*100
+    int NBT_SO = 50000; // 50000 initially, then 1000*100
 
 #else
     int NBT = 1;
     std::cout << "(the time score in debug mode is not relevant) " << std::endl;
 #endif
 
-    int n_models = 1; // no of robots to be used
+    int n_models = 6; // no of robots to be used
     string str_robotname[n_models];
 
     str_robotname[0] = "double_pendulum"; // double pendulum
-    // str_robotname[1] = "ur3_robot";       // UR3
-    // str_robotname[2] = "hyq";             // hyq
-    // str_robotname[3] = "baxter_simple";   // baxter_simple
-    // str_robotname[4] = "atlas";           // atlas
-    // str_robotname[5] = "talos_full_v2";   // talos
+    str_robotname[1] = "ur3_robot";       // UR3
+    str_robotname[2] = "hyq";             // hyq
+    str_robotname[3] = "baxter_simple";   // baxter_simple
+    str_robotname[4] = "atlas";           // atlas
+    str_robotname[5] = "talos_full_v2";   // talos
 
     char tmp[256];
     getcwd(tmp, 256);
@@ -83,7 +83,7 @@ int main(int argc, const char* argv[])
     for (int mm = 0; mm < n_models; mm++) {
 
         Model model;
-        bool with_ff = false;
+        bool with_ff = true;
 
         string str_file_ext;
         string robot_name = "";
@@ -140,7 +140,7 @@ int main(int argc, const char* argv[])
         for (size_t i = 0; i < NBT; ++i) {
             qs[i] = randomConfiguration(model, -qmax, qmax);
             qdots[i] = Eigen::VectorXd::Random(model.nv);
-            qddots[i] = Eigen::VectorXd::Random(model.nv);
+            qddots[i] = Eigen::VectorXd::Zero(model.nv);
             taus[i] = Eigen::VectorXd::Random(model.nv);
             v_zero[i] = Eigen::VectorXd::Zero(model.nv);
         }
@@ -150,7 +150,7 @@ int main(int argc, const char* argv[])
 
         //-----------------------1 --------------------------//
         //----------------------------------------------------//
-        // Compute RNEA FO derivatives faster-----------------//
+        // Compute ABA FO derivatives faster-----------------//
         //----------------------------------------------------//
 
         Eigen::MatrixXd daba_dq(model.nv, model.nv);
@@ -165,77 +165,80 @@ int main(int argc, const char* argv[])
         {
             pinocchio::computeABADerivativesFaster(
                 model, data, qs[_smooth], qdots[_smooth], taus[_smooth], daba_dq, daba_dv, daba_dtau);
+                qddots[_smooth] = data.ddq;
         }
+        
         time_ABA[0] = timer.toc() / NBT; // ABA timing
         std::cout << "ABA FO derivative analytical= \t\t\t" << time_ABA[0] << endl;
-
+        
         //-----------------------2 ------------------------------//
         //-------------------------------------------------------//
         // Compute ABA FO derivatives using CasADI (w codegen)---//
         //-------------------------------------------------------//
         //-------------------------------------------------------//
 
-        typedef double Scalar;
-        typedef ::casadi::SX ADScalar;
-        typedef pinocchio::ModelTpl<ADScalar> ADModel;
-        typedef ADModel::Data ADData;
+        // typedef double Scalar;
+        // typedef ::casadi::SX ADScalar;
+        // typedef pinocchio::ModelTpl<ADScalar> ADModel;
+        // typedef ADModel::Data ADData;
 
-        typedef ADModel::ConfigVectorType ConfigVectorAD;
-        typedef ADModel::TangentVectorType TangentVectorAD;
-        ADModel ad_model = model.cast<ADScalar>();
-        ADData ad_data(ad_model);
+        // typedef ADModel::ConfigVectorType ConfigVectorAD;
+        // typedef ADModel::TangentVectorType TangentVectorAD;
+        // ADModel ad_model = model.cast<ADScalar>();
+        // ADData ad_data(ad_model);
 
-        ::casadi::SX cs_q = ::casadi::SX::sym("q", model.nq);
-        ::casadi::SX cs_v_int = ::casadi::SX::sym("v_inc", model.nv);
-        ConfigVectorAD q_ad(model.nq), v_int_ad(model.nv), q_int_ad(model.nq);
-        q_ad = Eigen::Map<ConfigVectorAD>(static_cast<std::vector<ADScalar>>(cs_q).data(), model.nq, 1);
-        v_int_ad = Eigen::Map<ConfigVectorAD>(static_cast<std::vector<ADScalar>>(cs_v_int).data(), model.nv, 1);
-        pinocchio::integrate(ad_model, q_ad, v_int_ad, q_int_ad);
+        // ::casadi::SX cs_q = ::casadi::SX::sym("q", model.nq);
+        // ::casadi::SX cs_v_int = ::casadi::SX::sym("v_inc", model.nv);
+        // ConfigVectorAD q_ad(model.nq), v_int_ad(model.nv), q_int_ad(model.nq);
+        // q_ad = Eigen::Map<ConfigVectorAD>(static_cast<std::vector<ADScalar>>(cs_q).data(), model.nq, 1);
+        // v_int_ad = Eigen::Map<ConfigVectorAD>(static_cast<std::vector<ADScalar>>(cs_v_int).data(), model.nv, 1);
+        // pinocchio::integrate(ad_model, q_ad, v_int_ad, q_int_ad);
 
-        std::vector<double> q_vec((size_t)model.nq);
-        std::vector<double> v_int_vec((size_t)model.nv);
-        Eigen::Map<TangentVector>(v_int_vec.data(), model.nv, 1).setZero();
-        std::vector<double> v_vec((size_t)model.nv);
-        std::vector<double> tau_vec((size_t)model.nv);
-        std::vector<double> a_vec((size_t)model.nv);
+        // std::vector<double> q_vec((size_t)model.nq);
+        // std::vector<double> v_int_vec((size_t)model.nv);
+        // Eigen::Map<TangentVector>(v_int_vec.data(), model.nv, 1).setZero();
+        // std::vector<double> v_vec((size_t)model.nv);
+        // std::vector<double> tau_vec((size_t)model.nv);
+        // std::vector<double> a_vec((size_t)model.nv);
 
-        std::string strfun_dqdddq = robot_name + std::string("_dqdd_dq");
-        std::string strfun_dqdddv = robot_name + std::string("_dqdd_dv");
-        std::string strfun_dqdddtau = robot_name + std::string("_dqdd_dtau");
+        // std::string strfun_dqdddq = robot_name + std::string("_dqdd_dq");
+        // std::string strfun_dqdddv = robot_name + std::string("_dqdd_dv");
+        // std::string strfun_dqdddtau = robot_name + std::string("_dqdd_dtau");
 
-        // check with respect to q+dq
-        ::casadi::Function eval_dqdd_dq = ::casadi::external(strfun_dqdddq);
-        // check with respect to v+dv
-        ::casadi::Function eval_dqdd_dv = ::casadi::external(strfun_dqdddv);
-        // check with respect to tau+dtau
-        ::casadi::Function eval_dqdd_dtau = ::casadi::external(strfun_dqdddtau);
+        // // check with respect to q+dq
+        // ::casadi::Function eval_dqdd_dq = ::casadi::external(strfun_dqdddq);
+        // // check with respect to v+dv
+        // ::casadi::Function eval_dqdd_dv = ::casadi::external(strfun_dqdddv);
+        // // check with respect to tau+dtau
+        // ::casadi::Function eval_dqdd_dtau = ::casadi::external(strfun_dqdddtau);
 
-        ::casadi::DM dqdd_dq_res, dqdd_dv_res, dqdd_dtau_res;
-        Eigen::MatrixXd dqdd_dqAD(model.nv, model.nv), dqdd_dvAD(model.nv, model.nv), dqdd_dtauAD(model.nv, model.nv);
-        std::vector<double> dqdd_dq_vec(model.nv), dqdd_dv_vec(model.nv), dqdd_dtau_vec(model.nv);
+        // ::casadi::DM dqdd_dq_res, dqdd_dv_res, dqdd_dtau_res;
+        // Eigen::MatrixXd dqdd_dqAD(model.nv, model.nv), dqdd_dvAD(model.nv, model.nv), dqdd_dtauAD(model.nv, model.nv);
+        // std::vector<double> dqdd_dq_vec(model.nv), dqdd_dv_vec(model.nv), dqdd_dtau_vec(model.nv);
 
-        timer.tic();
-        SMOOTH(NBT)
-        {
-            Eigen::Map<ConfigVector>(q_vec.data(), model.nq, 1) = qs[_smooth];
-            Eigen::Map<TangentVector>(v_vec.data(), model.nv, 1) = qdots[_smooth];
-            Eigen::Map<TangentVector>(tau_vec.data(), model.nv, 1) = taus[_smooth];
+        // timer.tic();
+        // SMOOTH(NBT)
+        // {
+        //     Eigen::Map<ConfigVector>(q_vec.data(), model.nq, 1) = qs[_smooth];
+        //     Eigen::Map<TangentVector>(v_vec.data(), model.nv, 1) = qdots[_smooth];
+        //     Eigen::Map<TangentVector>(tau_vec.data(), model.nv, 1) = taus[_smooth];
 
-            dqdd_dq_res = eval_dqdd_dq(::casadi::DMVector {q_vec, v_int_vec, v_vec, tau_vec})[0];
-            dqdd_dq_vec = static_cast<std::vector<double>>(dqdd_dq_res);
-            dqdd_dqAD = Eigen::Map<Data::MatrixXs>(dqdd_dq_vec.data(), model.nv, model.nv);
+        //     dqdd_dq_res = eval_dqdd_dq(::casadi::DMVector {q_vec, v_int_vec, v_vec, tau_vec})[0];
+        //     dqdd_dq_vec = static_cast<std::vector<double>>(dqdd_dq_res);
+        //     dqdd_dqAD = Eigen::Map<Data::MatrixXs>(dqdd_dq_vec.data(), model.nv, model.nv);
 
-            dqdd_dv_res = eval_dqdd_dv(::casadi::DMVector {q_vec, v_int_vec, v_vec, tau_vec})[0];
-            dqdd_dv_vec = static_cast<std::vector<double>>(dqdd_dv_res);
-            dqdd_dvAD = Eigen::Map<Data::MatrixXs>(dqdd_dv_vec.data(), model.nv, model.nv);
+        //     dqdd_dv_res = eval_dqdd_dv(::casadi::DMVector {q_vec, v_int_vec, v_vec, tau_vec})[0];
+        //     dqdd_dv_vec = static_cast<std::vector<double>>(dqdd_dv_res);
+        //     dqdd_dvAD = Eigen::Map<Data::MatrixXs>(dqdd_dv_vec.data(), model.nv, model.nv);
 
-            dqdd_dtau_res = eval_dqdd_dtau(::casadi::DMVector {q_vec, v_int_vec, v_vec, tau_vec})[0];
-            dqdd_dtau_vec = static_cast<std::vector<double>>(dqdd_dtau_res);
-            dqdd_dtauAD = Eigen::Map<Data::MatrixXs>(dqdd_dtau_vec.data(), model.nv, model.nv);
-        }
-        time_ABA[1] = timer.toc() / NBT;
-        std::cout << "ABA FO derivatives CasADi + codegen= \t\t" << time_ABA[1] << endl;
+        //     dqdd_dtau_res = eval_dqdd_dtau(::casadi::DMVector {q_vec, v_int_vec, v_vec, tau_vec})[0];
+        //     dqdd_dtau_vec = static_cast<std::vector<double>>(dqdd_dtau_res);
+        //     dqdd_dtauAD = Eigen::Map<Data::MatrixXs>(dqdd_dtau_vec.data(), model.nv, model.nv);
+        // }
+        // time_ABA[1] = timer.toc() / NBT;
+        // std::cout << "ABA FO derivatives CasADi + codegen= \t\t" << time_ABA[1] << endl;
 
+        
         //-----------------------3 ---------------------------//
         //----------------------------------------------------//
         // Compute ABA SO derivatives (FDSVA SO)--------------//
@@ -353,78 +356,111 @@ int main(int argc, const char* argv[])
         time_ABA[2] = timer.toc() / NBT_SO;
         std::cout << "ABA SO partials using Analytical = \t\t" << time_ABA[2] << endl;
 
+        
         //-----------------------4 ------------------------------//
         //-------------------------------------------------------//
         // Compute ABA SO derivatives using CasADI (w codegen)---//
         //-------------------------------------------------------//
 
-        std::vector<double> v2(model.nv * model.nv), v3(model.nv * model.nv);
-        std::vector<double> v4(model.nv * model.nv), v5(model.nv * model.nv);
+        // std::vector<double> v2(model.nv * model.nv), v3(model.nv * model.nv);
+        // std::vector<double> v4(model.nv * model.nv), v5(model.nv * model.nv);
 
-        std::string strfun_d2qdddq = robot_name + std::string("_d2qdd_dq");
-        std::string strfun_d2qdddv = robot_name + std::string("_d2qdd_dv");
-        std::string strfun_d2qdddqv = robot_name + std::string("_d2qdd_dqv");
-        std::string strfun_d2qdddtauq = robot_name + std::string("_d2qdd_dtauq");
+        // std::string strfun_d2qdddq = robot_name + std::string("_d2qdd_dq");
+        // std::string strfun_d2qdddv = robot_name + std::string("_d2qdd_dv");
+        // std::string strfun_d2qdddqv = robot_name + std::string("_d2qdd_dqv");
+        // std::string strfun_d2qdddtauq = robot_name + std::string("_d2qdd_dtauq");
 
-        ::casadi::DM d2qdd_dq_res, d2qdd_dv_res, d2qdd_dqv_res, d2qdd_dtauq_res;
-        std::vector<double> d2qdd_dq_vec, d2qdd_dv_vec, d2qdd_dqv_vec, d2qdd_dtauq_vec;
-        Eigen::Tensor<double, 3> d2qdd_dq2_AD(model.nv, model.nv, model.nv);
-        Eigen::Tensor<double, 3> d2qdd_dv2_AD(model.nv, model.nv, model.nv);
-        Eigen::Tensor<double, 3> d2qdd_dqv_AD(model.nv, model.nv, model.nv);
-        Eigen::Tensor<double, 3> d2qdd_dtauq_AD(model.nv, model.nv, model.nv);
-        int n2 = model.nv * model.nv;
+        // ::casadi::DM d2qdd_dq_res, d2qdd_dv_res, d2qdd_dqv_res, d2qdd_dtauq_res;
+        // std::vector<double> d2qdd_dq_vec, d2qdd_dv_vec, d2qdd_dqv_vec, d2qdd_dtauq_vec;
+        // Eigen::Tensor<double, 3> d2qdd_dq2_AD(model.nv, model.nv, model.nv);
+        // Eigen::Tensor<double, 3> d2qdd_dv2_AD(model.nv, model.nv, model.nv);
+        // Eigen::Tensor<double, 3> d2qdd_dqv_AD(model.nv, model.nv, model.nv);
+        // Eigen::Tensor<double, 3> d2qdd_dtauq_AD(model.nv, model.nv, model.nv);
+        // int n2 = model.nv * model.nv;
 
-        if (mm == 5) { // Not running this for Talos_full_v2
-            time_ABA[3] = 0.0;
-        } else {
+        // if (mm == 5) { // Not running this for Talos_full_v2
+        //     time_ABA[3] = 0.0;
+        // } else {
 
-            ::casadi::Function eval_d2qdd_dq = ::casadi::external(strfun_d2qdddq);
-            ::casadi::Function eval_d2qdd_dv = ::casadi::external(strfun_d2qdddv);
-            ::casadi::Function eval_d2qdd_dqv = ::casadi::external(strfun_d2qdddqv);
-            ::casadi::Function eval_d2qdd_dtauq = ::casadi::external(strfun_d2qdddtauq);
+        //     ::casadi::Function eval_d2qdd_dq = ::casadi::external(strfun_d2qdddq);
+        //     ::casadi::Function eval_d2qdd_dv = ::casadi::external(strfun_d2qdddv);
+        //     ::casadi::Function eval_d2qdd_dqv = ::casadi::external(strfun_d2qdddqv);
+        //     ::casadi::Function eval_d2qdd_dtauq = ::casadi::external(strfun_d2qdddtauq);
 
-            timer.tic();
-            SMOOTH(NBT_SO)
-            {
-                Eigen::Map<ConfigVector>(q_vec.data(), model.nq, 1) = qs[_smooth];
-                Eigen::Map<TangentVector>(v_vec.data(), model.nv, 1) = qdots[_smooth];
-                Eigen::Map<TangentVector>(tau_vec.data(), model.nv, 1) = taus[_smooth];
+        //     timer.tic();
+        //     SMOOTH(NBT_SO)
+        //     {
+        //         Eigen::Map<ConfigVector>(q_vec.data(), model.nq, 1) = qs[_smooth];
+        //         Eigen::Map<TangentVector>(v_vec.data(), model.nv, 1) = qdots[_smooth];
+        //         Eigen::Map<TangentVector>(tau_vec.data(), model.nv, 1) = taus[_smooth];
 
-                d2qdd_dq_res = eval_d2qdd_dq(::casadi::DMVector {q_vec, v_int_vec, v_vec, tau_vec})[0];
-                d2qdd_dq_vec = static_cast<std::vector<double>>(d2qdd_dq_res);
-                d2qdd_dv_res = eval_d2qdd_dv(::casadi::DMVector {q_vec, v_int_vec, v_vec, tau_vec})[0];
-                d2qdd_dv_vec = static_cast<std::vector<double>>(d2qdd_dv_res);
-                d2qdd_dqv_res = eval_d2qdd_dqv(::casadi::DMVector {q_vec, v_int_vec, v_vec, tau_vec})[0];
-                d2qdd_dqv_vec = static_cast<std::vector<double>>(d2qdd_dqv_res);
-                d2qdd_dtauq_res = eval_d2qdd_dtauq(::casadi::DMVector {q_vec, v_int_vec, v_vec, tau_vec})[0];
-                d2qdd_dtauq_vec = static_cast<std::vector<double>>(d2qdd_dtauq_res);
+        //         d2qdd_dq_res = eval_d2qdd_dq(::casadi::DMVector {q_vec, v_int_vec, v_vec, tau_vec})[0];
+        //         d2qdd_dq_vec = static_cast<std::vector<double>>(d2qdd_dq_res);
+        //         d2qdd_dv_res = eval_d2qdd_dv(::casadi::DMVector {q_vec, v_int_vec, v_vec, tau_vec})[0];
+        //         d2qdd_dv_vec = static_cast<std::vector<double>>(d2qdd_dv_res);
+        //         d2qdd_dqv_res = eval_d2qdd_dqv(::casadi::DMVector {q_vec, v_int_vec, v_vec, tau_vec})[0];
+        //         d2qdd_dqv_vec = static_cast<std::vector<double>>(d2qdd_dqv_res);
+        //         d2qdd_dtauq_res = eval_d2qdd_dtauq(::casadi::DMVector {q_vec, v_int_vec, v_vec, tau_vec})[0];
+        //         d2qdd_dtauq_vec = static_cast<std::vector<double>>(d2qdd_dtauq_res);
 
-                for (int j = 0; j < model.nv; j++) {
-                    for (int i = 0; i < n2; i++) {
-                        v2[i] = d2qdd_dq_vec[j * n2 + i];
-                        v3[i] = d2qdd_dv_vec[j * n2 + i];
-                        v4[i] = d2qdd_dqv_vec[j * n2 + i];
-                        v5[i] = d2qdd_dtauq_vec[j * n2 + i];
-                    }
+        //         for (int j = 0; j < model.nv; j++) {
+        //             for (int i = 0; i < n2; i++) {
+        //                 v2[i] = d2qdd_dq_vec[j * n2 + i];
+        //                 v3[i] = d2qdd_dv_vec[j * n2 + i];
+        //                 v4[i] = d2qdd_dqv_vec[j * n2 + i];
+        //                 v5[i] = d2qdd_dtauq_vec[j * n2 + i];
+        //             }
 
-                    mat1 = Eigen::Map<Eigen::Matrix<double, Dynamic, Dynamic>>(v2.data(), model.nv, model.nv);
-                    hess_assign_fd_v1(d2qdd_dq2_AD, mat1, model.nv, j);
-                    mat2 = Eigen::Map<Eigen::Matrix<double, Dynamic, Dynamic>>(v3.data(), model.nv, model.nv);
-                    hess_assign_fd_v1(d2qdd_dv2_AD, mat2, model.nv, j);
-                    mat3 = Eigen::Map<Eigen::Matrix<double, Dynamic, Dynamic>>(v4.data(), model.nv, model.nv);
-                    hess_assign_fd_v1(d2qdd_dqv_AD, mat3, model.nv, j);
-                    mat4 = Eigen::Map<Eigen::Matrix<double, Dynamic, Dynamic>>(v5.data(), model.nv, model.nv);
-                    hess_assign_fd_v1(d2qdd_dtauq_AD, mat4, model.nv, j);
-                }
-            }
-            time_ABA[3] = timer.toc() / NBT_SO;
-            std::cout << "ABA SO derivatives CasADi + codegen= \t\t" << time_ABA[3] << endl;
-        }
+        //             mat1 = Eigen::Map<Eigen::Matrix<double, Dynamic, Dynamic>>(v2.data(), model.nv, model.nv);
+        //             hess_assign_fd_v1(d2qdd_dq2_AD, mat1, model.nv, j);
+        //             mat2 = Eigen::Map<Eigen::Matrix<double, Dynamic, Dynamic>>(v3.data(), model.nv, model.nv);
+        //             hess_assign_fd_v1(d2qdd_dv2_AD, mat2, model.nv, j);
+        //             mat3 = Eigen::Map<Eigen::Matrix<double, Dynamic, Dynamic>>(v4.data(), model.nv, model.nv);
+        //             hess_assign_fd_v1(d2qdd_dqv_AD, mat3, model.nv, j);
+        //             mat4 = Eigen::Map<Eigen::Matrix<double, Dynamic, Dynamic>>(v5.data(), model.nv, model.nv);
+        //             hess_assign_fd_v1(d2qdd_dtauq_AD, mat4, model.nv, j);
+        //         }
+        //     }
+        //     time_ABA[3] = timer.toc() / NBT_SO;
+        //     std::cout << "ABA SO derivatives CasADi + codegen= \t\t" << time_ABA[3] << endl;
+        // }
 
-        // //-----------------------5 -----------------------------------//
-        // //------------------------------------------------------------//
-        // // Compute ABA SO derivatives using Analytical (w codegen)---//
-        // //------------------------------------------------------------//
+        // Eigen::Tensor<double, 3> d2qdd_dq2_diff(model.nv, model.nv, model.nv);
+        // Eigen::Tensor<double, 3> d2qdd_dv2_diff(model.nv, model.nv, model.nv);
+        // Eigen::Tensor<double, 3> d2qdd_dqv_diff(model.nv, model.nv, model.nv);
+        // Eigen::Tensor<double, 3> d2qdd_dtauq_diff(model.nv, model.nv, model.nv);
+
+        // d2qdd_dq2_diff = d2qdd_dq2_AD - daba2_dq_ana;
+        // float temp_q_SO = get_tens_diff_norm(d2qdd_dq2_AD, daba2_dq_ana, model.nv);
+        // std::cout << "Difference in the SO partial w.r.t q for ana+cg max val \t" << (d2qdd_dq2_diff.abs()).maximum()
+        //         << std::endl;
+        // std::cout << "Difference in the SO partial w.r.t q for ana+cg norm \t\t" << temp_q_SO << std::endl;
+
+        // d2qdd_dv2_diff = d2qdd_dv2_AD - daba2_dv_ana;
+
+        // float temp_v_SO = get_tens_diff_norm(d2qdd_dv2_AD, daba2_dv_ana, model.nv);
+        // std::cout << "Difference in the SO partial w.r.t v for ana+cg max val \t" << (d2qdd_dv2_diff.abs()).maximum()
+        //         << std::endl;
+        // std::cout << "Difference in the SO partial w.r.t v for ana+cg norm \t\t" << temp_v_SO << std::endl;
+
+        // d2qdd_dqv_diff = d2qdd_dqv_AD - daba2_qv_ana;
+
+        // float temp_qv_SO = get_tens_diff_norm(d2qdd_dqv_AD, daba2_qv_ana, model.nv);
+        // std::cout << "Difference in the SO partial w.r.t q,v for ana+cg max val \t" << (d2qdd_dqv_diff.abs()).maximum()
+        //         << std::endl;
+        // std::cout << "Difference in the SO partial w.r.t q,v for ana+cg norm \t\t" << temp_qv_SO << std::endl;
+
+        // d2qdd_dtauq_diff = d2qdd_dtauq_AD - daba2_tauq_ana;
+
+        // float temp_tauq_SO = get_tens_diff_norm(d2qdd_dtauq_AD, daba2_tauq_ana, model.nv);
+        // std::cout << "Difference in the SO partial w.r.t tau,q for ana+cg max val \t" << (d2qdd_dtauq_diff.abs()).maximum()
+        //         << std::endl;
+        // std::cout << "Difference in the SO partial w.r.t tau,q for ana+cg norm \t\t" << temp_tauq_SO << std::endl;
+
+        //-----------------------5 -----------------------------------//
+        //------------------------------------------------------------//
+        // Compute ABA SO derivatives using Analytical (w codegen)---//
+        //------------------------------------------------------------//
 
         // std::string strfun_d2qdddq_ana_cg = robot_name + std::string("_d2qdd_dq_ana_cg");
         // std::string strfun_d2qdddv_ana_cg = robot_name + std::string("_d2qdd_dv_ana_cg");
@@ -483,7 +519,7 @@ int main(int argc, const char* argv[])
         //     time_ABA[4] = timer.toc() / NBT_SO;
         //     std::cout << "ABA SO derivatives Analytical + codegen= \t" << time_ABA[4] << endl;
         
-
+        
         //------------------------------------------------//
         // Writing all the timings to the file
         //------------------------------------------------//

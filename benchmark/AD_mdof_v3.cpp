@@ -67,7 +67,7 @@ int main(int argc, const char* argv[])
     std::cout << "(the time score in debug mode is not relevant) " << std::endl;
 #endif
 
-    int n_models = 1;
+    int n_models = 5;
     string str_robotname[n_models];
 
     // multi-case run
