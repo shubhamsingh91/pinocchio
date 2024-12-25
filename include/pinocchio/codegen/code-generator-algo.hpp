@@ -14,6 +14,7 @@
 #include "pinocchio/algorithm/rnea-derivatives.hpp"
 #include "pinocchio/algorithm/aba-derivatives-faster.hpp"
 #include "pinocchio/algorithm/rnea-derivatives-faster.hpp"
+#include "pinocchio/algorithm/spatial-force-derivatives.hpp"
 
 namespace pinocchio {
 template <typename _Scalar>

@@ -447,6 +447,19 @@ void hess_assign(Eigen::Tensor<double, 3>& hess, const Eigen::MatrixBase<T>& vec
     }
 }
 
+template <typename T>
+void tens_assign6_col(Eigen::Tensor<double,3> & hess, const Eigen::MatrixBase<T>& vec, const int p, const int q)
+{
+
+    // Directly assign each element (assuming vec.size() == 6)
+    hess(0, p, q) = vec(0);
+    hess(1, p, q) = vec(1);
+    hess(2, p, q) = vec(2);
+    hess(3, p, q) = vec(3);
+    hess(4, p, q) = vec(4);
+    hess(5, p, q) = vec(5);
+}
+
 // Assigning code here- for assigning a row or a column of the tensor- for Eigen::VectorXd
 // nxnxn tensor flatted into nxn^2 matrix
 // only accepts stride along the 1st index
