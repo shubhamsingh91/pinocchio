@@ -32,30 +32,32 @@
 */
 
 
-void calc_df_dq(const pinocchio::Model & model, pinocchio::Data & data_fd,
+void calc_df(const pinocchio::Model & model, pinocchio::Data & data_fd,
              const Eigen::VectorXd & q,
              const Eigen::VectorXd & v,
              const Eigen::VectorXd & a,
-             Eigen::Tensor<double,3>  & df_dq)
+             Eigen::Tensor<double,3>  & df_dq,
+             Eigen::Tensor<double,3>  & df_dv,
+             Eigen::Tensor<double,3>  & df_da)
 
 {
     using namespace Eigen;
     VectorXd v_eps(VectorXd::Zero(model.nv));
     VectorXd q_plus(model.nq);
-    VectorXd tau_plus(model.nv);
     const double alpha = 1e-8;
 
-    // df/dq
     computeRNEADerivatives(model,data_fd,q,v,a);
     auto f_vec_orig = data_fd.of; // std::vector
     
+    // df/dq
+
     for(int i = 0; i < model.nv; ++i)
     {
-        for (int j = 0; j < model.nv; j++)
+        for (int j = 0; j < model.nv; ++j)
         {
             v_eps[j] += alpha;
             integrate(model,q,v_eps,q_plus);
-            computeRNEADerivativesFaster(model,data_fd,q_plus,v,a); 
+            computeRNEADerivatives(model,data_fd,q_plus,v,a); 
             
             auto f_vec_plus = data_fd.of;
 
@@ -65,9 +67,45 @@ void calc_df_dq(const pinocchio::Model & model, pinocchio::Data & data_fd,
             v_eps[j] -= alpha;
 
         }
-
     }
 
+    // df/dv
+    VectorXd v_plus(v);
+    for(int i = 0; i < model.nv; ++i)
+    {
+        for (int j = 0; j < model.nv; ++j)
+        {
+            v_plus[j] += alpha;
+            computeRNEADerivatives(model,data_fd,q,v_plus,a); 
+            
+            auto f_vec_plus = data_fd.of;
+
+            auto vec6 = (f_vec_plus.at(i+1).toVector()-f_vec_orig.at(i+1).toVector())/alpha; // dfci_dqj
+            pinocchio::tens_assign6_col(df_dv, vec6, j, i); // assigning derivative w.r.t qj along the columns
+
+            v_plus[j] -= alpha;
+
+        }
+    }
+
+    // df/dv
+    VectorXd a_plus(a);
+    for(int i = 0; i < model.nv; ++i)
+    {
+        for (int j = 0; j < model.nv; ++j)
+        {
+            a_plus[j] += alpha;
+            computeRNEADerivatives(model,data_fd,q,v,a_plus); 
+            
+            auto f_vec_plus = data_fd.of;
+
+            auto vec6 = (f_vec_plus.at(i+1).toVector()-f_vec_orig.at(i+1).toVector())/alpha; // dfci_dqj
+            pinocchio::tens_assign6_col(df_da, vec6, j, i); // assigning derivative w.r.t qj along the columns
+
+            a_plus[j] -= alpha;
+
+        }
+    }
 }
 
 
@@ -87,6 +125,7 @@ int main(int argc, const char ** argv)
   Model model;
 
   //std::string filename = PINOCCHIO_MODEL_DIR + std::string("/simple_humanoid.urdf");
+  // std::string filename =  std::string("../models/double_pendulum.urdf");
   std::string filename =  std::string("../models/simple_humanoid.urdf");
 
   if(argc>1) filename = argv[1];
@@ -111,7 +150,7 @@ int main(int argc, const char ** argv)
   std::cout << "nv = " << model.nv << std::endl;
 
   Data data(model);
-  VectorXd qmax = Eigen::VectorXd::Ones(model.nq);
+  VectorXd qmax = Eigen::VectorXd::Random(model.nq);
 
   PINOCCHIO_ALIGNED_STD_VECTOR(VectorXd) qs     (NBT);
   PINOCCHIO_ALIGNED_STD_VECTOR(VectorXd) qdots  (NBT);
@@ -121,10 +160,10 @@ int main(int argc, const char ** argv)
   for(size_t i=0;i<NBT;++i)
   {
     // qs[i]     = randomConfiguration(model,-qmax,qmax);
-    qs[i]     = Eigen::VectorXd::Ones(model.nv);
-    qdots[i]  = Eigen::VectorXd::Ones(model.nv);
-    qddots[i] = Eigen::VectorXd::Ones(model.nv);
-    taus[i] = Eigen::VectorXd::Ones(model.nv);
+    qs[i]     = Eigen::VectorXd::Random(model.nv);
+    qdots[i]  = Eigen::VectorXd::Random(model.nv);
+    qddots[i] = Eigen::VectorXd::Random(model.nv);
+    taus[i] = Eigen::VectorXd::Random(model.nv);
   }
   
   PINOCCHIO_EIGEN_PLAIN_ROW_MAJOR_TYPE(MatrixXd) drnea_dq(MatrixXd::Zero(model.nv,model.nv));
@@ -144,41 +183,96 @@ int main(int argc, const char ** argv)
 
 
     // Finite-diff of df_dq
-    pinocchio::DataTpl<double>::Matrix6x df_dq_fd, df_dq_ana ;
+    pinocchio::DataTpl<double>::Matrix6x df_dq_fd, df_dq_ana, df_dq_algo ;
     Eigen::Tensor<double, 3> df_dq_fd_tensor (6,model.nv, model.nv);
+    Eigen::Tensor<double, 3> df_dv_fd_tensor (6,model.nv, model.nv);
+    Eigen::Tensor<double, 3> df_da_fd_tensor (6,model.nv, model.nv);
+
     Eigen::Tensor<double, 3> df_dq_ana_tensor (6,model.nv, model.nv);
+    Eigen::Tensor<double, 3> df_dv_ana_tensor (6,model.nv, model.nv);
+    Eigen::Tensor<double, 3> df_da_ana_tensor (6,model.nv, model.nv);
 
     df_dq_fd.resize(6,model.nv);
     df_dq_ana.resize(6,model.nv);
+    df_dq_algo.resize(6,model.nv);
 
     std::cout << "---------- Running finite-diff --------------- " << std::endl;
-    calc_df_dq(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth], df_dq_fd_tensor);
+    calc_df(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth], 
+              df_dq_fd_tensor, df_dv_fd_tensor, df_da_fd_tensor);
 
     std::cout << "---------- Running Analytical --------------- " << std::endl;
     computeSpatialForceDerivs(model,data,qs[_smooth],qdots[_smooth],qddots[_smooth],
-          df_dq_ana_tensor);
+          df_dq_ana_tensor, df_dv_ana_tensor, df_da_ana_tensor);
     
+
+    std::cout << "------------ Comparing df_dq----------------------" << std::endl;
+
     for (int i = 0; i< model.nv; i++)
     {   
-      std::cout << "---------------------------------------------" << std::endl;
-        std::cout << " i = " << i << std::endl;
-        pinocchio::DataTpl<double>::Vector6c temp, temp_ana;
+        for (int j = 0; j < model.nv; j++)
+        {
+          // std::cout << " j = " << j << std::endl;
 
-        pinocchio::hess_get(df_dq_fd_tensor,temp,0,i,i,1,6);
-        pinocchio::hess_get(df_dq_ana_tensor,temp_ana,0,i,i,1,6); // dfic_dqi
+          pinocchio::DataTpl<double>::Vector6c temp, temp_ana;
+          pinocchio::hess_get(df_dq_fd_tensor,temp,     0,j,i,1,6);
+          pinocchio::hess_get(df_dq_ana_tensor,temp_ana,0,j,i,1,6); // dfic_dqi
 
-        df_dq_fd.col(i) = temp;
-        df_dq_ana.col(i) = temp_ana;
-        auto diff = (temp - temp_ana).norm();
-
-        
-        std::cout << "diff between fd and analytical = " << (temp - temp_ana).norm() << std::endl;
-        std::cout << "df = " << temp.transpose() << std::endl;
-        std::cout << "df_ana = " << temp_ana.transpose() << std::endl;
-        
+          auto diff = (temp - temp_ana).norm();
+          
+          if (diff > 1e-3)
+          {
+          std::cout << " i = " << i << std::endl;
+          std::cout << " j = " << j << std::endl;
+          std::cout << "diff between fd and analytical = " << diff << std::endl;
+          }
+        }
     }
 
-    std::cout << "diff mat = " << (df_dq_fd - data.dFdq).norm() << std::endl;
+    std::cout << "------------ Comparing df_dv----------------------" << std::endl;
+    for (int i = 0; i< model.nv; i++)
+    {   
+        // std::cout << " i = " << i << std::endl;
+        for (int j = 0; j < model.nv; j++)
+        {
+
+          pinocchio::DataTpl<double>::Vector6c temp, temp_ana;
+          pinocchio::hess_get(df_dv_fd_tensor,temp,     0,j,i,1,6);
+          pinocchio::hess_get(df_dv_ana_tensor,temp_ana,0,j,i,1,6); // dfic_dqi
+
+          auto diff = (temp - temp_ana).norm();
+          
+          if (diff > 1e-3)
+          {
+          std::cout << " i = " << i << std::endl;
+          std::cout << " j = " << j << std::endl;
+          std::cout << "diff between fd and analytical = " << diff << std::endl;
+          }
+        }
+    }
+
+    std::cout << "------------ Comparing df_da----------------------" << std::endl;
+    for (int i = 0; i< model.nv; i++)
+    {   
+        // std::cout << " i = " << i << std::endl;
+        for (int j = 0; j < model.nv; j++)
+        {
+
+          pinocchio::DataTpl<double>::Vector6c temp, temp_ana;
+          pinocchio::hess_get(df_da_fd_tensor,temp,     0,j,i,1,6);
+          pinocchio::hess_get(df_da_ana_tensor,temp_ana,0,j,i,1,6); // dfic_dqi
+
+          auto diff = (temp - temp_ana).norm();
+          
+          if (diff > 1e-3)
+          {
+          std::cout << " i = " << i << std::endl;
+          std::cout << " j = " << j << std::endl;
+          std::cout << "diff between fd and analytical = " << diff << std::endl;
+          }
+        }
+    }
+
+    // std::cout << "diff mat = " << (df_dq_fd - data.dFdq).norm() << std::endl;
 
 
 
@@ -186,6 +280,5 @@ int main(int argc, const char ** argv)
   }
 
 
-  std::cout << "--" << std::endl;
   return 0;
 }

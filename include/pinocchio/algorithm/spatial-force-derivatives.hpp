@@ -20,17 +20,15 @@ namespace pinocchio
   /// \tparam ConfigVectorType Type of the joint configuration vector.
   /// \tparam TangentVectorType1 Type of the joint velocity vector.
   /// \tparam TangentVectorType2 Type of the joint acceleration vector.
-  /// \tparam MatrixType1 Type of the matrix containing the partial derivative with respect to the joint configuration vector.
-  /// \tparam MatrixType2 Type of the matrix containing the partial derivative with respect to the joint velocity vector.
-  /// \tparam MatrixType3 Type of the matrix containing the partial derivative with respect to the joint acceleration vector.
-  ///
+
   /// \param[in] model The model structure of the rigid body system.
   /// \param[in] data The data structure of the rigid body system.
   /// \param[in] q The joint configuration vector (dim model.nq).
   /// \param[in] v The joint velocity vector (dim model.nv).
   /// \param[in] a The joint acceleration vector (dim model.nv).
-  /// \param[out] df_dq Partial derivative of the generalized torque vector with respect to the joint configuration.
-  ///
+  /// \param[out] df_dq Partial derivative of the cumulative-spatial-force with respect to the joint configuration.
+  /// \param[out] df_dv Partial derivative of the cumulative-spatial-force with respect to the joint velocity.
+  /// \param[out] df_da Partial derivative of the cumulative-spatial-force with respect to the joint acceleration.
 
   /// \sa pinocchio::rnea
   ///
@@ -41,7 +39,9 @@ namespace pinocchio
                          const Eigen::MatrixBase<ConfigVectorType> & q,
                          const Eigen::MatrixBase<TangentVectorType1> & v,
                          const Eigen::MatrixBase<TangentVectorType2> & a,
-                         Eigen::Tensor<double,3> & df_dq);
+                         Eigen::Tensor<double,3> & df_dq,
+                         Eigen::Tensor<double,3> & df_dv,
+                         Eigen::Tensor<double,3> & df_da);
   
   ///
 } // namespace pinocchio 
