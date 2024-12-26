@@ -175,15 +175,13 @@ int main(int argc, const char ** argv)
     computeRNEADerivatives(model,data,qs[_smooth],qdots[_smooth],qddots[_smooth],
                            drnea_dq,drnea_dv,drnea_da);
 
-    std::cout << "data.dFdq = " << data.dFdq.rows() << " x " << data.dFdq.cols() << std::endl;
     std::cout << "model.njoints = " << model.njoints << std::endl;
-    
+  
     auto f_vec = data.of;
-    std::cout << "f_vec.size = " << f_vec.size() << std::endl;
 
 
     // Finite-diff of df_dq
-    pinocchio::DataTpl<double>::Matrix6x df_dq_fd, df_dq_ana, df_dq_algo ;
+    pinocchio::DataTpl<double>::Matrix6x df_dq_fd, df_dv_fd, df_da_fd;
     Eigen::Tensor<double, 3> df_dq_fd_tensor (6,model.nv, model.nv);
     Eigen::Tensor<double, 3> df_dv_fd_tensor (6,model.nv, model.nv);
     Eigen::Tensor<double, 3> df_da_fd_tensor (6,model.nv, model.nv);
@@ -193,8 +191,8 @@ int main(int argc, const char ** argv)
     Eigen::Tensor<double, 3> df_da_ana_tensor (6,model.nv, model.nv);
 
     df_dq_fd.resize(6,model.nv);
-    df_dq_ana.resize(6,model.nv);
-    df_dq_algo.resize(6,model.nv);
+    df_dv_fd.resize(6,model.nv);
+    df_da_fd.resize(6,model.nv);
 
     std::cout << "---------- Running finite-diff --------------- " << std::endl;
     calc_df(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth], 
@@ -218,6 +216,11 @@ int main(int argc, const char ** argv)
           pinocchio::hess_get(df_dq_ana_tensor,temp_ana,0,j,i,1,6); // dfic_dqi
 
           auto diff = (temp - temp_ana).norm();
+
+          if (i == j)
+          {
+            df_dq_fd.col(i) = temp; // note that this is what Pinocchio's rnea-derivatives.hxx return
+          }
           
           if (diff > 1e-3)
           {
@@ -238,6 +241,11 @@ int main(int argc, const char ** argv)
           pinocchio::DataTpl<double>::Vector6c temp, temp_ana;
           pinocchio::hess_get(df_dv_fd_tensor,temp,     0,j,i,1,6);
           pinocchio::hess_get(df_dv_ana_tensor,temp_ana,0,j,i,1,6); // dfic_dqi
+
+          if (i == j)
+          {
+            df_dv_fd.col(i) = temp; // note that this is what Pinocchio's rnea-derivatives.hxx return
+          }
 
           auto diff = (temp - temp_ana).norm();
           
@@ -260,6 +268,11 @@ int main(int argc, const char ** argv)
           pinocchio::DataTpl<double>::Vector6c temp, temp_ana;
           pinocchio::hess_get(df_da_fd_tensor,temp,     0,j,i,1,6);
           pinocchio::hess_get(df_da_ana_tensor,temp_ana,0,j,i,1,6); // dfic_dqi
+          
+          if (i == j)
+          {
+            df_da_fd.col(i) = temp; // note that this is what Pinocchio's rnea-derivatives.hxx return
+          }
 
           auto diff = (temp - temp_ana).norm();
           
@@ -272,9 +285,9 @@ int main(int argc, const char ** argv)
         }
     }
 
-    // std::cout << "diff mat = " << (df_dq_fd - data.dFdq).norm() << std::endl;
-
-
+    std::cout << "diff bw Pinocchio's dFdq and finite-diff = " << (df_dq_fd - data.dFdq).norm() << std::endl;
+    std::cout << "diff bw Pinocchio's dFdv and finite-diff = " << (df_dv_fd - data.dFdv).norm() << std::endl;
+    std::cout << "diff bw Pinocchio's dFda and finite-diff = " << (df_da_fd - data.dFda).norm() << std::endl;
 
 
   }
