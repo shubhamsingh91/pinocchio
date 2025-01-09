@@ -31,7 +31,7 @@
 *  [[dfcn_dq1] [dfcn_dq2]  [dfcn_dqn]] - page n of tensor
 */
 
-
+#ifdef NFO
 void calc_df(const pinocchio::Model & model, pinocchio::Data & data_fd,
              const Eigen::VectorXd & q,
              const Eigen::VectorXd & v,
@@ -108,6 +108,7 @@ void calc_df(const pinocchio::Model & model, pinocchio::Data & data_fd,
     }
 }
 
+#endif
 
 int main(int argc, const char ** argv)
 {
@@ -172,6 +173,8 @@ int main(int argc, const char ** argv)
 
   SMOOTH(NBT)
   {
+    #ifdef NFO
+
     computeRNEADerivatives(model,data,qs[_smooth],qdots[_smooth],qddots[_smooth],
                            drnea_dq,drnea_dv,drnea_da);
 
@@ -288,6 +291,24 @@ int main(int argc, const char ** argv)
     std::cout << "diff bw Pinocchio's dFdq and finite-diff = " << (df_dq_fd - data.dFdq).norm() << std::endl;
     std::cout << "diff bw Pinocchio's dFdv and finite-diff = " << (df_dv_fd - data.dFdv).norm() << std::endl;
     std::cout << "diff bw Pinocchio's dFda and finite-diff = " << (df_da_fd - data.dFda).norm() << std::endl;
+
+   #endif
+
+    //--------------------------------------------------------------------------------
+    //------------------------- SO partials of cumulative force-----------------------
+    //--------------------------------------------------------------------------------
+    std::vector<Eigen::Tensor<double,3>> d2f_dq2_fd;
+    std::vector<Eigen::Tensor<double,3>> d2f_dv2_fd;
+    std::vector<Eigen::Tensor<double,3>> d2f_da2_fd;
+
+    for (int i = 0; i < model.njoints - 1; i++) {
+        d2f_dq2_fd.emplace_back(6, model.nv, model.nv);  
+        d2f_dv2_fd.emplace_back(6, model.nv, model.nv);  
+        d2f_da2_fd.emplace_back(6, model.nv, model.nv);  
+    }
+
+
+
 
 
   }
