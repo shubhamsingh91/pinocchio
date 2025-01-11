@@ -74,6 +74,19 @@ void error_fun_SO(const Eigen::Tensor<double,3> &ten_in, const Eigen::Tensor<dou
 
 }
 
+template <typename T>
+T tensorNorm(const Eigen::Tensor<T, 3>& tensor) {
+    T sum_of_squares = 0;
+    for (int i = 0; i < tensor.dimension(0); ++i) {
+        for (int j = 0; j < tensor.dimension(1); ++j) {
+            for (int k = 0; k < tensor.dimension(2); ++k) {
+                sum_of_squares += tensor(i, j, k) * tensor(i, j, k);
+            }
+        }
+    }
+    return std::sqrt(sum_of_squares);
+}
+
 double get_tens_diff_norm(Eigen::Tensor<double, 3>& ten1, Eigen::Tensor<double, 3>& ten2, int n)
 {
     double tmp1 = 0.0;

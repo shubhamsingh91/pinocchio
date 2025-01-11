@@ -9,6 +9,7 @@
 #include "pinocchio/algorithm/spatial-force-derivatives.hpp"
 #include "pinocchio/algorithm/rnea-derivatives-faster.hpp"
 #include "pinocchio/algorithm/rnea-second-order-derivatives.hpp"
+#include "pinocchio/algorithm/spatial-force-second-order-derivatives.hpp"
 #include "pinocchio/algorithm/aba-derivatives.hpp"
 #include "pinocchio/algorithm/aba.hpp"
 #include "pinocchio/algorithm/rnea.hpp"
@@ -300,14 +301,18 @@ int main(int argc, const char ** argv)
     //--------------------------------------------------------------------------------
     //------------------------- SO partials of cumulative force-----------------------
     //--------------------------------------------------------------------------------
-    std::vector<Eigen::Tensor<double,3>> d2f_dq2_fd;
-    std::vector<Eigen::Tensor<double,3>> d2f_dv2_fd;
-    std::vector<Eigen::Tensor<double,3>> d2f_da2_fd;
+    std::vector<Eigen::Tensor<double,3>> d2f_dq2_fd, d2f_dv2_fd, d2f_da2_fd;
+    std::vector<Eigen::Tensor<double,3>> d2f_dq2_ana, d2f_dv2_ana, d2f_da2_ana, d2f_daq_ana;
 
     for (int i = 0; i < model.njoints - 1; i++) {
         d2f_dq2_fd.emplace_back(6, model.nv, model.nv);  
         d2f_dv2_fd.emplace_back(6, model.nv, model.nv);  
         d2f_da2_fd.emplace_back(6, model.nv, model.nv);  
+
+        d2f_dq2_ana.emplace_back(6, model.nv, model.nv);  
+        d2f_dv2_ana.emplace_back(6, model.nv, model.nv);  
+        d2f_da2_ana.emplace_back(6, model.nv, model.nv);  
+        d2f_daq_ana.emplace_back(6, model.nv, model.nv);  
     }
 
     double alpha = 1e-6; // performs well
@@ -369,8 +374,38 @@ int main(int argc, const char ** argv)
 
         v_eps[k] -= alpha;
     }
+   //------- Analytical algorithm
+
+       ComputeSpatialForceSecondOrderDerivatives(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth],
+                                             d2f_dq2_ana, d2f_dv2_ana,d2f_da2_ana, d2f_daq_ana);
 
 
+    // Comparing the results
+    for (int i = 0; i < model.nv; ++i)
+    {
+     
+      Eigen::Tensor<double,3> concrete_tensor = (d2f_dq2_fd.at(i) - d2f_dq2_ana.at(i)).eval();
+      auto diff_eq = tensorNorm(concrete_tensor);
+
+      // auto diff_dv = (d2f_dv2_fd.at(i) - d2f_dv2_ana.at(i)).norm();
+      // auto diff_da = (d2f_da2_fd.at(i) - d2f_da2_ana.at(i)).norm();
+
+      if (diff_eq > 1e-3)
+      {
+        std::cout << "d2f_dq2_fd.at(i) = \n" << d2f_dq2_fd.at(i) << std::endl;
+        std::cout << "d2f_dq2_ana.at(i) = \n" << d2f_dq2_ana.at(i) << std::endl;
+      }
+
+      // if (diff_dv > 1e-3)
+      // {
+      //   std::cout << "diff_dv = " << diff_dv << std::endl;
+      // }
+
+      // if (diff_da > 1e-3)
+      // {
+      //   std::cout << "diff_da = " << diff_da << std::endl;
+      // }
+    }
 
   }
 
