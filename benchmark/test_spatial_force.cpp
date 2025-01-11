@@ -31,7 +31,7 @@
 *  [[dfcn_dq1] [dfcn_dq2]  [dfcn_dqn]] - page n of tensor
 */
 
-#ifdef NFO
+#ifdef FO_DERIVS
 void calc_df(const pinocchio::Model & model, pinocchio::Data & data_fd,
              const Eigen::VectorXd & q,
              const Eigen::VectorXd & v,
@@ -115,6 +115,8 @@ int main(int argc, const char ** argv)
   using namespace Eigen;
   using namespace pinocchio;
 
+  typedef Eigen::Tensor<double, 3> ten3d;
+
   PinocchioTicToc timer(PinocchioTicToc::US);
   #ifdef NDEBUG
   const int NBT = 1;
@@ -126,8 +128,8 @@ int main(int argc, const char ** argv)
   Model model;
 
   //std::string filename = PINOCCHIO_MODEL_DIR + std::string("/simple_humanoid.urdf");
-  // std::string filename =  std::string("../models/double_pendulum.urdf");
-  std::string filename =  std::string("../models/simple_humanoid.urdf");
+  std::string filename =  std::string("../models/double_pendulum.urdf");
+  // std::string filename =  std::string("../models/simple_humanoid.urdf");
 
   if(argc>1) filename = argv[1];
   bool with_ff = false;
@@ -166,19 +168,20 @@ int main(int argc, const char ** argv)
     qddots[i] = Eigen::VectorXd::Random(model.nv);
     taus[i] = Eigen::VectorXd::Random(model.nv);
   }
-  
+
+  std::cout << "model.njoints = " << model.njoints << std::endl;
+
+  SMOOTH(NBT)
+  {
+  #ifdef FO_DERIVS
+
   PINOCCHIO_EIGEN_PLAIN_ROW_MAJOR_TYPE(MatrixXd) drnea_dq(MatrixXd::Zero(model.nv,model.nv));
   PINOCCHIO_EIGEN_PLAIN_ROW_MAJOR_TYPE(MatrixXd) drnea_dv(MatrixXd::Zero(model.nv,model.nv));
   MatrixXd drnea_da(MatrixXd::Zero(model.nv,model.nv));
 
-  SMOOTH(NBT)
-  {
-    #ifdef NFO
-
     computeRNEADerivatives(model,data,qs[_smooth],qdots[_smooth],qddots[_smooth],
                            drnea_dq,drnea_dv,drnea_da);
 
-    std::cout << "model.njoints = " << model.njoints << std::endl;
   
     auto f_vec = data.of;
 
@@ -307,7 +310,65 @@ int main(int argc, const char ** argv)
         d2f_da2_fd.emplace_back(6, model.nv, model.nv);  
     }
 
+    double alpha = 1e-6; // performs well
 
+    VectorXd v_eps(VectorXd::Zero(model.nv));
+    VectorXd a_eps(VectorXd::Zero(model.nv));
+    VectorXd q_plus(model.nq);
+    VectorXd qd_plus(model.nv);
+    VectorXd a_plus(model.nv);
+
+    ten3d df_dq_ana (6,model.nv, model.nv);
+    ten3d df_dv_ana (6,model.nv, model.nv);
+    ten3d df_da_ana (6,model.nv, model.nv);
+
+    computeSpatialForceDerivs(model,data,qs[_smooth],qdots[_smooth],qddots[_smooth],
+      df_dq_ana, df_dv_ana, df_da_ana);
+
+    ten3d df_dq_ana_tensor_plus (6,model.nv, model.nv);
+    ten3d df_dv_ana_tensor_plus (6,model.nv, model.nv);
+    ten3d df_da_ana_tensor_plus (6,model.nv, model.nv);
+
+    ten3d t_d2fc_dq_dqk , t_d2fc_dv_dvk;
+    Eigen::MatrixXd m_d2fci_dq_dqk(6,model.nv);
+    Eigen::MatrixXd m_d2fci_dv_dvk(6,model.nv);
+
+    // Partial wrt q
+    for (int k = 0; k < model.nv; ++k) {
+        v_eps[k] += alpha;
+        q_plus = integrate(model, qs[_smooth], v_eps); // This is used to add the v_eps to q in the k^th direction
+      
+        computeSpatialForceDerivs(model,data,q_plus,qdots[_smooth],qddots[_smooth],
+        df_dq_ana_tensor_plus, df_dv_ana_tensor_plus, df_da_ana_tensor_plus);
+
+        t_d2fc_dq_dqk = (df_dq_ana_tensor_plus - df_dq_ana) / alpha; // 3d tensor d2fc/dq dqk
+        
+        for (int i = 0; i < model.nv; i++)
+        {
+          get_mat_from_tens3_v1_gen(t_d2fc_dq_dqk, m_d2fci_dq_dqk, 6, model.nv, i);
+          hess_assign_fd_v1_gen(d2f_dq2_fd.at(i), m_d2fci_dq_dqk, 6, model.nv, k); // slicing in the matrix along the kth page for ith tensor             
+        }
+
+        v_eps[k] -= alpha;
+    }
+
+    // Partial wrt v
+    for (int k = 0; k < model.nv; ++k) {
+        v_eps[k] += alpha;
+        qd_plus = qdots[_smooth] + v_eps; // This is used to add the v_eps to q in the k^th direction
+
+        computeSpatialForceDerivs(model,data,qs[_smooth], qd_plus ,qddots[_smooth],
+        df_dq_ana_tensor_plus, df_dv_ana_tensor_plus, df_da_ana_tensor_plus);
+
+        t_d2fc_dv_dvk = (df_dv_ana_tensor_plus - df_dv_ana) / alpha; // 3d tensor d2fc/dq dqk
+        for (int i = 0; i < model.nv; i++)
+        {
+          get_mat_from_tens3_v1_gen(t_d2fc_dv_dvk, m_d2fci_dv_dvk, 6, model.nv, i);
+          hess_assign_fd_v1_gen(d2f_dv2_fd.at(i), m_d2fci_dv_dvk, 6, model.nv, k); // slicing in the matrix along the kth page for ith tensor     
+        }
+
+        v_eps[k] -= alpha;
+    }
 
 
 

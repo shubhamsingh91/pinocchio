@@ -129,7 +129,20 @@ void hess_assign_fd_v1(Eigen::Tensor<double, 3>& hess, const Eigen::MatrixBase<T
         }
     }
 }
-
+// CHEAP
+// chaning to col major- massive saving from original
+// Inserting a matrix in (along 1st and 2nd dim)
+// Assigning code here- along 1st and second dim, 3rd dim constant (input)
+// Templated
+template <typename T>
+void hess_assign_fd_v1_gen(Eigen::Tensor<double, 3>& hess, const Eigen::MatrixBase<T>& mat, int r, int c, int k)
+{
+    for (int ii = 0; ii < c; ii++) {
+        for (int jj = 0; jj < r; jj++) {
+            hess(jj, ii, k) = mat(jj, ii);
+        }
+    }
+}
 
 // CHEAP
 // chaning to col major- massive saving from original
@@ -341,6 +354,19 @@ void get_mat_from_tens3_v1(const Eigen::Tensor<double, 3>& tens, Eigen::MatrixBa
 {
     for (int ii = 0; ii < n; ii++) {
         for (int jj = 0; jj < n; jj++) {
+            mat(jj, ii) = tens(jj, ii, k);
+        }
+    }
+}
+
+// This is 30 x faster than row-major one
+// changing the tens access and matrix access to col-major
+// get matrix from a tensor along dimension-3 (or keeping third dim constant)
+template <typename T>
+void get_mat_from_tens3_v1_gen(const Eigen::Tensor<double, 3>& tens, Eigen::MatrixBase<T>& mat, int r, int c, int k)
+{
+    for (int ii = 0; ii < c; ii++) {
+        for (int jj = 0; jj < r; jj++) {
             mat(jj, ii) = tens(jj, ii, k);
         }
     }
