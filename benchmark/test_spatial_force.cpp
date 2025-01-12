@@ -19,6 +19,7 @@
 #include "pinocchio/parsers/sample-models.hpp"
 #include "pinocchio/container/aligned-vector.hpp"
 #include <iostream>
+#include <fstream>
 
 #include "pinocchio/utils/timer.hpp"
 #include "pinocchio/utils/tensor_utils.hpp"
@@ -128,9 +129,24 @@ int main(int argc, const char ** argv)
     
   Model model;
 
+  std::ifstream infile("model.txt");
+    std::string filename;
+
+    if (infile.is_open()) {
+        std::getline(infile, filename);
+        infile.close();
+    } else {
+        std::cerr << "Unable to open file";
+        return 1;
+    }
+    std::cout << "filename: " << filename << std::endl;
+
   //std::string filename = PINOCCHIO_MODEL_DIR + std::string("/simple_humanoid.urdf");
-  std::string filename =  std::string("../models/double_pendulum.urdf");
+  // std::string filename =  std::string("../models/double_pendulum.urdf");
   // std::string filename =  std::string("../models/simple_humanoid.urdf");
+  // std::string filename =  std::string("../models/ur3_robot.urdf");
+  // std::string filename =  std::string("../models/3link.urdf");
+  // std::string filename =  std::string("../models/3link_bf_2.urdf");
 
   if(argc>1) filename = argv[1];
   bool with_ff = false;
@@ -154,7 +170,7 @@ int main(int argc, const char ** argv)
   std::cout << "nv = " << model.nv << std::endl;
 
   Data data(model);
-  VectorXd qmax = Eigen::VectorXd::Random(model.nq);
+  VectorXd qmax = Eigen::VectorXd::Ones(model.nq)*0.1;
 
   PINOCCHIO_ALIGNED_STD_VECTOR(VectorXd) qs     (NBT);
   PINOCCHIO_ALIGNED_STD_VECTOR(VectorXd) qdots  (NBT);
@@ -164,10 +180,10 @@ int main(int argc, const char ** argv)
   for(size_t i=0;i<NBT;++i)
   {
     // qs[i]     = randomConfiguration(model,-qmax,qmax);
-    qs[i]     = Eigen::VectorXd::Random(model.nv);
-    qdots[i]  = Eigen::VectorXd::Random(model.nv);
-    qddots[i] = Eigen::VectorXd::Random(model.nv);
-    taus[i] = Eigen::VectorXd::Random(model.nv);
+    qs[i]     = Eigen::VectorXd::Ones(model.nv)*0.1;
+    qdots[i]  = Eigen::VectorXd::Ones(model.nv)*0.1;
+    qddots[i] = Eigen::VectorXd::Ones(model.nv)*0.1;
+    taus[i] = Eigen::VectorXd::Ones(model.nv)*0.1;
   }
 
   std::cout << "model.njoints = " << model.njoints << std::endl;
@@ -377,7 +393,7 @@ int main(int argc, const char ** argv)
    //------- Analytical algorithm
 
     ComputeSpatialForceSecondOrderDerivatives(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth],
-                                             d2f_dq2_ana, d2f_dv2_ana,d2f_da2_ana, d2f_daq_ana);
+                                             d2f_dq2_ana, d2f_dv2_ana, d2f_dq2_fd, d2f_daq_ana);
 
 
     // Comparing the results
@@ -385,17 +401,20 @@ int main(int argc, const char ** argv)
     {
      
       Eigen::Tensor<double,3> concrete_tensor = (d2f_dq2_fd.at(i) - d2f_dq2_ana.at(i)).eval();
-      auto diff_eq = tensorNorm(concrete_tensor);
+      auto diff_eq = tensorMax(concrete_tensor);
 
       // auto diff_dv = (d2f_dv2_fd.at(i) - d2f_dv2_ana.at(i)).norm();
       // auto diff_da = (d2f_da2_fd.at(i) - d2f_da2_ana.at(i)).norm();
+      // std::cout << "i = " << i << std::endl;
+        // std::cout << "d2f_dq2_fd.at(i) = \n" << d2f_dq2_fd.at(i) << std::endl;
 
       if (diff_eq > 1e-3)
       {
         // std::cout << "d2f_dq2_fd.at(i) = \n" << d2f_dq2_fd.at(i) << std::endl;
         // std::cout << "d2f_dq2_ana.at(i) = \n" << d2f_dq2_ana.at(i) << std::endl;
 
-        std::cout << "diff = " << concrete_tensor << std::endl;
+        std::cout << "diff -------------= \n"   << std::endl;
+        // std::cout << "diff -------------= \n"  << concrete_tensor << std::endl;
       }
 
       // if (diff_dv > 1e-3)

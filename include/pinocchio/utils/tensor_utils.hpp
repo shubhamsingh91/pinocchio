@@ -87,6 +87,21 @@ T tensorNorm(const Eigen::Tensor<T, 3>& tensor) {
     return std::sqrt(sum_of_squares);
 }
 
+template <typename T>
+T tensorMax(const Eigen::Tensor<T, 3>& tensor) {
+    T max_value = tensor(0, 0, 0); // Initialize with the first element
+    for (int i = 0; i < tensor.dimension(0); ++i) {
+        for (int j = 0; j < tensor.dimension(1); ++j) {
+            for (int k = 0; k < tensor.dimension(2); ++k) {
+                if (tensor(i, j, k) > max_value) {
+                    max_value = tensor(i, j, k);
+                }
+            }
+        }
+    }
+    return max_value;
+}
+
 double get_tens_diff_norm(Eigen::Tensor<double, 3>& ten1, Eigen::Tensor<double, 3>& ten2, int n)
 {
     double tmp1 = 0.0;

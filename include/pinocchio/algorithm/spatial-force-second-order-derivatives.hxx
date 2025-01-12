@@ -140,7 +140,7 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
     const JointIndex i_idx = jmodel.idx_v();
     JointIndex j_idx, k_idx;
     const JointIndex parent = model.parents[i];
-
+    // std::cout << "------------------------------------" << std::endl;
     // std::cout << "i = " << i << std::endl;
     // std::cout << "i_idx = " << i_idx << std::endl;
 
@@ -163,7 +163,7 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
     Vector6r u12;
     Vector6c u13;
     Vector6c fci_Sp;
-    Vector6c tmp_vec;
+    Vector6c tmp_vec, tmp_vec1;
 
     Matrix6 Bicphii;
     Matrix6 oBicpsidot;
@@ -178,10 +178,13 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
 
     Vector6c s1, s2, s4, s5, s6, s7, s8, s9, s10, s11, s12 ;
     Matrix6  s3, s13;
+  
+    ForceCrossMatrix(data.of[i], fic_cross); // cmf_bar(f{i}) 
 
     for (int p = 0; p < model.nvs[i]; p++) {
       const Eigen::DenseIndex ip = model.idx_vs[i] + p;
 
+      // std::cout << "ip = " << ip << std::endl;
       const MotionRef<typename Data::Matrix6x::ColXpr> S_i = data.J.col(ip);          // S{i}(:,p)
       const MotionRef<typename Data::Matrix6x::ColXpr> psid_dm = data.psid.col(ip);   // psi_dot for p DOF
       const MotionRef<typename Data::Matrix6x::ColXpr> psidd_dm = data.psidd.col(ip); // psi_ddot for p DOF
@@ -194,11 +197,10 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
       Bicphii += r0;
 
       oBicpsidot = oYcrb.variation(psid_dm);      // new Bicpsidot in world frame
-      f_tmp = oYcrb * psid_dm; // IC{i}S{i}(:,p)
-      addForceCrossMatrix(f_tmp, oBicpsidot); // cmf_bar(IC{i}S{i}(:,p))
+      f_tmp = oYcrb * psid_dm; // IC{i}psid{i}(:,p)
+      addForceCrossMatrix(f_tmp, oBicpsidot); // cmf_bar(IC{i}psid{i}(:,p))
      
-      ForceCrossMatrix(data.of[i], fic_cross); // f{i} x 
-      fci_Sp.noalias() = fic_cross * S_i.toVector(); // f{i} x S{i}(:,p)
+      fci_Sp.noalias() = fic_cross * S_i.toVector(); // cmf_bar(f{i}) S{i}(:,p)
 
       //u1
       Force f_tmp2 = oYcrb*(psid_dm + phid_dm); // ICi*(psid_p + Sd_p);
@@ -209,7 +211,7 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
       u2.noalias() = f_tmp3.toVector(); //ICi*S_p;
       
       //u3
-      u3.noalias() = oBicpsidot + S_iA.transpose() * oBcrb - oBcrb * S_iA;  // Bicpsidot + S{i}(p)x*BC{i}- BC {i}S{i}(p)x;
+      u3.noalias() = oBicpsidot - S_iA.transpose() * oBcrb - oBcrb * S_iA;  // Bicpsidot + S{i}(p)x*BC{i}- BC {i}S{i}(p)x;
 
       // u5
       u5.noalias() = oBcrb * psid_dm.toVector() + (oYcrb * psidd_dm).toVector() + fci_Sp; //BCi*psid_p + ICi*psidd_p + fci_Sp         
@@ -217,7 +219,7 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
       f_tmp4.toVector().noalias() = u5;
       
       //u4
-      ForceCrossMatrix(f_tmp, u4); // crf_bar(u5);
+      ForceCrossMatrix(f_tmp4, u4); // crf_bar(u5);
 
       //u7
       f_tmp.toVector().noalias() = oBcrb * S_i.toVector(); //BCi*S_p
@@ -232,28 +234,34 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
 
       while (j > 0) {
 
+        // std::cout << "j = " << j << std::endl;
+        // std::cout << "j_idx = " << j_idx << std::endl;
+
         for (int q = 0; q < model.nvs[j]; q++) {
           const Eigen::DenseIndex jq = model.idx_vs[j] + q;
-
+          std::cout << "jq = " << jq << std::endl;
           const MotionRef<typename Data::Matrix6x::ColXpr> S_j = data.J.col(jq);
           const MotionRef<typename Data::Matrix6x::ColXpr> psid_dj = data.psid.col(jq);   // psi_dot{j}(:,q)
           const MotionRef<typename Data::Matrix6x::ColXpr> psidd_dj = data.psidd.col(jq); // psi_ddot{j}(:,q)
           const MotionRef<typename Data::Matrix6x::ColXpr> phid_dj = data.dJ.col(jq);     // phi_dot{j}(:,q)
-          const ActionMatrixType crfSt = S_j.toDualActionMatrix();                             //(S{i}(:,p) )x matrix
+          const ActionMatrixType crfSt = S_j.toActionMatrix();                             //(S{i}(:,p) )x matrix
+           const ActionMatrixType S_jA = S_j.toActionMatrix();                             //(S{i}(:,p) )x matrix
 
-          BCi_St = Bic_phij      = oYcrb.variation(S_j);  // S_j x* IC{i} - IC{i} S_j x
+          BCi_St = -S_jA.transpose() * oBcrb - oBcrb * S_jA  ; // S_j x* BC{i} - BC{i} S_j x
+
+          ICi_St = Bic_phij      = oYcrb.variation(S_j);  // S_j x* IC{i} - IC{i} S_j x
           ForceCrossMatrix(oYcrb * S_j, r0);            // cmf_bar(IC{i}S{j}(:,q))
           Bic_phij += r0;
 
-          ICi_St = Bic_psijt_dot = oYcrb.variation(psid_dj);       // psi_dot{j}(:,q) x* IC{i} - IC{i} psi_dot{j}(:,q) x
-          addForceCrossMatrix(oYcrb * psid_dj, r0); // cmf_bar(IC{i} * psi_dot{j}(:,q))
+          Bic_psijt_dot = oYcrb.variation(psid_dj);       // psi_dot{j}(:,q) x* IC{i} - IC{i} psi_dot{j}(:,q) x
+          ForceCrossMatrix(oYcrb * psid_dj, r0); // cmf_bar(IC{i} * psi_dot{j}(:,q))
           Bic_psijt_dot += r0;
 
           // s1 = psid_t + Sd_t
-          s1.noalias() = psid_dj.toVector() + phid_dj.toVector();
+          s1.noalias() = (psid_dj + phid_dj).toVector();
 
           // s2 = BCi*psid_t + ICi*psidd_t + fCi_bar * S_t
-          s2.noalias() = oBcrb * phid_dj.toVector()
+          s2.noalias() = oBcrb * psid_dj.toVector()
                     + (oYcrb * psidd_dj).toVector()
                     + fic_cross * S_j.toVector();
 
@@ -264,18 +272,18 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
           s4.noalias() = (oYcrb * S_j).toVector(); // 6x1 (Force)
 
           // s5 = ICi*s1
-          s5.noalias() = (oYcrb * Motion(s1)).toVector();
+          s5.noalias() = (oYcrb * (psid_dj + phid_dj)).toVector();
 
           // s6 = u3*psid_t + ICi_Sp*psidd_t + crfSt*u5
           s6.noalias() = u3 * psid_dj.toVector()
                     + (ICi_Sp * psidd_dj.toVector())
-                    + (crfSt * u5);  
+                    - (crfSt.transpose() * u5);  
 
           // s7 = Bic_phii * S_t
           s7.noalias() = Bicphii * S_j.toVector();
 
           // s8 = crfSt*u2
-          s8.noalias() = crfSt * u2;
+          s8.noalias() = -crfSt.transpose() * u2;
 
           // s9 = ICi_Sp * S_t
           s9.noalias() = ICi_Sp * S_j.toVector();
@@ -292,59 +300,127 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
 
           // s13 = crfSt*ICi + crf_bar(s4)
           Matrix6 crf_s4; 
-          ForceCrossMatrix(Force(s4), crf_s4); // crf_bar of s4
-          s13 = crfSt * oYcrb.matrix() + crf_s4;
+          ForceCrossMatrix(oYcrb * S_j, crf_s4); // crf_bar of s4
+          s13 = -crfSt.transpose() * oYcrb.matrix() + crf_s4;
 
           JointIndex k = j;
+          k_idx = model.idx_vs[k];
 
           while (k > 0) {
+            // std::cout << "k = " << k << std::endl;
+            // std::cout << "k_idx = " << k_idx << std::endl;
 
             for (int r = 0; r < model.nvs[k]; r++) {
               const Eigen::DenseIndex kr = model.idx_vs[k] + r;
-
+              // std::cout << "kr = " << kr << std::endl;
               const MotionRef<typename Data::Matrix6x::ColXpr> S_k(data.J.col(kr));
               const MotionRef<typename Data::Matrix6x::ColXpr> psid_dk = data.psid.col(kr);   // psi_dot{k}(:,r)
               const MotionRef<typename Data::Matrix6x::ColXpr> psidd_dk = data.psidd.col(kr); // psi_ddot{k}(:,r)
               const MotionRef<typename Data::Matrix6x::ColXpr> phid_dk = data.dJ.col(kr);     // phi_dot{k}(:,r)
-              const ActionMatrixType crfSk = S_k.toDualActionMatrix();                             //(S{i}(:,p) )x matrix
+              const ActionMatrixType crfSk = S_k.toActionMatrix();                             //(S{i}(:,p) )x matrix
               const ActionMatrixType crmpsidk = psid_dk.toActionMatrix();
           
               Bic_psikt_dot = oYcrb.variation(psid_dk);       // psi_dot{k}(:,q) x* IC{i} - IC{i} psi_dot{k}(:,q) x
-              addForceCrossMatrix(oYcrb * psid_dk, r0);       // cmf_bar(IC{i} * psi_dot{k}(:,q))
+              ForceCrossMatrix(oYcrb * psid_dk, r0);       // cmf_bar(IC{i} * psi_dot{k}(:,q))
               Bic_psikt_dot += r0;
 
+              // k <= j <= i
+
               // expr-1 SO-q
-              hess_assign(d2fc_dqdq_.at(i_idx), s3*psid_dk.toVector() + ICi_St*psidd_dk.toVector() + crfSk*s2, 0, jq, kr, 1, 6); // d2fc_dqdq_(i)(1:6, jq, kr) 
+              tmp_vec = s3*psid_dk.toVector() + ICi_St*psidd_dk.toVector() - crfSk.transpose() * s2;
+              hess_assign(d2fc_dqdq_.at(i_idx), tmp_vec , 0, jq, kr, 1, 6); // d2fc_dqdq_(i)(1:6, jq, kr) 
+               
+              get_vec_from_tens3_v1_gen(d2fc_dada.at(i_idx), tmp_vec1, 6 , jq, kr);
+            
+
+              if ((tmp_vec -tmp_vec1).norm()>1e-3)
+              {
+                std::cout << "SO expr-1" << std::endl;
+                std::cout << "i_idx = " << i_idx << " ,jq = " << jq << " ,kr = " << kr << std::endl;
+                std::cout << "tmp_vec = \n" << tmp_vec << std::endl;
+                std::cout << "tmp_vec1 = \n" << tmp_vec1 << std::endl;
+              } 
 
               if (j != i) { // k <= j < i
 
                 //  expr-5 SO-q 
-                tmp_vec = ICi_Sp*psidd_dk.toVector() + u4 * S_k.toVector() + u3 * psid_dk.toVector();
+                tmp_vec = ICi_Sp * psidd_dk.toVector() + u4 * S_k.toVector() + u3 * psid_dk.toVector();
                 hess_assign(d2fc_dqdq_.at(j_idx), tmp_vec, 0, kr, ip, 1, 6); // d2fc_dqdq_(j)(1:6, kr, ip)
-             
+              
+                get_vec_from_tens3_v1_gen(d2fc_dada.at(j_idx), tmp_vec1, 6 , kr, ip);
+
+              if ((tmp_vec -tmp_vec1).norm()>1e-3)
+              {
+                std::cout << "SO expr-5" << std::endl;
+                std::cout << "i_idx = " << i_idx << " ,jq = " << jq << " ,kr = " << kr << std::endl;
+                std::cout << "tmp_vec = \n" << tmp_vec << std::endl;
+                std::cout << "tmp_vec1 = \n" << tmp_vec1 << std::endl;
+              } 
+
                 // expr-6 SO-q
                 hess_assign(d2fc_dqdq_.at(j_idx), tmp_vec, 0, ip, kr, 1, 6); // d2fc_dqdq_(j)(1:6, ip, kr) 
+                get_vec_from_tens3_v1_gen(d2fc_dada.at(j_idx), tmp_vec1, 6 , ip, kr);
+              if ((tmp_vec -tmp_vec1).norm()>1e-3)
+              {
+                std::cout << "SO expr-6" << std::endl;
+                std::cout << "i_idx = " << i_idx << " ,jq = " << jq << " ,kr = " << kr << std::endl;
+                std::cout << "tmp_vec = \n" << tmp_vec << std::endl;
+                std::cout << "tmp_vec1 = \n" << tmp_vec1 << std::endl;
+              } 
 
               }
 
               if (k != j) { // k < j <= i
 
                 // expr-2 SO-q  d2fc_dq{i}(:, kk(r), jj(t)) = d2fc_dq{i}(:, jj(t), kk(r));
-               get_vec_from_tens3_v1_gen(d2fc_dqdq_.at(i_idx), tmp_vec, 6 , jq, kr);
-               hess_assign(d2fc_dqdq_.at(i_idx), tmp_vec, 0, kr, jq, 1, 6); // d2fc_dqdq_(i)(1:6, kr, jq)
+                get_vec_from_tens3_v1_gen(d2fc_dqdq_.at(i_idx), tmp_vec, 6 , jq, kr);
+                hess_assign(d2fc_dqdq_.at(i_idx), tmp_vec, 0, kr, jq, 1, 6); // d2fc_dqdq_(i)(1:6, kr, jq)
+        
+                get_vec_from_tens3_v1_gen(d2fc_dada.at(i_idx), tmp_vec1, 6 , kr, jq);
+
+                if ((tmp_vec -tmp_vec1).norm()>1e-3)
+                {
+                  std::cout << "SO expr-2" << std::endl;
+                  std::cout << "i_idx = " << i_idx << " ,jq = " << jq << " ,kr = " << kr << std::endl;
+                  std::cout << "tmp_vec = \n" << tmp_vec << std::endl;
+                  std::cout << "tmp_vec1 = \n" << tmp_vec1 << std::endl;
+                } 
 
                 // expr-3 SO-q
                 // d2fc_dq{k}(:, ii(p), jj(t))
                 hess_assign(d2fc_dqdq_.at(k_idx), s6 , 0, ip, jq, 1, 6); // d2fc_dqdq_(k)(1:6, ip, jq)
+           
+                get_vec_from_tens3_v1_gen(d2fc_dada.at(k_idx), tmp_vec1, 6 , ip, jq);
 
+                if ((s6 -tmp_vec1).norm()>1e-3)
+                {
+                  std::cout << "SO expr-3" << std::endl;
+                  std::cout << "i_idx = " << i_idx << " ,jq = " << jq << " ,kr = " << kr << std::endl;
+                  std::cout << "tmp_vec = \n" << s6 << std::endl;
+                  std::cout << "tmp_vec1 = \n" << tmp_vec1 << std::endl;
+                } 
 
                 if (j != i) { // k < j < i
-                //  expr-4 SO-q   d2fc_dq{k}(:, jj(t), ii(p)) =  d2fc_dq{k}(:, ii(p), jj(t));
-                get_vec_from_tens3_v1_gen(d2fc_dqdq_.at(k_idx), tmp_vec, 6 , ip, jq);
-                hess_assign(d2fc_dqdq_.at(k_idx), tmp_vec, 0, jq, ip, 1, 6); // d2fc_dqdq_(k)(1:6, jq, ip)
+                  //  expr-4 SO-q   d2fc_dq{k}(:, jj(t), ii(p)) =  d2fc_dq{k}(:, ii(p), jj(t));
+                  get_vec_from_tens3_v1_gen(d2fc_dqdq_.at(k_idx), tmp_vec, 6 , ip, jq);
+                  hess_assign(d2fc_dqdq_.at(k_idx), tmp_vec, 0, jq, ip, 1, 6); // d2fc_dqdq_(k)(1:6, jq, ip)
+                 
+                  get_vec_from_tens3_v1_gen(d2fc_dada.at(k_idx), tmp_vec1, 6 , jq, ip);
 
+                  if ((tmp_vec -tmp_vec1).norm()>1e-3)
+                  {
+                    std::cout << "SO expr-4" << std::endl;
+                    std::cout << "i_idx = " << i_idx << " ,jq = " << jq << " ,kr = " << kr << std::endl;
+                    std::cout << "tmp_vec = \n" << tmp_vec << std::endl;
+                    std::cout << "tmp_vec1 = \n" << tmp_vec1 << std::endl;
+                  }
 
-                } else { // k < j = i
+                  // std::cout << "SO expr-4" << std::endl;
+                  // std::cout << "i_idx = " << i_idx << "jq = " << jq << "kr = " << kr << std::endl;
+
+                  // std::cout << "tmp_vec = \n" << tmp_vec << std::endl;
+
+                  } else { // k < j = i
 
                 }
 
@@ -363,6 +439,7 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
         
         j = model.parents[j];
         j_idx = model.idx_vs[j];
+
 
       }
     }
