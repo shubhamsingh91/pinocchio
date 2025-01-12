@@ -137,7 +137,12 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
     typedef typename Data::Vector6c Vector6c;
 
     const JointIndex i = jmodel.id();
+    const JointIndex i_idx = jmodel.idx_v();
+    JointIndex j_idx, k_idx;
     const JointIndex parent = model.parents[i];
+
+    // std::cout << "i = " << i << std::endl;
+    // std::cout << "i_idx = " << i_idx << std::endl;
 
     const Inertia &oYcrb = data.oYcrb[i];  // IC{i}
     const Matrix6 &oBcrb = data.doYcrb[i]; // BC{i}
@@ -145,63 +150,62 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
     std::vector<Tensor1> &d2fc_dqdq_ = const_cast<std::vector<Tensor1> &>(d2fc_dqdq);
     std::vector<Tensor2> &d2fc_dvdv_ = const_cast<std::vector<Tensor2> &>(d2fc_dvdv);
 
-    Vector6r u1;
-    Vector6r u2;
+    Vector6c u1;
+    Vector6c u2;
     Matrix6  u3;
     Matrix6  u4;
     Vector6c u5;
     Matrix6  u7;
-    Matrix6 u8;
+    Matrix6  u8;
     Vector6c u9;
     Vector6c u10;
     Vector6r u11;
     Vector6r u12;
     Vector6c u13;
     Vector6c fci_Sp;
+    Vector6c tmp_vec;
 
     Matrix6 Bicphii;
     Matrix6 oBicpsidot;
     Matrix6 fic_cross;
 
     Matrix6 Bic_phij;
-    Matrix6 Bic_psijt_dot;
+    Matrix6 Bic_psijt_dot, Bic_psikt_dot;
     Matrix6 BCi_St;
     Matrix6 ICi_St;
 
-    Scalar p1, p2, p3, p4, p5, p6;
+    Matrix6 r0, ICi_Sp;
 
-    Matrix6 r0, ICi_Sp, r2, r3, r4, r5, r6, r7;
-
-    Vector6c s1, s2, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13;
-    Matrix6 s3;
+    Vector6c s1, s2, s4, s5, s6, s7, s8, s9, s10, s11, s12 ;
+    Matrix6  s3, s13;
 
     for (int p = 0; p < model.nvs[i]; p++) {
       const Eigen::DenseIndex ip = model.idx_vs[i] + p;
 
       const MotionRef<typename Data::Matrix6x::ColXpr> S_i = data.J.col(ip);          // S{i}(:,p)
-      const ActionMatrixType S_iA = S_i.toActionMatrix();                             //(S{i}(:,p) )x matrix
       const MotionRef<typename Data::Matrix6x::ColXpr> psid_dm = data.psid.col(ip);   // psi_dot for p DOF
       const MotionRef<typename Data::Matrix6x::ColXpr> psidd_dm = data.psidd.col(ip); // psi_ddot for p DOF
       const MotionRef<typename Data::Matrix6x::ColXpr> phid_dm = data.dJ.col(ip);     // phi_dot for p DOF
+      const ActionMatrixType S_iA = S_i.toActionMatrix();                             //(S{i}(:,p) )x matrix
 
       ICi_Sp = Bicphii = oYcrb.variation(S_i);  // S{i}(p)x*IC{i} - IC{i} S{i}(p)x
-      oBicpsidot = oYcrb.variation(psid_dm); // new Bicpsidot in world frame
-      
-      addForceCrossMatrix(data.of[i], fic_cross); // f{i} x 
-      fci_Sp.noalias() = fic_cross * S_i.toVector(); // f{i} x S{i}(:,p)
-
-      Force f_tmp = oYcrb * S_i; // IC{i}S{i}(:,p)
-      ForceCrossMatrix(f_tmp, r0);                   // cmf_bar(IC{i}S{i}(:,p))
+      Force f_tmp = oYcrb * S_i;                // IC{i}S{i}(:,p)
+      ForceCrossMatrix(f_tmp, r0);              // cmf_bar(IC{i}S{i}(:,p))
       Bicphii += r0;
 
+      oBicpsidot = oYcrb.variation(psid_dm);      // new Bicpsidot in world frame
       f_tmp = oYcrb * psid_dm; // IC{i}S{i}(:,p)
       addForceCrossMatrix(f_tmp, oBicpsidot); // cmf_bar(IC{i}S{i}(:,p))
      
-      Force f_tmp2 = oYcrb*(psid_dm+ phid_dm); // ICi*(psid_p + Sd_p);
-      Force f_tmp3 = oYcrb * S_i; // ICi*S_p;
+      ForceCrossMatrix(data.of[i], fic_cross); // f{i} x 
+      fci_Sp.noalias() = fic_cross * S_i.toVector(); // f{i} x S{i}(:,p)
+
       //u1
+      Force f_tmp2 = oYcrb*(psid_dm + phid_dm); // ICi*(psid_p + Sd_p);
       u1.noalias() = f_tmp2.toVector(); //ICi*(psid_p + Sd_p);
+
       //u2
+      Force f_tmp3 = oYcrb * S_i; // ICi*S_p;
       u2.noalias() = f_tmp3.toVector(); //ICi*S_p;
       
       //u3
@@ -213,17 +217,18 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
       f_tmp4.toVector().noalias() = u5;
       
       //u4
-      addForceCrossMatrix(f_tmp, u4); // crf_bar(u5);
+      ForceCrossMatrix(f_tmp, u4); // crf_bar(u5);
 
       //u7
       f_tmp.toVector().noalias() = oBcrb * S_i.toVector(); //BCi*S_p
-      addForceCrossMatrix(f_tmp + f_tmp2, u7); // u7
+      ForceCrossMatrix(f_tmp + f_tmp2, u7); // u7
 
       // u8
-      addForceCrossMatrix(f_tmp3, u8);
-      u8+= oYcrb.vxi(S_i); // crf_bar(ICi*S_p) + S_ix*ICi
+      ForceCrossMatrix(f_tmp3, u8);
+      u8 += oYcrb.vxi(S_i); // crf_bar(ICi*S_p) + S_ix*ICi
 
       JointIndex j = i;
+      j_idx = model.idx_vs[j];
 
       while (j > 0) {
 
@@ -243,7 +248,6 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
           ICi_St = Bic_psijt_dot = oYcrb.variation(psid_dj);       // psi_dot{j}(:,q) x* IC{i} - IC{i} psi_dot{j}(:,q) x
           addForceCrossMatrix(oYcrb * psid_dj, r0); // cmf_bar(IC{i} * psi_dot{j}(:,q))
           Bic_psijt_dot += r0;
-
 
           // s1 = psid_t + Sd_t
           s1.noalias() = psid_dj.toVector() + phid_dj.toVector();
@@ -267,45 +271,29 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
                     + (ICi_Sp * psidd_dj.toVector())
                     + (crfSt * u5);  
 
-          // // s7 = Bic_phii * S_t
-          // //   => also from the p-loop (Bic_phii).
-          // //      “Bic_phii = 2*factorFunctions(ICi, S_p)”, for example
-          // Vector6 s7 = Bic_phii * S_t.toVector();
+          // s7 = Bic_phii * S_t
+          s7.noalias() = Bicphii * S_j.toVector();
 
-          // // s8 = crfSt*u2
-          // //   => “u2 = ICi*S_p” from p-loop
-          // Vector6 s8 = crfSt * u2;
+          // s8 = crfSt*u2
+          s8.noalias() = crfSt * u2;
 
-          // // s9 = ICi_Sp * S_t
-          // Vector6 s9 = ICi_Sp * S_t.toVector();
+          // s9 = ICi_Sp * S_t
+          s9.noalias() = ICi_Sp * S_j.toVector();
 
-          // // s10 = Bic_phii*psid_t + u7*S_t
-          // //   => “u7 = crf_bar(u6 + u1)” from p-loop
-          // Vector6 s10 = Bic_phii * psid_t.toVector()
-          //             + (u7 * S_t.toVector());
+          // s10 = Bic_phii*psid_t + u7*S_t
+          s10.noalias() = Bicphii * psid_dj.toVector()
+                      + (u7 * S_j.toVector());
 
-          // // s11 = u3*S_t + ICi_Sp*(psid_t + Sd_t)
-          // {
-          //   Vector6 temp = psid_t.toVector() + Sd_t.toVector();
-          //   Vector6 s11_left  = u3 * S_t.toVector();
-          //   Vector6 s11_right = ICi_Sp * temp;
-          //   Vector6 s11       = s11_left + s11_right;
-          //   // store or use s11
-          // }
+          // s11 = u3*S_t + ICi_Sp*(psid_t + Sd_t)
+          s11.noalias()  = u3 * S_j.toVector() + ICi_Sp * s1;
 
-          // // s12 = u8 * S_t
-          // //   => “u8 = crf_bar(u2) + crfSp*ICi” from p-loop
-          // Vector6 s12 = u8 * S_t.toVector();
+          // s12 = u8 * S_t
+          s12.noalias() = u8 * S_j.toVector();
 
-          // // s13 = crfSt*ICi + crf_bar(s4)
-          // //   => s4 is a Force from above => crf_bar(s4)
-          // Matrix6 crf_s4; 
-          // ForceCrossMatrix(s4, crf_s4); // crf_bar of s4
-          // Matrix6 s13 = crfSt * ICi.toMatrix() + crf_s4;
-
-
-
-
+          // s13 = crfSt*ICi + crf_bar(s4)
+          Matrix6 crf_s4; 
+          ForceCrossMatrix(Force(s4), crf_s4); // crf_bar of s4
+          s13 = crfSt * oYcrb.matrix() + crf_s4;
 
           JointIndex k = j;
 
@@ -315,64 +303,67 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
               const Eigen::DenseIndex kr = model.idx_vs[k] + r;
 
               const MotionRef<typename Data::Matrix6x::ColXpr> S_k(data.J.col(kr));
-              const MotionRef<typename Data::Matrix6x::ColXpr> psid_dm = data.psid.col(kr);   // psi_dot{k}(:,r)
-              const MotionRef<typename Data::Matrix6x::ColXpr> psidd_dm = data.psidd.col(kr); // psi_ddot{k}(:,r)
-              const MotionRef<typename Data::Matrix6x::ColXpr> phid_dm = data.dJ.col(kr);     // phi_dot{k}(:,r)
+              const MotionRef<typename Data::Matrix6x::ColXpr> psid_dk = data.psid.col(kr);   // psi_dot{k}(:,r)
+              const MotionRef<typename Data::Matrix6x::ColXpr> psidd_dk = data.psidd.col(kr); // psi_ddot{k}(:,r)
+              const MotionRef<typename Data::Matrix6x::ColXpr> phid_dk = data.dJ.col(kr);     // phi_dot{k}(:,r)
+              const ActionMatrixType crfSk = S_k.toDualActionMatrix();                             //(S{i}(:,p) )x matrix
+              const ActionMatrixType crmpsidk = psid_dk.toActionMatrix();
+          
+              Bic_psikt_dot = oYcrb.variation(psid_dk);       // psi_dot{k}(:,q) x* IC{i} - IC{i} psi_dot{k}(:,q) x
+              addForceCrossMatrix(oYcrb * psid_dk, r0);       // cmf_bar(IC{i} * psi_dot{k}(:,q))
+              Bic_psikt_dot += r0;
 
-            //   p1 = u11 * psid_dm.toVector();
-            //   p2 = u9.dot(psidd_dm.toVector());
-            //   p2 += (-u12 + u8.transpose()) * psid_dm.toVector();
+              // expr-1 SO-q
+              hess_assign(d2fc_dqdq_.at(i_idx), s3*psid_dk.toVector() + ICi_St*psidd_dk.toVector() + crfSk*s2, 0, jq, kr, 1, 6); // d2fc_dqdq_(i)(1:6, jq, kr) 
 
-            //   d2tau_dqdq_(ip, jq, kr) = p2;
-            //   dtau_dqdv_(ip, kr, jq) = -p1;
+              if (j != i) { // k <= j < i
 
-              if (j != i) {
-                // p3 = -u11 * S_k.toVector();
-                // p4 = S_k.toVector().dot(u13);
-                // d2tau_dqdq_(jq, kr, ip) = u1 * psid_dm.toVector();
-                // d2tau_dqdq_(jq, kr, ip) += u2 * psidd_dm.toVector();
-                // d2tau_dqdq_(jq, ip, kr) = d2tau_dqdq_(jq, kr, ip);
-                // dtau_dqdv_(jq, kr, ip) = p1;
-                // dtau_dqdv_(jq, ip, kr) = u1 * S_k.toVector();
-                // dtau_dqdv_(jq, ip, kr) += u2 * (psid_dm.toVector() + phid_dm.toVector());
-                // d2tau_dvdv_(jq, kr, ip) = -p3;
-                // d2tau_dvdv_(jq, ip, kr) = -p3;
-                // dtau_dadq_(kr, jq, ip) = p4;
-                // dtau_dadq_(jq, kr, ip) = p4;
+                //  expr-5 SO-q 
+                tmp_vec = ICi_Sp*psidd_dk.toVector() + u4 * S_k.toVector() + u3 * psid_dk.toVector();
+                hess_assign(d2fc_dqdq_.at(j_idx), tmp_vec, 0, kr, ip, 1, 6); // d2fc_dqdq_(j)(1:6, kr, ip)
+             
+                // expr-6 SO-q
+                hess_assign(d2fc_dqdq_.at(j_idx), tmp_vec, 0, ip, kr, 1, 6); // d2fc_dqdq_(j)(1:6, ip, kr) 
+
               }
 
-              if (k != j) {
-                // p3 = -u11 * S_k.toVector();
-                // p5 = S_k.toVector().dot(u9);
-                // d2tau_dqdq_(ip, kr, jq) = p2;
-                // d2tau_dqdq_(kr, ip, jq) = S_k.toVector().dot(u3);
-                // d2tau_dvdv_(ip, jq, kr) = p3;
-                // d2tau_dvdv_(ip, kr, jq) = p3;
-                // dtau_dqdv_(ip, jq, kr) = S_k.toVector().dot(u5 + u8);
-                // dtau_dqdv_(ip, jq, kr) += u9.dot(psid_dm.toVector() + phid_dm.toVector());
-                // dtau_dqdv_(kr, jq, ip) = S_k.toVector().dot(u6);
-                // dtau_dadq_(kr, ip, jq) = p5;
-                // dtau_dadq_(ip, kr, jq) = p5;
-                if (j != i) {
-                //   p6 = S_k.toVector().dot(u10);
-                //   d2tau_dqdq_(kr, jq, ip) = d2tau_dqdq_(kr, ip, jq);
-                //   d2tau_dvdv_(kr, ip, jq) = p6;
-                //   d2tau_dvdv_(kr, jq, ip) = p6;
-                //   dtau_dqdv_(kr, ip, jq) = S_k.toVector().dot(u7);
+              if (k != j) { // k < j <= i
 
-                } else {
-                //   d2tau_dvdv_(kr, jq, ip) = S_k.toVector().dot(u4);
+                // expr-2 SO-q  d2fc_dq{i}(:, kk(r), jj(t)) = d2fc_dq{i}(:, jj(t), kk(r));
+               get_vec_from_tens3_v1_gen(d2fc_dqdq_.at(i_idx), tmp_vec, 6 , jq, kr);
+               hess_assign(d2fc_dqdq_.at(i_idx), tmp_vec, 0, kr, jq, 1, 6); // d2fc_dqdq_(i)(1:6, kr, jq)
+
+                // expr-3 SO-q
+                // d2fc_dq{k}(:, ii(p), jj(t))
+                hess_assign(d2fc_dqdq_.at(k_idx), s6 , 0, ip, jq, 1, 6); // d2fc_dqdq_(k)(1:6, ip, jq)
+
+
+                if (j != i) { // k < j < i
+                //  expr-4 SO-q   d2fc_dq{k}(:, jj(t), ii(p)) =  d2fc_dq{k}(:, ii(p), jj(t));
+                get_vec_from_tens3_v1_gen(d2fc_dqdq_.at(k_idx), tmp_vec, 6 , ip, jq);
+                hess_assign(d2fc_dqdq_.at(k_idx), tmp_vec, 0, jq, ip, 1, 6); // d2fc_dqdq_(k)(1:6, jq, ip)
+
+
+                } else { // k < j = i
+
                 }
 
-              } else {
-                // d2tau_dvdv_(ip, jq, kr) = -u2 * S_k.toVector();
+              } else { // k = j <= i
+
               }
+              
             }
 
             k = model.parents[k];
+            k_idx = model.idx_vs[k];
+
           }
         }
+        
+        
         j = model.parents[j];
+        j_idx = model.idx_vs[j];
+
       }
     }
 

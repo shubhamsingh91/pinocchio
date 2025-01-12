@@ -359,24 +359,24 @@ int main(int argc, const char ** argv)
 
     // Partial wrt v
     for (int k = 0; k < model.nv; ++k) {
-        v_eps[k] += alpha;
-        qd_plus = qdots[_smooth] + v_eps; // This is used to add the v_eps to q in the k^th direction
+    v_eps[k] += alpha;
+    qd_plus = qdots[_smooth] + v_eps; // This is used to add the v_eps to q in the k^th direction
 
-        computeSpatialForceDerivs(model,data,qs[_smooth], qd_plus ,qddots[_smooth],
-        df_dq_ana_tensor_plus, df_dv_ana_tensor_plus, df_da_ana_tensor_plus);
+    computeSpatialForceDerivs(model,data,qs[_smooth], qd_plus ,qddots[_smooth],
+    df_dq_ana_tensor_plus, df_dv_ana_tensor_plus, df_da_ana_tensor_plus);
 
-        t_d2fc_dv_dvk = (df_dv_ana_tensor_plus - df_dv_ana) / alpha; // 3d tensor d2fc/dq dqk
-        for (int i = 0; i < model.nv; i++)
-        {
+    t_d2fc_dv_dvk = (df_dv_ana_tensor_plus - df_dv_ana) / alpha; // 3d tensor d2fc/dq dqk
+    for (int i = 0; i < model.nv; i++)
+    {
           get_mat_from_tens3_v1_gen(t_d2fc_dv_dvk, m_d2fci_dv_dvk, 6, model.nv, i);
-          hess_assign_fd_v1_gen(d2f_dv2_fd.at(i), m_d2fci_dv_dvk, 6, model.nv, k); // slicing in the matrix along the kth page for ith tensor     
-        }
+    hess_assign_fd_v1_gen(d2f_dv2_fd.at(i), m_d2fci_dv_dvk, 6, model.nv, k); // slicing in the matrix along the kth page for ith tensor     
+    }
 
-        v_eps[k] -= alpha;
+    v_eps[k] -= alpha;
     }
    //------- Analytical algorithm
 
-       ComputeSpatialForceSecondOrderDerivatives(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth],
+    ComputeSpatialForceSecondOrderDerivatives(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth],
                                              d2f_dq2_ana, d2f_dv2_ana,d2f_da2_ana, d2f_daq_ana);
 
 

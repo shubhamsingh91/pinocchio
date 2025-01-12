@@ -385,6 +385,15 @@ void get_mat_from_tens3_v1_gen(const Eigen::Tensor<double, 3>& tens, Eigen::Matr
     }
 }
 
+template <typename T>
+void get_vec_from_tens3_v1_gen(const Eigen::Tensor<double, 3>& tens, Eigen::MatrixBase<T>& vec, int r, int j, int k)
+{
+    for (int ii = 0; ii < r; ii++) {
+        vec(ii) = tens(ii, j, k);
+    }
+}
+
+
 // This is 30 x faster than row-major one
 // changing the tens access and matrix access to col-major
 // get matrix from a tensor along dimension-3 (or keeping third dim constant)
