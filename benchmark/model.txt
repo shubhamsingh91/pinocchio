@@ -1,1 +1,1 @@
-../models/simple_humanoid.urdf
+../models/talos_full_v2.urdf

@@ -393,7 +393,7 @@ int main(int argc, const char ** argv)
    //------- Analytical algorithm
 
     ComputeSpatialForceSecondOrderDerivatives(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth],
-                                             d2f_dq2_ana, d2f_dv2_ana, d2f_dq2_fd, d2f_daq_ana);
+                                             d2f_dq2_ana, d2f_dv2_ana, d2f_dv2_fd, d2f_daq_ana);
 
 
     // Comparing the results
@@ -403,24 +403,23 @@ int main(int argc, const char ** argv)
       Eigen::Tensor<double,3> concrete_tensor = (d2f_dq2_fd.at(i) - d2f_dq2_ana.at(i)).eval();
       auto diff_eq = tensorMax(concrete_tensor);
 
-      // auto diff_dv = (d2f_dv2_fd.at(i) - d2f_dv2_ana.at(i)).norm();
+      Eigen::Tensor<double,3> concrete_tensor_SO_v = (d2f_dv2_fd.at(i) - d2f_dv2_ana.at(i)).eval();
+      auto diff_dv = tensorMax(concrete_tensor_SO_v);
+
       // auto diff_da = (d2f_da2_fd.at(i) - d2f_da2_ana.at(i)).norm();
       // std::cout << "i = " << i << std::endl;
         // std::cout << "d2f_dq2_fd.at(i) = \n" << d2f_dq2_fd.at(i) << std::endl;
 
       if (diff_eq > 1e-3)
       {
-        // std::cout << "d2f_dq2_fd.at(i) = \n" << d2f_dq2_fd.at(i) << std::endl;
-        // std::cout << "d2f_dq2_ana.at(i) = \n" << d2f_dq2_ana.at(i) << std::endl;
-
-        std::cout << "diff -------------= \n"   << std::endl;
+        std::cout << "diff SO-q \n"   << std::endl;
         // std::cout << "diff -------------= \n"  << concrete_tensor << std::endl;
       }
 
-      // if (diff_dv > 1e-3)
-      // {
-      //   std::cout << "diff_dv = " << diff_dv << std::endl;
-      // }
+      if (diff_dv > 1e-3)
+      {
+        std::cout << "diff SO-v \n"   << std::endl;
+      }
 
       // if (diff_da > 1e-3)
       // {

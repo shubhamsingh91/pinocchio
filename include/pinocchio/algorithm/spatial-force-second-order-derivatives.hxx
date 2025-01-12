@@ -239,7 +239,7 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
 
         for (int q = 0; q < model.nvs[j]; q++) {
           const Eigen::DenseIndex jq = model.idx_vs[j] + q;
-          std::cout << "jq = " << jq << std::endl;
+          // std::cout << "jq = " << jq << std::endl;
           const MotionRef<typename Data::Matrix6x::ColXpr> S_j = data.J.col(jq);
           const MotionRef<typename Data::Matrix6x::ColXpr> psid_dj = data.psid.col(jq);   // psi_dot{j}(:,q)
           const MotionRef<typename Data::Matrix6x::ColXpr> psidd_dj = data.psidd.col(jq); // psi_ddot{j}(:,q)
@@ -330,16 +330,6 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
               tmp_vec = s3*psid_dk.toVector() + ICi_St*psidd_dk.toVector() - crfSk.transpose() * s2;
               hess_assign(d2fc_dqdq_.at(i_idx), tmp_vec , 0, jq, kr, 1, 6); // d2fc_dqdq_(i)(1:6, jq, kr) 
                
-              get_vec_from_tens3_v1_gen(d2fc_dada.at(i_idx), tmp_vec1, 6 , jq, kr);
-            
-
-              if ((tmp_vec -tmp_vec1).norm()>1e-3)
-              {
-                std::cout << "SO expr-1" << std::endl;
-                std::cout << "i_idx = " << i_idx << " ,jq = " << jq << " ,kr = " << kr << std::endl;
-                std::cout << "tmp_vec = \n" << tmp_vec << std::endl;
-                std::cout << "tmp_vec1 = \n" << tmp_vec1 << std::endl;
-              } 
 
               if (j != i) { // k <= j < i
 
@@ -347,26 +337,19 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
                 tmp_vec = ICi_Sp * psidd_dk.toVector() + u4 * S_k.toVector() + u3 * psid_dk.toVector();
                 hess_assign(d2fc_dqdq_.at(j_idx), tmp_vec, 0, kr, ip, 1, 6); // d2fc_dqdq_(j)(1:6, kr, ip)
               
-                get_vec_from_tens3_v1_gen(d2fc_dada.at(j_idx), tmp_vec1, 6 , kr, ip);
-
-              if ((tmp_vec -tmp_vec1).norm()>1e-3)
-              {
-                std::cout << "SO expr-5" << std::endl;
-                std::cout << "i_idx = " << i_idx << " ,jq = " << jq << " ,kr = " << kr << std::endl;
-                std::cout << "tmp_vec = \n" << tmp_vec << std::endl;
-                std::cout << "tmp_vec1 = \n" << tmp_vec1 << std::endl;
-              } 
 
                 // expr-6 SO-q
                 hess_assign(d2fc_dqdq_.at(j_idx), tmp_vec, 0, ip, kr, 1, 6); // d2fc_dqdq_(j)(1:6, ip, kr) 
-                get_vec_from_tens3_v1_gen(d2fc_dada.at(j_idx), tmp_vec1, 6 , ip, kr);
-              if ((tmp_vec -tmp_vec1).norm()>1e-3)
-              {
-                std::cout << "SO expr-6" << std::endl;
-                std::cout << "i_idx = " << i_idx << " ,jq = " << jq << " ,kr = " << kr << std::endl;
-                std::cout << "tmp_vec = \n" << tmp_vec << std::endl;
-                std::cout << "tmp_vec1 = \n" << tmp_vec1 << std::endl;
-              } 
+
+
+                // expr-7 SO-v
+                // d2fc_dv{j}(:, kk(r), ii(p)) = Bic_phii*S_r;      
+                tmp_vec.noalias() = Bicphii * S_k.toVector(); 
+                hess_assign(d2fc_dvdv_.at(j_idx), tmp_vec, 0, kr, ip, 1, 6); // d2fc_dvdv_(j)(1:6, kr, ip) 
+
+                //  expr-8 SO-v
+                //  d2fc_dv{j}(:, ii(p), kk(r)) = d2fc_dv{j}(:, kk(r), ii(p)); 
+                hess_assign(d2fc_dvdv_.at(j_idx), tmp_vec, 0, ip, kr, 1, 6); // d2fc_dvdv_(j)(1:6, ip, kr)
 
               }
 
@@ -376,55 +359,49 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
                 get_vec_from_tens3_v1_gen(d2fc_dqdq_.at(i_idx), tmp_vec, 6 , jq, kr);
                 hess_assign(d2fc_dqdq_.at(i_idx), tmp_vec, 0, kr, jq, 1, 6); // d2fc_dqdq_(i)(1:6, kr, jq)
         
-                get_vec_from_tens3_v1_gen(d2fc_dada.at(i_idx), tmp_vec1, 6 , kr, jq);
-
-                if ((tmp_vec -tmp_vec1).norm()>1e-3)
-                {
-                  std::cout << "SO expr-2" << std::endl;
-                  std::cout << "i_idx = " << i_idx << " ,jq = " << jq << " ,kr = " << kr << std::endl;
-                  std::cout << "tmp_vec = \n" << tmp_vec << std::endl;
-                  std::cout << "tmp_vec1 = \n" << tmp_vec1 << std::endl;
-                } 
-
+  
                 // expr-3 SO-q
                 // d2fc_dq{k}(:, ii(p), jj(t))
                 hess_assign(d2fc_dqdq_.at(k_idx), s6 , 0, ip, jq, 1, 6); // d2fc_dqdq_(k)(1:6, ip, jq)
            
-                get_vec_from_tens3_v1_gen(d2fc_dada.at(k_idx), tmp_vec1, 6 , ip, jq);
 
-                if ((s6 -tmp_vec1).norm()>1e-3)
-                {
-                  std::cout << "SO expr-3" << std::endl;
-                  std::cout << "i_idx = " << i_idx << " ,jq = " << jq << " ,kr = " << kr << std::endl;
-                  std::cout << "tmp_vec = \n" << s6 << std::endl;
-                  std::cout << "tmp_vec1 = \n" << tmp_vec1 << std::endl;
-                } 
+
+                // % expr-1 SO-v
+                // d2fc_dv{i}(:, jj(t), kk(r)) = Bic_phij*S_r;
+                tmp_vec.noalias() = Bic_phij * S_k.toVector();
+                hess_assign(d2fc_dvdv_.at(i_idx), tmp_vec, 0, jq, kr, 1, 6); // d2fc_dvdv_(i)(1:6, jq, kr)
+
+                // % expr-2 SO-v
+                // d2fc_dv{i}(:, kk(r), jj(t)) = d2fc_dv{i}(:, jj(t), kk(r));
+                hess_assign(d2fc_dvdv_.at(i_idx), tmp_vec, 0, kr, jq, 1, 6); // d2fc_dvdv_(i)(1:6, kr, jq)
 
                 if (j != i) { // k < j < i
                   //  expr-4 SO-q   d2fc_dq{k}(:, jj(t), ii(p)) =  d2fc_dq{k}(:, ii(p), jj(t));
                   get_vec_from_tens3_v1_gen(d2fc_dqdq_.at(k_idx), tmp_vec, 6 , ip, jq);
                   hess_assign(d2fc_dqdq_.at(k_idx), tmp_vec, 0, jq, ip, 1, 6); // d2fc_dqdq_(k)(1:6, jq, ip)
                  
-                  get_vec_from_tens3_v1_gen(d2fc_dada.at(k_idx), tmp_vec1, 6 , jq, ip);
 
-                  if ((tmp_vec -tmp_vec1).norm()>1e-3)
-                  {
-                    std::cout << "SO expr-4" << std::endl;
-                    std::cout << "i_idx = " << i_idx << " ,jq = " << jq << " ,kr = " << kr << std::endl;
-                    std::cout << "tmp_vec = \n" << tmp_vec << std::endl;
-                    std::cout << "tmp_vec1 = \n" << tmp_vec1 << std::endl;
-                  }
+                  // % expr-4 SO-v
+                  // d2fc_dv{k}(:, ii(p), jj(t)) = s7;
+                  hess_assign(d2fc_dvdv_.at(k_idx), s7, 0, ip, jq, 1, 6); // d2fc_dvdv_(k)(1:6, ip, jq)
 
-                  // std::cout << "SO expr-4" << std::endl;
-                  // std::cout << "i_idx = " << i_idx << "jq = " << jq << "kr = " << kr << std::endl;
+                  // % expr-5 SO-v
+                  // d2fc_dv{k}(:, jj(t), ii(p)) = d2fc_dv{k}(:, ii(p), jj(t));
+                  hess_assign(d2fc_dvdv_.at(k_idx), s7, 0, jq, ip, 1, 6); // d2fc_dvdv_(k)(1:6, jq, ip)
 
-                  // std::cout << "tmp_vec = \n" << tmp_vec << std::endl;
 
-                  } else { // k < j = i
+                } else { // k < j = i
+                  // expr-6 SO-v 
+                  // d2fc_dv{k}(:, ii(p), jj(t)) = s12;
+                  hess_assign(d2fc_dvdv_.at(k_idx), s12, 0, ip, jq, 1, 6); // d2fc_dvdv_(k)(1:6, ip, jq)
 
                 }
 
               } else { // k = j <= i
+                // expr-3 SO-v 
+                // d2fc_dv{i}(:, jj(t), kk(r)) = s13 * S_r;
+                tmp_vec.noalias() = s13 * S_k.toVector();
+                hess_assign(d2fc_dvdv_.at(i_idx), tmp_vec, 0, jq, kr, 1, 6); // d2fc_dvdv_(i)(1:6, jq, kr)
 
               }
               
