@@ -392,8 +392,10 @@ int main(int argc, const char ** argv)
 
       if (diff_eq > 1e-3)
       {
-        std::cout << "d2f_dq2_fd.at(i) = \n" << d2f_dq2_fd.at(i) << std::endl;
-        std::cout << "d2f_dq2_ana.at(i) = \n" << d2f_dq2_ana.at(i) << std::endl;
+        // std::cout << "d2f_dq2_fd.at(i) = \n" << d2f_dq2_fd.at(i) << std::endl;
+        // std::cout << "d2f_dq2_ana.at(i) = \n" << d2f_dq2_ana.at(i) << std::endl;
+
+        std::cout << "diff = " << concrete_tensor << std::endl;
       }
 
       // if (diff_dv > 1e-3)
