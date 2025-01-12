@@ -1,0 +1,126 @@
+g++ timings-derivatives.cpp -DNDEBUG -I /usr/include/eigen3 -O3 -I /usr/include -L /usr/local/lib -l pinocchio -o timings-derivatives
+
+
+For VScode debug mode-
+Edit the c_cpp_configurations.json file and add library paths to "includePath" setting
+
+include the LD_LIBRARY_PATH using terminal
+export LD_LIBRARY_PATH=/usr/local/lib/
+
+#-----------------------------------------------------------#
+v1 version of timing-derivatives.cpp
+g++ timings-derivatives_v1.cpp -DNDEBUG -I /usr/include/eigen3 -O3 -I /usr/include -L /usr/local/lib -l pinocchio -o timings-derivatives_v1
+
+
+Running test_v1 without any optimization flag
+#-------------------------------------------------------------#
+g++ test_v1.cpp -DNDEBUG -I /usr/include/eigen3 -I /usr/include -L /usr/local/lib -l pinocchio -o test_v1
+
+Running test_v1 with O3 optimization flag
+#-------------------------------------------------------------#
+g++ test_v1.cpp -DNDEBUG -I /usr/include/eigen3 -O3 -I /usr/include -L /usr/local/lib -l pinocchio -o test_v1
+
+
+Running test_v2 without any optimization flag
+#-------------------------------------------------------------#
+g++ test_v2.cpp -DNDEBUG -I /usr/include/eigen3 -I /usr/include -L /usr/local/lib -l pinocchio -o test_v2
+
+
+Running test_v2 with O3 optimization flag
+#-------------------------------------------------------------#
+g++ test_v2.cpp -DNDEBUG -I /usr/include/eigen3 -I /usr/include -O3 -march=native -L /usr/local/lib -l -pinocchio -o test_v2
+
+
+Running testv4 without any optimization flag
+#-------------------------------------------------------------#
+g++ testv4.cpp -DNDEBUG -I /usr/include/eigen3 -I /usr/include -L /usr/local/lib -l pinocchio -o testv4
+
+Running testv4 with O3 optimization flag
+#-------------------------------------------------------------#
+g++ testv4.cpp -DNDEBUG -I /usr/include/eigen3 -I /usr/include -O3 -L /usr/local/lib -l pinocchio -o testv4
+
+
+Running testv5 with O3 optimization flag
+#-------------------------------------------------------------#
+g++ testv5.cpp -DNDEBUG -I /usr/include/eigen3 -I /usr/include -O3 -march=native -L /usr/local/lib -l pinocchio -o testv5
+
+
+Running timing-derivatives with O3 optimization flag
+#-------------------------------------------------------------
+g++ timings-derivatives.cpp -DNDEBUG -I /usr/include/eigen3 -I /usr/include -O3 -L /usr/local/lib -l pinocchio -o timings-derivatives.cpp
+
+
+Compiling testv5 with O3 optimization flag- clang-10
+#-------------------------------------------------------------
+clang++-10 -DNDEBUG -I /usr/include/eigen3 -I /usr/include -O3 -L /usr/local/lib -l pinocchio -std=c++11 testv5.cpp -o testv5
+
+Compiling testv5 with O3 optimization flag/ and other flags- clang-10
+#-------------------------------------------------------------
+clang++-10 -DNDEBUG -I /usr/include/eigen3 -I /usr/include -O3 -finline-functions -funroll-loops -fvectorize -L /usr/local/lib -l pinocchio -std=c++11 -march=native testv5.cpp -o testv5
+
+Running test_v2 with O3 optimization flag- using clang-10
+#-------------------------------------------------------------#
+clang++-10 -DNDEBUG -O3 -finline-functions -funroll-loops -fvectorize -I /usr/include/eigen3 -I /usr/include -O3 -L /usr/local/lib -l pinocchio -std=c++11 -march=native test_v2.cpp -o test_v2
+
+Running timings_derivs_v1 with O3 optimization flag- using gcc
+#-------------------------------------------------------------#
+g++ timings_derivs_v1.cpp -DNDEBUG -I /usr/include/eigen3 -O3 -I /usr/include -L /usr/local/lib -l pinocchio -o timings_derivs_v1
+
+Running timings_derivs_v1 with O0 optimization flag- using gcc
+#-------------------------------------------------------------#
+g++ timings-derivs_v1.cpp -DNDEBUG -I /usr/include/eigen3 -O0 -I /usr/include -L /usr/local/lib -l pinocchio -o timings-derivs_v1
+
+Running timings-cg with O0 optimization flag- using gcc
+#-------------------------------------------------------------#
+g++ timings-cg.cpp -DNDEBUG -I /usr/include/eigen3 -O0 -I /usr/include -L /usr/local/lib -l pinocchio -o timings-cg
+
+Running timings_cg_v1 with O0 optimization flag- using gcc
+#-------------------------------------------------------------#
+g++ timings_cg_v1.cpp -DNDEBUG -I /usr/include/eigen3 -O0 -I /usr/include -L /usr/local/lib -l pinocchio -ldl -o timings_cg_v1
+
+Running test_spatial_force with O0 optimization flag- using gcc
+#-------------------------------------------------------------#
+
+g++ test_spatial_force.cpp -DNDEBUG -DNFO -I /usr/include/eigen3 -O0 -I /usr/include -L /usr/local/lib -l pinocchio -ldl -o spatial_force
+
+
+#-------------------------------------------------------------#
+#----- Sourcing files here
+#-------------------------------------------------------------#
+
+export PATH=/usr/local/bin:$PATH
+export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+export PYTHONPATH=/usr/local/lib/python2.7/site-packages:$PYTHONPATH
+export CMAKE_PREFIX_PATH=/usr/local:$CMAKE_PREFIX_PATH
+
+#-------------------------------------------------------------#
+#--- If adding/deleting/ a source file
+#-------------------------------------------------------------#
+rm -r build 
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local 
+make -j4
+sudo make install
+
+
+#-------------------------------------------------------------#
+#--- If modyfing a source file
+#-------------------------------------------------------------#
+
+sudo make install
+
+ 
+#-------------------------------------------------------------#
+#--- To delete all the .so format files ----------------------#
+#-------------------------------------------------------------#
+find . -type f -iname \*.so -delete
+
+
+
+#---- Install with python bindings-----#
+just install using pip
+
+pip install pin
+
+
+

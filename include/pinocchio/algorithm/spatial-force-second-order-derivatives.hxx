@@ -147,36 +147,48 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
 
     Vector6r u1;
     Vector6r u2;
-    Vector6c u3;
-    Vector6c u4;
+    Matrix6  u3;
+    Matrix6  u4;
     Vector6c u5;
-    Vector6c u6;
-    Vector6c u7;
-    Vector6c u8;
+    Matrix6  u7;
+    Matrix6 u8;
     Vector6c u9;
     Vector6c u10;
     Vector6r u11;
     Vector6r u12;
     Vector6c u13;
+    Vector6c fci_Sp;
 
     Matrix6 Bicphii;
     Matrix6 oBicpsidot;
+    Matrix6 fic_cross;
+
+    Matrix6 Bic_phij;
+    Matrix6 Bic_psijt_dot;
+    Matrix6 BCi_St;
+    Matrix6 ICi_St;
 
     Scalar p1, p2, p3, p4, p5, p6;
 
-    Matrix6 r0, r1, r2, r3, r4, r5, r6, r7;
+    Matrix6 r0, ICi_Sp, r2, r3, r4, r5, r6, r7;
+
+    Vector6c s1, s2, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13;
+    Matrix6 s3;
 
     for (int p = 0; p < model.nvs[i]; p++) {
       const Eigen::DenseIndex ip = model.idx_vs[i] + p;
 
       const MotionRef<typename Data::Matrix6x::ColXpr> S_i = data.J.col(ip);          // S{i}(:,p)
-      const ActionMatrixType S_iA = S_i.toActionMatrix(); //(S{i}(:,p) )x matrix
+      const ActionMatrixType S_iA = S_i.toActionMatrix();                             //(S{i}(:,p) )x matrix
       const MotionRef<typename Data::Matrix6x::ColXpr> psid_dm = data.psid.col(ip);   // psi_dot for p DOF
       const MotionRef<typename Data::Matrix6x::ColXpr> psidd_dm = data.psidd.col(ip); // psi_ddot for p DOF
       const MotionRef<typename Data::Matrix6x::ColXpr> phid_dm = data.dJ.col(ip);     // phi_dot for p DOF
 
-      r1 = Bicphii = oYcrb.variation(S_i);  // S{i}(p)x*IC{i} - IC{i} S{i}(p)x
+      ICi_Sp = Bicphii = oYcrb.variation(S_i);  // S{i}(p)x*IC{i} - IC{i} S{i}(p)x
       oBicpsidot = oYcrb.variation(psid_dm); // new Bicpsidot in world frame
+      
+      addForceCrossMatrix(data.of[i], fic_cross); // f{i} x 
+      fci_Sp.noalias() = fic_cross * S_i.toVector(); // f{i} x S{i}(:,p)
 
       Force f_tmp = oYcrb * S_i; // IC{i}S{i}(:,p)
       ForceCrossMatrix(f_tmp, r0);                   // cmf_bar(IC{i}S{i}(:,p))
@@ -184,32 +196,32 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
 
       f_tmp = oYcrb * psid_dm; // IC{i}S{i}(:,p)
       addForceCrossMatrix(f_tmp, oBicpsidot); // cmf_bar(IC{i}S{i}(:,p))
+     
+      Force f_tmp2 = oYcrb*(psid_dm+ phid_dm); // ICi*(psid_p + Sd_p);
+      Force f_tmp3 = oYcrb * S_i; // ICi*S_p;
+      //u1
+      u1.noalias() = f_tmp2.toVector(); //ICi*(psid_p + Sd_p);
+      //u2
+      u2.noalias() = f_tmp3.toVector(); //ICi*S_p;
+      
+      //u3
+      u3.noalias() = oBicpsidot + S_iA.transpose() * oBcrb - oBcrb * S_iA;  // Bicpsidot + S{i}(p)x*BC{i}- BC {i}S{i}(p)x;
 
-      r2.noalias() = 2 * r0 - Bicphii;
+      // u5
+      u5.noalias() = oBcrb * psid_dm.toVector() + (oYcrb * psidd_dm).toVector() + fci_Sp; //BCi*psid_p + ICi*psidd_p + fci_Sp         
+      Force f_tmp4;
+      f_tmp4.toVector().noalias() = u5;
+      
+      //u4
+      addForceCrossMatrix(f_tmp, u4); // crf_bar(u5);
 
-      r3.noalias() =
-      oBicpsidot - S_iA.transpose() * oBcrb -
-          oBcrb * S_iA; // Bicpsidot + S{i}(p)x*BC{i}- BC {i}S{i}(p)x
+      //u7
+      f_tmp.toVector().noalias() = oBcrb * S_i.toVector(); //BCi*S_p
+      addForceCrossMatrix(f_tmp + f_tmp2, u7); // u7
 
-      // r4
-      f_tmp.toVector().noalias() = oBcrb.transpose() * S_i.toVector();
-      ForceCrossMatrix(f_tmp, r4); // cmf_bar(BC{i}.'S{i}(:,p))
-      // r5
-      f_tmp.toVector().noalias() = oBcrb * psid_dm.toVector();
-      f_tmp += S_i.cross(data.of[i]);
-      motionSet::inertiaAction<ADDTO>(oYcrb, psidd_dm.toVector(), f_tmp.toVector());
-      ForceCrossMatrix(
-          f_tmp,
-          r5); //  cmf_bar(BC{i}psi_dot{i}(:,p)+IC{i}psi_ddot{i}(:,p)+S{i}(:,p)x*f{i})
-
-      // S{i}(:,p)x* IC{i} + r0
-      r6 = r0 + oYcrb.vxi(S_i);
-
-      // r7
-      f_tmp.toVector().noalias() = oBcrb * S_i.toVector();
-      f_tmp += oYcrb * (psid_dm + phid_dm);
-      ForceCrossMatrix(f_tmp, r7); // cmf_bar(BC{i}S{i}(:,p) +
-                                  // IC{i}(psi_dot{i}(:,p)+phi_dot{i}(:,p)))
+      // u8
+      addForceCrossMatrix(f_tmp3, u8);
+      u8+= oYcrb.vxi(S_i); // crf_bar(ICi*S_p) + S_ix*ICi
 
       JointIndex j = i;
 
@@ -219,24 +231,81 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
           const Eigen::DenseIndex jq = model.idx_vs[j] + q;
 
           const MotionRef<typename Data::Matrix6x::ColXpr> S_j = data.J.col(jq);
-          const MotionRef<typename Data::Matrix6x::ColXpr> psid_dm = data.psid.col(jq);   // psi_dot{j}(:,q)
-          const MotionRef<typename Data::Matrix6x::ColXpr> psidd_dm = data.psidd.col(jq); // psi_ddot{j}(:,q)
-          const MotionRef<typename Data::Matrix6x::ColXpr> phid_dm = data.dJ.col(jq);     // phi_dot{j}(:,q)
+          const MotionRef<typename Data::Matrix6x::ColXpr> psid_dj = data.psid.col(jq);   // psi_dot{j}(:,q)
+          const MotionRef<typename Data::Matrix6x::ColXpr> psidd_dj = data.psidd.col(jq); // psi_ddot{j}(:,q)
+          const MotionRef<typename Data::Matrix6x::ColXpr> phid_dj = data.dJ.col(jq);     // phi_dot{j}(:,q)
+          const ActionMatrixType crfSt = S_j.toDualActionMatrix();                             //(S{i}(:,p) )x matrix
 
-          u1.noalias() = S_j.toVector().transpose() * r3;
-          u2.noalias() = S_j.toVector().transpose() * r1;
-          u3.noalias() = r3 * psid_dm.toVector() + r1 * psidd_dm.toVector() + r5 * S_j.toVector();
-          u4.noalias()  = r6 * S_j.toVector();
-          u5.noalias()  = r2 * psid_dm.toVector();
-          u6.noalias()  = Bicphii * psid_dm.toVector();
-          u6.noalias()  += r7 * S_j.toVector();
-          u7.noalias()  = r3 * S_j.toVector() + r1 * (psid_dm.toVector() + phid_dm.toVector());
-          u8.noalias()  = r4 * S_j.toVector();
-          u9.noalias()  = r0 * S_j.toVector();
-          u10.noalias() = Bicphii * S_j.toVector();
-          u11.noalias() = S_j.toVector().transpose() * Bicphii;
-          u12.noalias() = psid_dm.toVector().transpose() * Bicphii;
-          u13.noalias() = r1 * S_j.toVector();
+          BCi_St = Bic_phij      = oYcrb.variation(S_j);  // S_j x* IC{i} - IC{i} S_j x
+          ForceCrossMatrix(oYcrb * S_j, r0);            // cmf_bar(IC{i}S{j}(:,q))
+          Bic_phij += r0;
+
+          ICi_St = Bic_psijt_dot = oYcrb.variation(psid_dj);       // psi_dot{j}(:,q) x* IC{i} - IC{i} psi_dot{j}(:,q) x
+          addForceCrossMatrix(oYcrb * psid_dj, r0); // cmf_bar(IC{i} * psi_dot{j}(:,q))
+          Bic_psijt_dot += r0;
+
+
+          // s1 = psid_t + Sd_t
+          s1.noalias() = psid_dj.toVector() + phid_dj.toVector();
+
+          // s2 = BCi*psid_t + ICi*psidd_t + fCi_bar * S_t
+          s2.noalias() = oBcrb * phid_dj.toVector()
+                    + (oYcrb * psidd_dj).toVector()
+                    + fic_cross * S_j.toVector();
+
+          // s3 = Bic_psijt_dot + BCi_St
+          s3.noalias() = Bic_psijt_dot + BCi_St; // 6x6
+
+          // s4 = ICi * S_t
+          s4.noalias() = (oYcrb * S_j).toVector(); // 6x1 (Force)
+
+          // s5 = ICi*s1
+          s5.noalias() = (oYcrb * Motion(s1)).toVector();
+
+          // s6 = u3*psid_t + ICi_Sp*psidd_t + crfSt*u5
+          s6.noalias() = u3 * psid_dj.toVector()
+                    + (ICi_Sp * psidd_dj.toVector())
+                    + (crfSt * u5);  
+
+          // // s7 = Bic_phii * S_t
+          // //   => also from the p-loop (Bic_phii).
+          // //      “Bic_phii = 2*factorFunctions(ICi, S_p)”, for example
+          // Vector6 s7 = Bic_phii * S_t.toVector();
+
+          // // s8 = crfSt*u2
+          // //   => “u2 = ICi*S_p” from p-loop
+          // Vector6 s8 = crfSt * u2;
+
+          // // s9 = ICi_Sp * S_t
+          // Vector6 s9 = ICi_Sp * S_t.toVector();
+
+          // // s10 = Bic_phii*psid_t + u7*S_t
+          // //   => “u7 = crf_bar(u6 + u1)” from p-loop
+          // Vector6 s10 = Bic_phii * psid_t.toVector()
+          //             + (u7 * S_t.toVector());
+
+          // // s11 = u3*S_t + ICi_Sp*(psid_t + Sd_t)
+          // {
+          //   Vector6 temp = psid_t.toVector() + Sd_t.toVector();
+          //   Vector6 s11_left  = u3 * S_t.toVector();
+          //   Vector6 s11_right = ICi_Sp * temp;
+          //   Vector6 s11       = s11_left + s11_right;
+          //   // store or use s11
+          // }
+
+          // // s12 = u8 * S_t
+          // //   => “u8 = crf_bar(u2) + crfSp*ICi” from p-loop
+          // Vector6 s12 = u8 * S_t.toVector();
+
+          // // s13 = crfSt*ICi + crf_bar(s4)
+          // //   => s4 is a Force from above => crf_bar(s4)
+          // Matrix6 crf_s4; 
+          // ForceCrossMatrix(s4, crf_s4); // crf_bar of s4
+          // Matrix6 s13 = crfSt * ICi.toMatrix() + crf_s4;
+
+
+
+
 
           JointIndex k = j;
 
