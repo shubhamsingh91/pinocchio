@@ -1,4 +1,4 @@
-//
+// Author - Shubham Singh (singh281@utexas.edu)
 // Copyright (c) 2017-2020 CNRS INRIA
 
 #ifndef __pinocchio_algorithm_spatial_force_second_order_derivatives_hxx__
@@ -160,10 +160,6 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
     Matrix6  u7;
     Matrix6  u8;
     Vector6c u9;
-    Vector6c u10;
-    Vector6r u11;
-    Vector6r u12;
-    Vector6c u13;
     Vector6c fci_Sp;
     Vector6c tmp_vec;
 
@@ -187,7 +183,6 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
     for (int p = 0; p < model.nvs[i]; p++) {
       const Eigen::DenseIndex ip = model.idx_vs[i] + p;
 
-      // std::cout << "ip = " << ip << std::endl;
       const MotionRef<typename Data::Matrix6x::ColXpr> S_i = data.J.col(ip);          // S{i}(:,p)
       const MotionRef<typename Data::Matrix6x::ColXpr> psid_dm = data.psid.col(ip);   // psi_dot for p DOF
       const MotionRef<typename Data::Matrix6x::ColXpr> psidd_dm = data.psidd.col(ip); // psi_ddot for p DOF
