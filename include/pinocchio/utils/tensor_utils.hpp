@@ -102,6 +102,44 @@ T tensorMax(const Eigen::Tensor<T, 3>& tensor) {
     return max_value;
 }
 
+template <typename T>
+Eigen::Tensor<T, 3> rotR(const Eigen::Tensor<T, 3>& tens_in) {
+    // Define the permutation order
+    Eigen::array<int, 3> permute_dims = {0, 2, 1};
+
+    // Perform the permutation
+    Eigen::Tensor<T, 3> tens_out = tens_in.shuffle(permute_dims);
+
+    return tens_out;
+}
+
+template <typename T>
+Eigen::Tensor<T, 3> rotR_manual(const Eigen::Tensor<T, 3>& tens_in)
+{
+    // Get the dimensions of the input tensor
+    const auto& dims = tens_in.dimensions();
+    // dims[0], dims[1], dims[2]
+    // The shuffle order {0, 2, 1} means the output shape is [D0, D2, D1].
+    
+    Eigen::Tensor<T, 3> tens_out(dims[0], dims[2], dims[1]);
+
+    // Manually copy data into permuted positions
+    // (i, j, k) -> (i, k, j)
+    for (int i = 0; i < dims[0]; ++i)
+    {
+        for (int j = 0; j < dims[1]; ++j)
+        {
+            for (int k = 0; k < dims[2]; ++k)
+            {
+                tens_out(i, k, j) = tens_in(i, j, k);
+            }
+        }
+    }
+
+    return tens_out;
+}
+
+
 double get_tens_diff_norm(Eigen::Tensor<double, 3>& ten1, Eigen::Tensor<double, 3>& ten2, int n)
 {
     double tmp1 = 0.0;

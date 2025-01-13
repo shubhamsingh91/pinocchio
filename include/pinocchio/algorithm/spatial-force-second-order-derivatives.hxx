@@ -125,7 +125,7 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
   template <typename JointModel>
   static void algo(const JointModelBase<JointModel> &jmodel, const Model &model,
                    Data &data, const std::vector<Tensor1> &d2fc_dqdq,
-                   const std::vector<Tensor2> &d2fc_dvdv, const std::vector<Tensor3> &d2fc_dada,
+                   const std::vector<Tensor2> &d2fc_dvdv, const std::vector<Tensor3> &d2fc_dvdq,
                    const std::vector<Tensor4> &d2fc_dadq) {
     typedef typename Data::Motion Motion;
     typedef typename Data::Force Force;
@@ -149,7 +149,7 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
 
     std::vector<Tensor1> &d2fc_dqdq_ = const_cast<std::vector<Tensor1> &>(d2fc_dqdq);
     std::vector<Tensor2> &d2fc_dvdv_ = const_cast<std::vector<Tensor2> &>(d2fc_dvdv);
-    std::vector<Tensor2> &d2fc_dada_ = const_cast<std::vector<Tensor2> &>(d2fc_dada);
+    std::vector<Tensor2> &d2fc_dvdq_ = const_cast<std::vector<Tensor2> &>(d2fc_dvdq);
     std::vector<Tensor2> &d2fc_dadq_ = const_cast<std::vector<Tensor2> &>(d2fc_dadq);
 
     Vector6c u1;
@@ -331,6 +331,15 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
               tmp_vec.noalias() = -crfSk.transpose() * s4;
               hess_assign(d2fc_dadq_.at(i_idx), tmp_vec, 0, jq, kr, 1, 6); // d2fc_dadq_(i)(1:6, jq, kr)
 
+
+              // expr-1 SO-vq
+              //d2fc_dvq{i}(:, jj(t), kk(r)) =(Bic_psikr_dot + crfSr*BCi + 2*ICi*crmPsidr)*S_t + crfSr*s5;
+              tmp_vec.noalias() = (Bic_psikt_dot  - 
+                                  crfSk.transpose() * oBcrb  + 
+                                  2.0 * oYcrb.matrix() * crmpsidk) * S_j.toVector()- 
+                                  crfSk.transpose() * s5;
+              hess_assign(d2fc_dvdq_.at(i_idx), tmp_vec, 0, jq, kr, 1, 6); // d2fc_dvdq_(i)(1:6, jq, kr)
+
               if (j != i) { // k <= j < i
 
                 //  expr-5 SO-q 
@@ -359,6 +368,20 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
                 // d2fc_daq{j}(:, kk(r), ii(p)) = ICi_Sp * S_r;
                 tmp_vec.noalias() = ICi_Sp * S_k.toVector();
                 hess_assign(d2fc_dadq_.at(j_idx), tmp_vec, 0, kr, ip, 1, 6); // d2fc_dadq_(j)(1:6, kr, ip)
+
+                //  expr-2 SO-vq
+                // d2fc_dvq{j}(:, ii(p), kk(r)) = (Bic_psikr_dot + crfSr*BCi + 2*ICi*crmPsidr)*S_p  + crfSr*u1;
+                tmp_vec.noalias() = (Bic_psikt_dot - crfSk.transpose() * oBcrb + 
+                                    2.0 * oYcrb.matrix() * crmpsidk) * S_i.toVector() - 
+                                    crfSk.transpose() * u1;
+                hess_assign(d2fc_dvdq_.at(j_idx), tmp_vec, 0, ip, kr, 1, 6); // d2fc_dvdq_(j)(1:6, ip, kr)
+    
+                //  expr-5 SO-vq
+                //   d2fc_dvq{j}(:, kk(r), ii(p)) = u3*S_r  + ICi_Sp*(psid_r + Sd_r);
+                tmp_vec.noalias() = u3 * S_k.toVector() + ICi_Sp * (psid_dk + phid_dk).toVector();
+                hess_assign(d2fc_dvdq_.at(j_idx), tmp_vec, 0, kr, ip, 1, 6); // d2fc_dvdq_(j)(1:6, kr, ip)
+
+
               }
 
               if (k != j) { // k < j <= i
@@ -372,7 +395,6 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
                 // d2fc_dq{k}(:, ii(p), jj(t))
                 hess_assign(d2fc_dqdq_.at(k_idx), s6 , 0, ip, jq, 1, 6); // d2fc_dqdq_(k)(1:6, ip, jq)
            
-
 
                 // % expr-1 SO-v
                 // d2fc_dv{i}(:, jj(t), kk(r)) = Bic_phij*S_r;
@@ -388,9 +410,19 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
                 tmp_vec.noalias() = ICi_St * S_k.toVector();
                 hess_assign(d2fc_dadq_.at(i_idx), tmp_vec, 0, kr, jq, 1, 6); // d2fc_dadq_(i)(1:6, kr, jq)
 
-                  // % expr-4 SO-aq
-                  // d2fc_daq{k}(:, ii(p), jj(t)) = s8;
-                  hess_assign(d2fc_dadq_.at(k_idx), s8, 0, ip, jq, 1, 6); // d2fc_dadq_(k)(1:6, ip, jq)
+                // % expr-4 SO-aq
+                // d2fc_daq{k}(:, ii(p), jj(t)) = s8;
+                hess_assign(d2fc_dadq_.at(k_idx), s8, 0, ip, jq, 1, 6); // d2fc_dadq_(k)(1:6, ip, jq)
+
+                // expr-3 SO-vq
+                //   d2fc_dvq{i}(:, kk(r), jj(t)) =  s3*S_r  + ICi_St*(psid_r + Sd_r);
+                tmp_vec.noalias() = s3 * S_k.toVector() + ICi_St * (psid_dk + phid_dk).toVector();
+                hess_assign(d2fc_dvdq_.at(i_idx), tmp_vec, 0, kr, jq, 1, 6); // d2fc_dvdq_(i)(1:6, kr, jq)
+
+                // expr-4 SO-vq
+                //  d2fc_dvq{k}(:, ii(p), jj(t)) = s10;
+                hess_assign(d2fc_dvdq_.at(k_idx), s10, 0, ip, jq, 1, 6); // d2fc_dvdq_(k)(1:6, ip, jq)
+
 
                 if (j != i) { // k < j < i
                   //  expr-4 SO-q   d2fc_dq{k}(:, jj(t), ii(p)) =  d2fc_dq{k}(:, ii(p), jj(t));
@@ -410,6 +442,10 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
                   // % expr-6 SO-aq
                   // d2fc_daq{k}(:, jj(t), ii(p)) = s9;
                   hess_assign(d2fc_dadq_.at(k_idx), s9, 0, jq, ip, 1, 6); // d2fc_dadq_(k)(1:6, jq, ip)
+
+                  //  expr-6 SO-vq
+                  //   d2fc_dvq{k}(:, jj(t), ii(p)) =  s11;
+                  hess_assign(d2fc_dvdq_.at(k_idx), s11, 0, jq, ip, 1, 6); // d2fc_dvdq_(k)(1:6, jq, ip)
 
                 } else { // k < j = i
                   // expr-6 SO-v 
@@ -487,7 +523,7 @@ inline void ComputeSpatialForceSecondOrderDerivatives(
     const Eigen::MatrixBase<ConfigVectorType> &q,
     const Eigen::MatrixBase<TangentVectorType1> &v,
     const Eigen::MatrixBase<TangentVectorType2> &a, const std::vector<Tensor1> &d2fc_dqdq,
-    const std::vector<Tensor2> &d2fc_dvdv, const std::vector<Tensor3> &d2fc_dada,
+    const std::vector<Tensor2> &d2fc_dvdv, const std::vector<Tensor3> &d2fc_dvdq,
     const std::vector<Tensor4> &d2fc_dadq) {
   // Extra safety here
   PINOCCHIO_CHECK_ARGUMENT_SIZE(
@@ -533,7 +569,7 @@ inline void ComputeSpatialForceSecondOrderDerivatives(
                typename Pass2::ArgsType(model, data,
                                         const_cast<std::vector<Tensor1> &>(d2fc_dqdq),
                                         const_cast<std::vector<Tensor2> &>(d2fc_dvdv),
-                                        const_cast<std::vector<Tensor3> &>(d2fc_dada),
+                                        const_cast<std::vector<Tensor3> &>(d2fc_dvdq),
                                         const_cast<std::vector<Tensor4> &>(d2fc_dadq)));
   }
 }

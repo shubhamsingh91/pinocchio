@@ -317,20 +317,27 @@ int main(int argc, const char ** argv)
     //--------------------------------------------------------------------------------
     //------------------------- SO partials of cumulative force-----------------------
     //--------------------------------------------------------------------------------
-    std::vector<Eigen::Tensor<double,3>> d2f_dq2_fd, d2f_dv2_fd, d2f_da2_fd , d2f_daq_fd;
-    std::vector<Eigen::Tensor<double,3>> d2f_dq2_ana, d2f_dv2_ana, d2f_da2_ana, d2f_daq_ana;
+    std::vector<Eigen::Tensor<double,3>> d2f_dq2_fd, d2f_dv2_fd, d2f_da2_fd , d2f_daq_fd, d2f_dvq_fd, d2f_dqv_fd, d2f_dqa_fd;
+    std::vector<Eigen::Tensor<double,3>> d2f_dq2_ana, d2f_dv2_ana, d2f_da2_ana, d2f_daq_ana, d2f_dvq_ana, d2f_dqv_ana, d2f_dqa_ana;
 
     for (int i = 0; i < model.njoints - 1; i++) {
         d2f_dq2_fd.emplace_back(6, model.nv, model.nv);  
         d2f_dv2_fd.emplace_back(6, model.nv, model.nv);  
         d2f_da2_fd.emplace_back(6, model.nv, model.nv);  
         d2f_daq_fd.emplace_back(6, model.nv, model.nv);
+        d2f_dvq_fd.emplace_back(6, model.nv, model.nv);
+        d2f_dqv_fd.emplace_back(6, model.nv, model.nv);
+        d2f_dqa_fd.emplace_back(6, model.nv, model.nv);
 
         d2f_dq2_ana.emplace_back(6, model.nv, model.nv);  
         d2f_dv2_ana.emplace_back(6, model.nv, model.nv);  
         d2f_da2_ana.emplace_back(6, model.nv, model.nv);  
         d2f_daq_ana.emplace_back(6, model.nv, model.nv);  
+        d2f_dvq_ana.emplace_back(6, model.nv, model.nv);
+        d2f_dqv_ana.emplace_back(6, model.nv, model.nv);
+        d2f_dqa_ana.emplace_back(6, model.nv, model.nv);
     }
+
 
     for (auto &t : d2f_da2_fd) t.setZero();
 
@@ -353,10 +360,13 @@ int main(int argc, const char ** argv)
     ten3d df_dv_ana_tensor_plus (6,model.nv, model.nv);
     ten3d df_da_ana_tensor_plus (6,model.nv, model.nv);
 
-    ten3d t_d2fc_dq_dqk , t_d2fc_dv_dvk, t_d2fc_da_dqk;
+    ten3d t_d2fc_dq_dqk , t_d2fc_dv_dvk, t_d2fc_da_dqk, t_d2fc_dv_dqk, t_d2fc_dq_dvk, t_d2fc_dq_dak;
     Eigen::MatrixXd m_d2fci_dq_dqk(6,model.nv);
     Eigen::MatrixXd m_d2fci_da_dqk(6,model.nv);
+    Eigen::MatrixXd m_d2fci_dv_dqk(6,model.nv);
     Eigen::MatrixXd m_d2fci_dv_dvk(6,model.nv);
+    Eigen::MatrixXd m_d2fci_dq_dvk(6,model.nv);
+    Eigen::MatrixXd m_d2fci_dq_dak(6,model.nv);
 
     // Partial wrt q
     for (int k = 0; k < model.nv; ++k) {
@@ -368,6 +378,7 @@ int main(int argc, const char ** argv)
 
         t_d2fc_dq_dqk = (df_dq_ana_tensor_plus - df_dq_ana) / alpha; // 3d tensor d2fc/dq dqk
         t_d2fc_da_dqk = (df_da_ana_tensor_plus - df_da_ana) / alpha; // 3d tensor d2fc/da dqk
+        t_d2fc_dv_dqk = (df_dv_ana_tensor_plus - df_dv_ana) / alpha; // 3d tensor d2fc/dv dqk
         
         for (int i = 0; i < model.nv; i++)
         {
@@ -376,6 +387,10 @@ int main(int argc, const char ** argv)
      
           get_mat_from_tens3_v1_gen(t_d2fc_da_dqk, m_d2fci_da_dqk, 6, model.nv, i);
           hess_assign_fd_v1_gen(d2f_daq_fd.at(i), m_d2fci_da_dqk, 6, model.nv, k); // slicing in the matrix along the kth page for ith tensor
+
+          get_mat_from_tens3_v1_gen(t_d2fc_dv_dqk, m_d2fci_dv_dqk, 6, model.nv, i);
+          hess_assign_fd_v1_gen(d2f_dvq_fd.at(i), m_d2fci_dv_dqk, 6, model.nv, k); // slicing in the matrix along the kth page for ith tensor
+      
         }
 
         v_eps[k] -= alpha;
@@ -389,26 +404,58 @@ int main(int argc, const char ** argv)
     computeSpatialForceDerivs(model,data,qs[_smooth], qd_plus ,qddots[_smooth],
     df_dq_ana_tensor_plus, df_dv_ana_tensor_plus, df_da_ana_tensor_plus);
 
-    t_d2fc_dv_dvk = (df_dv_ana_tensor_plus - df_dv_ana) / alpha; // 3d tensor d2fc/dq dqk
+    t_d2fc_dv_dvk = (df_dv_ana_tensor_plus - df_dv_ana) / alpha; // 3d tensor d2fc/dv dvk
+    t_d2fc_dq_dvk = (df_dq_ana_tensor_plus - df_dq_ana) / alpha; // 3d tensor d2fc/dq dvk
+
     for (int i = 0; i < model.nv; i++)
     {
-          get_mat_from_tens3_v1_gen(t_d2fc_dv_dvk, m_d2fci_dv_dvk, 6, model.nv, i);
+     get_mat_from_tens3_v1_gen(t_d2fc_dv_dvk, m_d2fci_dv_dvk, 6, model.nv, i);
     hess_assign_fd_v1_gen(d2f_dv2_fd.at(i), m_d2fci_dv_dvk, 6, model.nv, k); // slicing in the matrix along the kth page for ith tensor     
+   
+    get_mat_from_tens3_v1_gen(t_d2fc_dq_dvk, m_d2fci_dq_dvk, 6, model.nv, i);
+    hess_assign_fd_v1_gen(d2f_dqv_fd.at(i), m_d2fci_dq_dvk, 6, model.nv, k); // slicing in the matrix along the kth page for ith tensor
+   
     }
-
     v_eps[k] -= alpha;
     }
+
+
+    // Partial wrt a
+    for (int k = 0; k < model.nv; ++k) {
+        a_eps[k] += alpha;
+        a_plus = qddots[_smooth] + a_eps; // This is used to add the v_eps to q in the k^th direction
+
+        computeSpatialForceDerivs(model,data,qs[_smooth], qdots[_smooth],a_plus,
+        df_dq_ana_tensor_plus, df_dv_ana_tensor_plus, df_da_ana_tensor_plus);
+
+        t_d2fc_dq_dak = (df_dq_ana_tensor_plus - df_dq_ana) / alpha; // 3d tensor d2fc/da dqk
+
+        for (int i = 0; i < model.nv; i++)
+        {
+          get_mat_from_tens3_v1_gen(t_d2fc_dq_dak, m_d2fci_dq_dak, 6, model.nv, i);
+          hess_assign_fd_v1_gen(d2f_dqa_fd.at(i), m_d2fci_dq_dak, 6, model.nv, k); // slicing in the matrix along the kth page for ith tensor
+        }
+        a_eps[k] -= alpha;
+
+    }
+
+
    //------- Analytical algorithm
 
     ComputeSpatialForceSecondOrderDerivatives(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth],
-                                             d2f_dq2_ana, d2f_dv2_ana, d2f_daq_fd, d2f_daq_ana);
+                                             d2f_dq2_ana, d2f_dv2_ana, d2f_dvq_ana, d2f_daq_ana);
 
 
+    for(int i = 0; i < d2f_dvq_ana.size(); i++){
+      d2f_dqv_ana.at(i) = rotR_manual(d2f_dvq_ana.at(i));
+      d2f_dqa_ana.at(i) = rotR_manual(d2f_daq_ana.at(i));
+    }
+    
     // Comparing the results
     for (int i = 0; i < model.nv; ++i)
     {
      
-     std::cout << "i = " << i << std::endl;
+    //  std::cout << "i = " << i << std::endl;
       Eigen::Tensor<double,3> concrete_tensor = (d2f_dq2_fd.at(i) - d2f_dq2_ana.at(i)).eval();
       auto diff_eq = tensorMax(concrete_tensor);
 
@@ -420,6 +467,16 @@ int main(int argc, const char ** argv)
 
       Eigen::Tensor<double,3> concrete_tensor_SO_aq = (d2f_daq_fd.at(i) - d2f_daq_ana.at(i)).eval();
       auto diff_daq = tensorMax(concrete_tensor_SO_aq);
+
+      Eigen::Tensor<double,3> concrete_tensor_SO_vq = (d2f_dvq_fd.at(i) - d2f_dvq_ana.at(i)).eval();
+      auto diff_dvq = tensorMax(concrete_tensor_SO_vq);
+
+      Eigen::Tensor<double,3> concrete_tensor_SO_qv = (d2f_dqv_fd.at(i) - d2f_dqv_ana.at(i)).eval();
+      auto diff_dqv = tensorMax(concrete_tensor_SO_qv);
+
+      Eigen::Tensor<double,3> concrete_tensor_SO_qa = (d2f_dqa_fd.at(i) - d2f_dqa_ana.at(i)).eval();
+      auto diff_dqa = tensorMax(concrete_tensor_SO_qa);
+
 
       if (diff_eq > 1e-3)
       {
@@ -441,6 +498,21 @@ int main(int argc, const char ** argv)
       {
         std::cout << "diff SO-aq \n"   << std::endl;
      
+      }
+
+      if (diff_dvq > 1e-3)
+      {
+        std::cout << "diff SO-vq \n"   << std::endl;
+      } 
+
+      if (diff_dqv > 1e-3)
+      {
+        std::cout << "diff SO-qv \n"   << std::endl;
+      }
+
+      if (diff_dqa > 1e-3)
+      {
+        std::cout << "diff SO-qa \n"   << std::endl;
       }
     }
 

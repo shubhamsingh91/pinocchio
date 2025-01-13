@@ -1,1 +1,1 @@
-../models/talos_full_v2.urdf
+../models/ur10_robot.urdf

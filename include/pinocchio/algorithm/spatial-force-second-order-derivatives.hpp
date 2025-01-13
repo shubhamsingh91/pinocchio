@@ -79,7 +79,7 @@ inline void ComputeSpatialForceSecondOrderDerivatives(
     const Eigen::MatrixBase<TangentVectorType1> &v,
     const Eigen::MatrixBase<TangentVectorType2> &a,
     const std::vector<Tensor1> &d2fc_dqdq, const std::vector<Tensor2> &d2fc_dvdv,
-    const std::vector<Tensor3> &d2fc_dada, const std::vector<Tensor4> &d2fc_dadq);
+    const std::vector<Tensor3> &d2fc_dvdq, const std::vector<Tensor4> &d2fc_dadq);
 
 ///
 /// \brief Computes the Second-Order partial derivatives of the Recursive Newton
