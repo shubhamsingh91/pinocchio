@@ -120,12 +120,14 @@ int main(int argc, const char ** argv)
   typedef Eigen::Tensor<double, 3> ten3d;
 
   PinocchioTicToc timer(PinocchioTicToc::US);
-  #ifdef NDEBUG
-  const int NBT = 1;
+  #ifdef SPEED
+  const int NBT = 1000;
   #else
     const int NBT = 1;
-    std::cout << "(the time score in debug mode is not relevant) " << std::endl;
+    std::cout << "(the time score in non-speed mode is not relevant) " << std::endl;
   #endif
+
+  std::cout << "NBT = " << NBT << std::endl;
     
   Model model;
 
@@ -141,7 +143,7 @@ int main(int argc, const char ** argv)
     }
     std::cout << "filename: " << filename << std::endl;
 
-  //std::string filename = PINOCCHIO_MODEL_DIR + std::string("/simple_humanoid.urdf");
+  // std::string filename = PINOCCHIO_MODEL_DIR + std::string("/simple_humanoid.urdf");
   // std::string filename =  std::string("../models/double_pendulum.urdf");
   // std::string filename =  std::string("../models/simple_humanoid.urdf");
   // std::string filename =  std::string("../models/ur3_robot.urdf");
@@ -170,7 +172,7 @@ int main(int argc, const char ** argv)
   std::cout << "nv = " << model.nv << std::endl;
 
   Data data(model);
-  VectorXd qmax = Eigen::VectorXd::Ones(model.nq)*0.1;
+  VectorXd qmax = Eigen::VectorXd::Random(model.nq)*0.1;
 
   PINOCCHIO_ALIGNED_STD_VECTOR(VectorXd) qs     (NBT);
   PINOCCHIO_ALIGNED_STD_VECTOR(VectorXd) qdots  (NBT);
@@ -180,10 +182,10 @@ int main(int argc, const char ** argv)
   for(size_t i=0;i<NBT;++i)
   {
     // qs[i]     = randomConfiguration(model,-qmax,qmax);
-    qs[i]     = Eigen::VectorXd::Ones(model.nv)*0.1;
-    qdots[i]  = Eigen::VectorXd::Ones(model.nv)*0.1;
-    qddots[i] = Eigen::VectorXd::Ones(model.nv)*0.1;
-    taus[i] = Eigen::VectorXd::Ones(model.nv)*0.1;
+    qs[i]     = Eigen::VectorXd::Random(model.nv)*0.1;
+    qdots[i]  = Eigen::VectorXd::Random(model.nv)*0.1;
+    qddots[i] = Eigen::VectorXd::Random(model.nv)*0.1;
+    taus[i] = Eigen::VectorXd::Random(model.nv)*0.1;
   }
 
   std::cout << "model.njoints = " << model.njoints << std::endl;
@@ -312,11 +314,14 @@ int main(int argc, const char ** argv)
     std::cout << "diff bw Pinocchio's dFdv and finite-diff = " << (df_dv_fd - data.dFdv).norm() << std::endl;
     std::cout << "diff bw Pinocchio's dFda and finite-diff = " << (df_da_fd - data.dFda).norm() << std::endl;
 
-   #endif
+  #endif
+
+  #ifdef SO_DERIVS
 
     //--------------------------------------------------------------------------------
     //------------------------- SO partials of cumulative force-----------------------
     //--------------------------------------------------------------------------------
+   
     std::vector<Eigen::Tensor<double,3>> d2f_dq2_fd, d2f_dv2_fd , d2f_daq_fd, d2f_dvq_fd, d2f_dqv_fd, d2f_dqa_fd;
     std::vector<Eigen::Tensor<double,3>> d2f_dq2_ana, d2f_dv2_ana, d2f_daq_ana, d2f_dvq_ana, d2f_dqv_ana, d2f_dqa_ana;
 
@@ -527,9 +532,32 @@ int main(int argc, const char ** argv)
         std::cout << "SO-qa is correct max diff_dqa = " << diff_dqa << std::endl;    
       }
     }
+  #endif   
 
   }
 
+
+  //- Runtime test for SO derivatives
+  #ifdef SPEED
+
+  std::vector<Eigen::Tensor<double,3>> d2f_dq2_ana, d2f_dv2_ana, d2f_daq_ana, d2f_dvq_ana;
+  for (int i = 0; i < model.njoints - 1; i++) {
+      d2f_dq2_ana.emplace_back(6, model.nv, model.nv);  
+      d2f_dv2_ana.emplace_back(6, model.nv, model.nv);  
+      d2f_daq_ana.emplace_back(6, model.nv, model.nv);  
+      d2f_dvq_ana.emplace_back(6, model.nv, model.nv);
+  }
+
+  timer.tic();
+  SMOOTH(NBT)
+  {
+    ComputeSpatialForceSecondOrderDerivatives(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth],
+                                             d2f_dq2_ana, d2f_dv2_ana, d2f_dvq_ana, d2f_daq_ana);
+    
+  }
+  std::cout << "SO derivatives = \t\t"; timer.toc(std::cout,NBT);
+
+  #endif
 
   return 0;
 }

@@ -195,8 +195,8 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
 
       ICi_Sp = Bicphii = oYcrb.variation(S_i);  // S{i}(p)x*IC{i} - IC{i} S{i}(p)x
       Force f_tmp = oYcrb * S_i;                // IC{i}S{i}(:,p)
-      ForceCrossMatrix(f_tmp, r0);              // cmf_bar(IC{i}S{i}(:,p))
-      Bicphii += r0;
+      addForceCrossMatrix(f_tmp, Bicphii);              // cmf_bar(IC{i}S{i}(:,p))
+      // Bicphii += r0;
 
       oBicpsidot = oYcrb.variation(psid_dm);      // new Bicpsidot in world frame
       f_tmp = oYcrb * psid_dm; // IC{i}psid{i}(:,p)
