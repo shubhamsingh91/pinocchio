@@ -524,6 +524,15 @@ void tens_rot_v1(const Eigen::Tensor<double, 3>& tens, Eigen::Tensor<double, 3>&
     }
 }
 
+
+template <typename T>
+void slice_in_v6(Eigen::Tensor<double, 3>& tens, const Eigen::MatrixBase<T>& vec, const int q, const int r)
+{
+   for (int ii = 0; ii < 6; ii++) {
+        tens(ii , q, r) = vec(ii);
+    }
+}
+
 // Assigning code here- for assigning a row or a column of the tensor- for Eigen::VectorXd
 template <typename T>
 void hess_assign(Eigen::Tensor<double, 3>& hess, const Eigen::MatrixBase<T>& vec, const int p, const int q, const int r,

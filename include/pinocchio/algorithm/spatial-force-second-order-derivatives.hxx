@@ -176,7 +176,7 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
     Matrix6 BCi_St;
     Matrix6 ICi_St;
 
-    Matrix6 r0, ICi_Sp;
+    Matrix6 r0, ICi_Sp, r1;
 
     Vector6c s1, s2, s4, s5, s6, s7, s8, s9, s10, s11, s12 ;
     Matrix6  s3, s13;
@@ -322,63 +322,59 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
 
               // expr-1 SO-q
               tmp_vec = s3*psid_dk.toVector() + ICi_St*psidd_dk.toVector() - crfSk.transpose() * s2;
-              hess_assign(d2fc_dqdq_.at(i_idx), tmp_vec , 0, jq, kr, 1, 6); // d2fc_dqdq_(i)(1:6, jq, kr) 
+              slice_in_v6(d2fc_dqdq_.at(i_idx), tmp_vec ,  jq, kr); // d2fc_dqdq_(i)(1:6, jq, kr) 
 
               //  expr-1 SO-aq
               //  d2fc_daq{i}(:, jj(t), kk(r)) = crfSr * s4;
               tmp_vec.noalias() = -crfSk.transpose() * s4;
-              hess_assign(d2fc_dadq_.at(i_idx), tmp_vec, 0, jq, kr, 1, 6); // d2fc_dadq_(i)(1:6, jq, kr)
+              slice_in_v6(d2fc_dadq_.at(i_idx), tmp_vec,  jq, kr); // d2fc_dadq_(i)(1:6, jq, kr)
 
 
               // expr-1 SO-vq
               //d2fc_dvq{i}(:, jj(t), kk(r)) =(Bic_psikr_dot + crfSr*BCi + 2*ICi*crmPsidr)*S_t + crfSr*s5;
-              tmp_vec.noalias() = (Bic_psikt_dot  - 
-                                  crfSk.transpose() * oBcrb  + 
-                                  2.0 * oYcrb.matrix() * crmpsidk) * S_j.toVector()- 
-                                  crfSk.transpose() * s5;
-              hess_assign(d2fc_dvdq_.at(i_idx), tmp_vec, 0, jq, kr, 1, 6); // d2fc_dvdq_(i)(1:6, jq, kr)
+              r1 = Bic_psikt_dot  - crfSk.transpose() * oBcrb  +  2.0 * oYcrb.matrix() * crmpsidk;
+              tmp_vec.noalias() = r1 * S_j.toVector()-  crfSk.transpose() * s5;
+
+              slice_in_v6(d2fc_dvdq_.at(i_idx), tmp_vec,  jq, kr); // d2fc_dvdq_(i)(1:6, jq, kr)
 
               if (j != i) { // k <= j < i
 
                 //  expr-5 SO-q 
                 tmp_vec = ICi_Sp * psidd_dk.toVector() + u4 * S_k.toVector() + u3 * psid_dk.toVector();
-                hess_assign(d2fc_dqdq_.at(j_idx), tmp_vec, 0, kr, ip, 1, 6); // d2fc_dqdq_(j)(1:6, kr, ip)
+                slice_in_v6(d2fc_dqdq_.at(j_idx), tmp_vec,  kr, ip); // d2fc_dqdq_(j)(1:6, kr, ip)
               
 
                 // expr-6 SO-q
-                hess_assign(d2fc_dqdq_.at(j_idx), tmp_vec, 0, ip, kr, 1, 6); // d2fc_dqdq_(j)(1:6, ip, kr) 
+                slice_in_v6(d2fc_dqdq_.at(j_idx), tmp_vec,  ip, kr); // d2fc_dqdq_(j)(1:6, ip, kr) 
 
                 // expr-7 SO-v
                 // d2fc_dv{j}(:, kk(r), ii(p)) = Bic_phii*S_r;      
                 tmp_vec.noalias() = Bicphii * S_k.toVector(); 
-                hess_assign(d2fc_dvdv_.at(j_idx), tmp_vec, 0, kr, ip, 1, 6); // d2fc_dvdv_(j)(1:6, kr, ip) 
+                slice_in_v6(d2fc_dvdv_.at(j_idx), tmp_vec,  kr, ip); // d2fc_dvdv_(j)(1:6, kr, ip) 
 
                 //  expr-8 SO-v
                 //  d2fc_dv{j}(:, ii(p), kk(r)) = d2fc_dv{j}(:, kk(r), ii(p)); 
-                hess_assign(d2fc_dvdv_.at(j_idx), tmp_vec, 0, ip, kr, 1, 6); // d2fc_dvdv_(j)(1:6, ip, kr)
+                slice_in_v6(d2fc_dvdv_.at(j_idx), tmp_vec,  ip, kr); // d2fc_dvdv_(j)(1:6, ip, kr)
 
                 // % expr-2 SO-aq
                 // d2fc_daq{j}(:, ii(p), kk(r)) = crfSr * u2;
                 tmp_vec.noalias() = -crfSk.transpose() * u2;
-                hess_assign(d2fc_dadq_.at(j_idx), tmp_vec, 0, ip, kr, 1, 6); // d2fc_dadq_(j)(1:6, ip, kr)
+                slice_in_v6(d2fc_dadq_.at(j_idx), tmp_vec,  ip, kr); // d2fc_dadq_(j)(1:6, ip, kr)
 
                 //  expr-5 SO-aq
                 // d2fc_daq{j}(:, kk(r), ii(p)) = ICi_Sp * S_r;
                 tmp_vec.noalias() = ICi_Sp * S_k.toVector();
-                hess_assign(d2fc_dadq_.at(j_idx), tmp_vec, 0, kr, ip, 1, 6); // d2fc_dadq_(j)(1:6, kr, ip)
+                slice_in_v6(d2fc_dadq_.at(j_idx), tmp_vec,  kr, ip); // d2fc_dadq_(j)(1:6, kr, ip)
 
                 //  expr-2 SO-vq
                 // d2fc_dvq{j}(:, ii(p), kk(r)) = (Bic_psikr_dot + crfSr*BCi + 2*ICi*crmPsidr)*S_p  + crfSr*u1;
-                tmp_vec.noalias() = (Bic_psikt_dot - crfSk.transpose() * oBcrb + 
-                                    2.0 * oYcrb.matrix() * crmpsidk) * Si_vec - 
-                                    crfSk.transpose() * u1;
-                hess_assign(d2fc_dvdq_.at(j_idx), tmp_vec, 0, ip, kr, 1, 6); // d2fc_dvdq_(j)(1:6, ip, kr)
+                tmp_vec.noalias() = r1 * Si_vec - crfSk.transpose() * u1;
+                slice_in_v6(d2fc_dvdq_.at(j_idx), tmp_vec,  ip, kr); // d2fc_dvdq_(j)(1:6, ip, kr)
     
                 //  expr-5 SO-vq
                 //   d2fc_dvq{j}(:, kk(r), ii(p)) = u3*S_r  + ICi_Sp*(psid_r + Sd_r);
                 tmp_vec.noalias() = u3 * S_k.toVector() + ICi_Sp * (psid_dk + phid_dk).toVector();
-                hess_assign(d2fc_dvdq_.at(j_idx), tmp_vec, 0, kr, ip, 1, 6); // d2fc_dvdq_(j)(1:6, kr, ip)
-
+                slice_in_v6(d2fc_dvdq_.at(j_idx), tmp_vec,  kr, ip); // d2fc_dvdq_(j)(1:6, kr, ip)
 
               }
 
@@ -386,69 +382,69 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
 
                 // expr-2 SO-q  d2fc_dq{i}(:, kk(r), jj(t)) = d2fc_dq{i}(:, jj(t), kk(r));
                 get_vec_from_tens3_v1_gen(d2fc_dqdq_.at(i_idx), tmp_vec, 6 , jq, kr);
-                hess_assign(d2fc_dqdq_.at(i_idx), tmp_vec, 0, kr, jq, 1, 6); // d2fc_dqdq_(i)(1:6, kr, jq)
+                slice_in_v6(d2fc_dqdq_.at(i_idx), tmp_vec,  kr, jq); // d2fc_dqdq_(i)(1:6, kr, jq)
         
   
                 // expr-3 SO-q
                 // d2fc_dq{k}(:, ii(p), jj(t))
-                hess_assign(d2fc_dqdq_.at(k_idx), s6 , 0, ip, jq, 1, 6); // d2fc_dqdq_(k)(1:6, ip, jq)
+                slice_in_v6(d2fc_dqdq_.at(k_idx), s6 ,  ip, jq); // d2fc_dqdq_(k)(1:6, ip, jq)
            
 
                 // % expr-1 SO-v
                 // d2fc_dv{i}(:, jj(t), kk(r)) = Bic_phij*S_r;
                 tmp_vec.noalias() = Bic_phij * S_k.toVector();
-                hess_assign(d2fc_dvdv_.at(i_idx), tmp_vec, 0, jq, kr, 1, 6); // d2fc_dvdv_(i)(1:6, jq, kr)
+                slice_in_v6(d2fc_dvdv_.at(i_idx), tmp_vec,  jq, kr); // d2fc_dvdv_(i)(1:6, jq, kr)
 
                 // % expr-2 SO-v
                 // d2fc_dv{i}(:, kk(r), jj(t)) = d2fc_dv{i}(:, jj(t), kk(r));
-                hess_assign(d2fc_dvdv_.at(i_idx), tmp_vec, 0, kr, jq, 1, 6); // d2fc_dvdv_(i)(1:6, kr, jq)
+                slice_in_v6(d2fc_dvdv_.at(i_idx), tmp_vec,  kr, jq); // d2fc_dvdv_(i)(1:6, kr, jq)
 
                 // expr-3 SO-aq 
                 // d2fc_daq{i}(:, kk(r), jj(t)) = ICi_St * S_r;
                 tmp_vec.noalias() = ICi_St * S_k.toVector();
-                hess_assign(d2fc_dadq_.at(i_idx), tmp_vec, 0, kr, jq, 1, 6); // d2fc_dadq_(i)(1:6, kr, jq)
+                slice_in_v6(d2fc_dadq_.at(i_idx), tmp_vec,  kr, jq); // d2fc_dadq_(i)(1:6, kr, jq)
 
                 // % expr-4 SO-aq
                 // d2fc_daq{k}(:, ii(p), jj(t)) = s8;
-                hess_assign(d2fc_dadq_.at(k_idx), s8, 0, ip, jq, 1, 6); // d2fc_dadq_(k)(1:6, ip, jq)
+                slice_in_v6(d2fc_dadq_.at(k_idx), s8,  ip, jq); // d2fc_dadq_(k)(1:6, ip, jq)
 
                 // expr-3 SO-vq
                 //   d2fc_dvq{i}(:, kk(r), jj(t)) =  s3*S_r  + ICi_St*(psid_r + Sd_r);
                 tmp_vec.noalias() = s3 * S_k.toVector() + ICi_St * (psid_dk + phid_dk).toVector();
-                hess_assign(d2fc_dvdq_.at(i_idx), tmp_vec, 0, kr, jq, 1, 6); // d2fc_dvdq_(i)(1:6, kr, jq)
+                slice_in_v6(d2fc_dvdq_.at(i_idx), tmp_vec,  kr, jq); // d2fc_dvdq_(i)(1:6, kr, jq)
 
                 // expr-4 SO-vq
                 //  d2fc_dvq{k}(:, ii(p), jj(t)) = s10;
-                hess_assign(d2fc_dvdq_.at(k_idx), s10, 0, ip, jq, 1, 6); // d2fc_dvdq_(k)(1:6, ip, jq)
+                slice_in_v6(d2fc_dvdq_.at(k_idx), s10,  ip, jq); // d2fc_dvdq_(k)(1:6, ip, jq)
 
 
                 if (j != i) { // k < j < i
                   //  expr-4 SO-q   d2fc_dq{k}(:, jj(t), ii(p)) =  d2fc_dq{k}(:, ii(p), jj(t));
                   get_vec_from_tens3_v1_gen(d2fc_dqdq_.at(k_idx), tmp_vec, 6 , ip, jq);
-                  hess_assign(d2fc_dqdq_.at(k_idx), tmp_vec, 0, jq, ip, 1, 6); // d2fc_dqdq_(k)(1:6, jq, ip)
+                  slice_in_v6(d2fc_dqdq_.at(k_idx), tmp_vec,  jq, ip); // d2fc_dqdq_(k)(1:6, jq, ip)
                  
 
                   // % expr-4 SO-v
                   // d2fc_dv{k}(:, ii(p), jj(t)) = s7;
-                  hess_assign(d2fc_dvdv_.at(k_idx), s7, 0, ip, jq, 1, 6); // d2fc_dvdv_(k)(1:6, ip, jq)
+                  slice_in_v6(d2fc_dvdv_.at(k_idx), s7,  ip, jq); // d2fc_dvdv_(k)(1:6, ip, jq)
 
                   // % expr-5 SO-v
                   // d2fc_dv{k}(:, jj(t), ii(p)) = d2fc_dv{k}(:, ii(p), jj(t));
-                  hess_assign(d2fc_dvdv_.at(k_idx), s7, 0, jq, ip, 1, 6); // d2fc_dvdv_(k)(1:6, jq, ip)
+                  slice_in_v6(d2fc_dvdv_.at(k_idx), s7,  jq, ip); // d2fc_dvdv_(k)(1:6, jq, ip)
 
 
                   // % expr-6 SO-aq
                   // d2fc_daq{k}(:, jj(t), ii(p)) = s9;
-                  hess_assign(d2fc_dadq_.at(k_idx), s9, 0, jq, ip, 1, 6); // d2fc_dadq_(k)(1:6, jq, ip)
+                  slice_in_v6(d2fc_dadq_.at(k_idx), s9,  jq, ip); // d2fc_dadq_(k)(1:6, jq, ip)
 
                   //  expr-6 SO-vq
                   //   d2fc_dvq{k}(:, jj(t), ii(p)) =  s11;
-                  hess_assign(d2fc_dvdq_.at(k_idx), s11, 0, jq, ip, 1, 6); // d2fc_dvdq_(k)(1:6, jq, ip)
+                  slice_in_v6(d2fc_dvdq_.at(k_idx), s11,  jq, ip); // d2fc_dvdq_(k)(1:6, jq, ip)
 
                 } else { // k < j = i
                   // expr-6 SO-v 
                   // d2fc_dv{k}(:, ii(p), jj(t)) = s12;
-                  hess_assign(d2fc_dvdv_.at(k_idx), s12, 0, ip, jq, 1, 6); // d2fc_dvdv_(k)(1:6, ip, jq)
+                  slice_in_v6(d2fc_dvdv_.at(k_idx), s12,  ip, jq); // d2fc_dvdv_(k)(1:6, ip, jq)
 
                 }
 
@@ -456,7 +452,7 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
                 // expr-3 SO-v 
                 // d2fc_dv{i}(:, jj(t), kk(r)) = s13 * S_r;
                 tmp_vec.noalias() = s13 * S_k.toVector();
-                hess_assign(d2fc_dvdv_.at(i_idx), tmp_vec, 0, jq, kr, 1, 6); // d2fc_dvdv_(i)(1:6, jq, kr)
+                slice_in_v6(d2fc_dvdv_.at(i_idx), tmp_vec,  jq, kr); // d2fc_dvdv_(i)(1:6, jq, kr)
 
               }
               
