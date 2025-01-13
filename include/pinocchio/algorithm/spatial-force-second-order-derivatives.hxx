@@ -243,13 +243,12 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
           const MotionRef<typename Data::Matrix6x::ColXpr> psidd_dj = data.psidd.col(jq); // psi_ddot{j}(:,q)
           const MotionRef<typename Data::Matrix6x::ColXpr> phid_dj = data.dJ.col(jq);     // phi_dot{j}(:,q)
           const ActionMatrixType crfSt = S_j.toDualActionMatrix();                             //(S{i}(:,p) )x matrix
-           const ActionMatrixType S_jA = S_j.toActionMatrix();                             //(S{i}(:,p) )x matrix
+          const ActionMatrixType S_jA = S_j.toActionMatrix();                             //(S{i}(:,p) )x matrix
 
           BCi_St = -S_jA.transpose() * oBcrb - oBcrb * S_jA  ; // S_j x* BC{i} - BC{i} S_j x
 
           ICi_St = Bic_phij      = oYcrb.variation(S_j);  // S_j x* IC{i} - IC{i} S_j x
-          ForceCrossMatrix(oYcrb * S_j, r0);            // cmf_bar(IC{i}S{j}(:,q))
-          Bic_phij += r0;
+          addForceCrossMatrix(oYcrb * S_j, Bic_phij);            // cmf_bar(IC{i}S{j}(:,q))
 
           Bic_psijt_dot = oYcrb.variation(psid_dj);       // psi_dot{j}(:,q) x* IC{i} - IC{i} psi_dot{j}(:,q) x
           ForceCrossMatrix(oYcrb * psid_dj, r0); // cmf_bar(IC{i} * psi_dot{j}(:,q))
@@ -317,8 +316,7 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
               const ActionMatrixType crmpsidk = psid_dk.toActionMatrix();
           
               Bic_psikt_dot = oYcrb.variation(psid_dk);       // psi_dot{k}(:,q) x* IC{i} - IC{i} psi_dot{k}(:,q) x
-              ForceCrossMatrix(oYcrb * psid_dk, r0);       // cmf_bar(IC{i} * psi_dot{k}(:,q))
-              Bic_psikt_dot += r0;
+              addForceCrossMatrix(oYcrb * psid_dk, Bic_psikt_dot);       // cmf_bar(IC{i} * psi_dot{k}(:,q))
 
               // k <= j <= i
 
