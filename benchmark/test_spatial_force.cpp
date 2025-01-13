@@ -474,32 +474,57 @@ int main(int argc, const char ** argv)
       if (diff_eq > 1e-3)
       {
         std::cout << "diff SO-q \n"   << std::endl;
+       throw std::runtime_error("Error in SO-q");
+
+      } else
+      {
+        std::cout << "SO-q is correct max diff_eq = " << diff_eq << std::endl;    
       }
 
       if (diff_dv > 1e-3)
       {
         std::cout << "diff SO-v \n"   << std::endl;
+        throw std::runtime_error("Error in SO-v");
+      } else
+      {
+        std::cout << "SO-v is correct max diff_dv = " << diff_dv << std::endl;    
       }
+
 
       if (diff_daq > 1e-3)
       {
         std::cout << "diff SO-aq \n"   << std::endl;
-     
+        throw std::runtime_error("Error in SO-aq");
+      } else
+      {
+        std::cout << "SO-aq is correct max diff_daq = " << diff_daq << std::endl;    
       }
 
       if (diff_dvq > 1e-3)
       {
         std::cout << "diff SO-vq \n"   << std::endl;
-      } 
+        throw std::runtime_error("Error in SO-vq");
+      } else 
+      {
+        std::cout << "SO-vq is correct max diff_dvq = " << diff_dvq << std::endl;    
+      }
 
       if (diff_dqv > 1e-3)
       {
         std::cout << "diff SO-qv \n"   << std::endl;
+        throw std::runtime_error("Error in SO-qv");
+      } else
+      {
+        std::cout << "SO-qv is correct max diff_dqv = " << diff_dqv << std::endl;    
       }
 
       if (diff_dqa > 1e-3)
       {
         std::cout << "diff SO-qa \n"   << std::endl;
+        throw std::runtime_error("Error in SO-qa");
+      } else
+      {
+        std::cout << "SO-qa is correct max diff_dqa = " << diff_dqa << std::endl;    
       }
     }
 
