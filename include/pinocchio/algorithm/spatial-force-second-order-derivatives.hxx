@@ -244,6 +244,7 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
           const MotionRef<typename Data::Matrix6x::ColXpr> phid_dj = data.dJ.col(jq);     // phi_dot{j}(:,q)
           const ActionMatrixType crfSt = S_j.toDualActionMatrix();                             //(S{i}(:,p) )x matrix
           const ActionMatrixType S_jA = S_j.toActionMatrix();                             //(S{i}(:,p) )x matrix
+          Vector6c Sj_vec = S_j.toVector(); // S{j}(:,q) as a vector
 
           BCi_St = -S_jA.transpose() * oBcrb - oBcrb * S_jA  ; // S_j x* BC{i} - BC{i} S_j x
 
@@ -259,7 +260,7 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
           // s2 = BCi*psid_t + ICi*psidd_t + fCi_bar * S_t
           s2.noalias() = oBcrb * psid_dj.toVector()
                     + (oYcrb * psidd_dj).toVector()
-                    + fic_cross * S_j.toVector();
+                    + fic_cross * Sj_vec;
 
           // s3 = Bic_psijt_dot + BCi_St
           s3.noalias() = Bic_psijt_dot + BCi_St; // 6x6
@@ -276,23 +277,23 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
                     + (crfSt * u5);  
 
           // s7 = Bic_phii * S_t
-          s7.noalias() = Bicphii * S_j.toVector();
+          s7.noalias() = Bicphii * Sj_vec;
 
           // s8 = crfSt*u2
           s8.noalias() = crfSt * u2;
 
           // s9 = ICi_Sp * S_t
-          s9.noalias() = ICi_Sp * S_j.toVector();
+          s9.noalias() = ICi_Sp * Sj_vec;
 
           // s10 = Bic_phii*psid_t + u7*S_t
           s10.noalias() = Bicphii * psid_dj.toVector()
-                      + (u7 * S_j.toVector());
+                      + (u7 * Sj_vec);
 
           // s11 = u3*S_t + ICi_Sp*(psid_t + Sd_t)
-          s11.noalias()  = u3 * S_j.toVector() + ICi_Sp * s1;
+          s11.noalias()  = u3 * Sj_vec + ICi_Sp * s1;
 
           // s12 = u8 * S_t
-          s12.noalias() = u8 * S_j.toVector();
+          s12.noalias() = u8 * Sj_vec;
 
           // s13 = crfSt*ICi + crf_bar(s4)
           ForceCrossMatrix(oYcrb * S_j, r1); // crf_bar of s4
@@ -327,11 +328,10 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
               tmp_vec.noalias() = crfSk * s4;
               slice_in_v6(d2fc_dadq_.at(i_idx), tmp_vec,  jq, kr); // d2fc_dadq_(i)(1:6, jq, kr)
 
-
               // expr-1 SO-vq
               //d2fc_dvq{i}(:, jj(t), kk(r)) =(Bic_psikr_dot + crfSr*BCi + 2*ICi*crmPsidr)*S_t + crfSr*s5;
               r1 = Bic_psikt_dot + crfSk * oBcrb  +  2.0 * oYcrb.matrix() * crmpsidk;
-              tmp_vec.noalias() = r1 * S_j.toVector()+  crfSk * s5;
+              tmp_vec.noalias() = r1 * Sj_vec+  crfSk * s5;
 
               slice_in_v6(d2fc_dvdq_.at(i_idx), tmp_vec,  jq, kr); // d2fc_dvdq_(i)(1:6, jq, kr)
 
