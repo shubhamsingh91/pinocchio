@@ -149,6 +149,8 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
 
     std::vector<Tensor1> &d2fc_dqdq_ = const_cast<std::vector<Tensor1> &>(d2fc_dqdq);
     std::vector<Tensor2> &d2fc_dvdv_ = const_cast<std::vector<Tensor2> &>(d2fc_dvdv);
+    std::vector<Tensor2> &d2fc_dada_ = const_cast<std::vector<Tensor2> &>(d2fc_dada);
+    std::vector<Tensor2> &d2fc_dadq_ = const_cast<std::vector<Tensor2> &>(d2fc_dadq);
 
     Vector6c u1;
     Vector6c u2;
@@ -234,12 +236,8 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
 
       while (j > 0) {
 
-        // std::cout << "j = " << j << std::endl;
-        // std::cout << "j_idx = " << j_idx << std::endl;
-
         for (int q = 0; q < model.nvs[j]; q++) {
           const Eigen::DenseIndex jq = model.idx_vs[j] + q;
-          // std::cout << "jq = " << jq << std::endl;
           const MotionRef<typename Data::Matrix6x::ColXpr> S_j = data.J.col(jq);
           const MotionRef<typename Data::Matrix6x::ColXpr> psid_dj = data.psid.col(jq);   // psi_dot{j}(:,q)
           const MotionRef<typename Data::Matrix6x::ColXpr> psidd_dj = data.psidd.col(jq); // psi_ddot{j}(:,q)
@@ -307,8 +305,6 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
           k_idx = model.idx_vs[k];
 
           while (k > 0) {
-            // std::cout << "k = " << k << std::endl;
-            // std::cout << "k_idx = " << k_idx << std::endl;
 
             for (int r = 0; r < model.nvs[k]; r++) {
               const Eigen::DenseIndex kr = model.idx_vs[k] + r;
@@ -329,7 +325,11 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
               // expr-1 SO-q
               tmp_vec = s3*psid_dk.toVector() + ICi_St*psidd_dk.toVector() - crfSk.transpose() * s2;
               hess_assign(d2fc_dqdq_.at(i_idx), tmp_vec , 0, jq, kr, 1, 6); // d2fc_dqdq_(i)(1:6, jq, kr) 
-               
+
+              //  expr-1 SO-aq
+              //  d2fc_daq{i}(:, jj(t), kk(r)) = crfSr * s4;
+              tmp_vec.noalias() = -crfSk.transpose() * s4;
+              hess_assign(d2fc_dadq_.at(i_idx), tmp_vec, 0, jq, kr, 1, 6); // d2fc_dadq_(i)(1:6, jq, kr)
 
               if (j != i) { // k <= j < i
 
@@ -341,7 +341,6 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
                 // expr-6 SO-q
                 hess_assign(d2fc_dqdq_.at(j_idx), tmp_vec, 0, ip, kr, 1, 6); // d2fc_dqdq_(j)(1:6, ip, kr) 
 
-
                 // expr-7 SO-v
                 // d2fc_dv{j}(:, kk(r), ii(p)) = Bic_phii*S_r;      
                 tmp_vec.noalias() = Bicphii * S_k.toVector(); 
@@ -351,6 +350,15 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
                 //  d2fc_dv{j}(:, ii(p), kk(r)) = d2fc_dv{j}(:, kk(r), ii(p)); 
                 hess_assign(d2fc_dvdv_.at(j_idx), tmp_vec, 0, ip, kr, 1, 6); // d2fc_dvdv_(j)(1:6, ip, kr)
 
+                // % expr-2 SO-aq
+                // d2fc_daq{j}(:, ii(p), kk(r)) = crfSr * u2;
+                tmp_vec.noalias() = -crfSk.transpose() * u2;
+                hess_assign(d2fc_dadq_.at(j_idx), tmp_vec, 0, ip, kr, 1, 6); // d2fc_dadq_(j)(1:6, ip, kr)
+
+                //  expr-5 SO-aq
+                // d2fc_daq{j}(:, kk(r), ii(p)) = ICi_Sp * S_r;
+                tmp_vec.noalias() = ICi_Sp * S_k.toVector();
+                hess_assign(d2fc_dadq_.at(j_idx), tmp_vec, 0, kr, ip, 1, 6); // d2fc_dadq_(j)(1:6, kr, ip)
               }
 
               if (k != j) { // k < j <= i
@@ -375,6 +383,15 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
                 // d2fc_dv{i}(:, kk(r), jj(t)) = d2fc_dv{i}(:, jj(t), kk(r));
                 hess_assign(d2fc_dvdv_.at(i_idx), tmp_vec, 0, kr, jq, 1, 6); // d2fc_dvdv_(i)(1:6, kr, jq)
 
+                // expr-3 SO-aq 
+                // d2fc_daq{i}(:, kk(r), jj(t)) = ICi_St * S_r;
+                tmp_vec.noalias() = ICi_St * S_k.toVector();
+                hess_assign(d2fc_dadq_.at(i_idx), tmp_vec, 0, kr, jq, 1, 6); // d2fc_dadq_(i)(1:6, kr, jq)
+
+                  // % expr-4 SO-aq
+                  // d2fc_daq{k}(:, ii(p), jj(t)) = s8;
+                  hess_assign(d2fc_dadq_.at(k_idx), s8, 0, ip, jq, 1, 6); // d2fc_dadq_(k)(1:6, ip, jq)
+
                 if (j != i) { // k < j < i
                   //  expr-4 SO-q   d2fc_dq{k}(:, jj(t), ii(p)) =  d2fc_dq{k}(:, ii(p), jj(t));
                   get_vec_from_tens3_v1_gen(d2fc_dqdq_.at(k_idx), tmp_vec, 6 , ip, jq);
@@ -389,6 +406,10 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
                   // d2fc_dv{k}(:, jj(t), ii(p)) = d2fc_dv{k}(:, ii(p), jj(t));
                   hess_assign(d2fc_dvdv_.at(k_idx), s7, 0, jq, ip, 1, 6); // d2fc_dvdv_(k)(1:6, jq, ip)
 
+
+                  // % expr-6 SO-aq
+                  // d2fc_daq{k}(:, jj(t), ii(p)) = s9;
+                  hess_assign(d2fc_dadq_.at(k_idx), s9, 0, jq, ip, 1, 6); // d2fc_dadq_(k)(1:6, jq, ip)
 
                 } else { // k < j = i
                   // expr-6 SO-v 

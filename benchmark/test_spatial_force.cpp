@@ -317,19 +317,22 @@ int main(int argc, const char ** argv)
     //--------------------------------------------------------------------------------
     //------------------------- SO partials of cumulative force-----------------------
     //--------------------------------------------------------------------------------
-    std::vector<Eigen::Tensor<double,3>> d2f_dq2_fd, d2f_dv2_fd, d2f_da2_fd;
+    std::vector<Eigen::Tensor<double,3>> d2f_dq2_fd, d2f_dv2_fd, d2f_da2_fd , d2f_daq_fd;
     std::vector<Eigen::Tensor<double,3>> d2f_dq2_ana, d2f_dv2_ana, d2f_da2_ana, d2f_daq_ana;
 
     for (int i = 0; i < model.njoints - 1; i++) {
         d2f_dq2_fd.emplace_back(6, model.nv, model.nv);  
         d2f_dv2_fd.emplace_back(6, model.nv, model.nv);  
         d2f_da2_fd.emplace_back(6, model.nv, model.nv);  
+        d2f_daq_fd.emplace_back(6, model.nv, model.nv);
 
         d2f_dq2_ana.emplace_back(6, model.nv, model.nv);  
         d2f_dv2_ana.emplace_back(6, model.nv, model.nv);  
         d2f_da2_ana.emplace_back(6, model.nv, model.nv);  
         d2f_daq_ana.emplace_back(6, model.nv, model.nv);  
     }
+
+    for (auto &t : d2f_da2_fd) t.setZero();
 
     double alpha = 1e-6; // performs well
 
@@ -350,8 +353,9 @@ int main(int argc, const char ** argv)
     ten3d df_dv_ana_tensor_plus (6,model.nv, model.nv);
     ten3d df_da_ana_tensor_plus (6,model.nv, model.nv);
 
-    ten3d t_d2fc_dq_dqk , t_d2fc_dv_dvk;
+    ten3d t_d2fc_dq_dqk , t_d2fc_dv_dvk, t_d2fc_da_dqk;
     Eigen::MatrixXd m_d2fci_dq_dqk(6,model.nv);
+    Eigen::MatrixXd m_d2fci_da_dqk(6,model.nv);
     Eigen::MatrixXd m_d2fci_dv_dvk(6,model.nv);
 
     // Partial wrt q
@@ -363,11 +367,15 @@ int main(int argc, const char ** argv)
         df_dq_ana_tensor_plus, df_dv_ana_tensor_plus, df_da_ana_tensor_plus);
 
         t_d2fc_dq_dqk = (df_dq_ana_tensor_plus - df_dq_ana) / alpha; // 3d tensor d2fc/dq dqk
+        t_d2fc_da_dqk = (df_da_ana_tensor_plus - df_da_ana) / alpha; // 3d tensor d2fc/da dqk
         
         for (int i = 0; i < model.nv; i++)
         {
           get_mat_from_tens3_v1_gen(t_d2fc_dq_dqk, m_d2fci_dq_dqk, 6, model.nv, i);
           hess_assign_fd_v1_gen(d2f_dq2_fd.at(i), m_d2fci_dq_dqk, 6, model.nv, k); // slicing in the matrix along the kth page for ith tensor             
+     
+          get_mat_from_tens3_v1_gen(t_d2fc_da_dqk, m_d2fci_da_dqk, 6, model.nv, i);
+          hess_assign_fd_v1_gen(d2f_daq_fd.at(i), m_d2fci_da_dqk, 6, model.nv, k); // slicing in the matrix along the kth page for ith tensor
         }
 
         v_eps[k] -= alpha;
@@ -393,27 +401,29 @@ int main(int argc, const char ** argv)
    //------- Analytical algorithm
 
     ComputeSpatialForceSecondOrderDerivatives(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth],
-                                             d2f_dq2_ana, d2f_dv2_ana, d2f_dv2_fd, d2f_daq_ana);
+                                             d2f_dq2_ana, d2f_dv2_ana, d2f_daq_fd, d2f_daq_ana);
 
 
     // Comparing the results
     for (int i = 0; i < model.nv; ++i)
     {
      
+     std::cout << "i = " << i << std::endl;
       Eigen::Tensor<double,3> concrete_tensor = (d2f_dq2_fd.at(i) - d2f_dq2_ana.at(i)).eval();
       auto diff_eq = tensorMax(concrete_tensor);
 
       Eigen::Tensor<double,3> concrete_tensor_SO_v = (d2f_dv2_fd.at(i) - d2f_dv2_ana.at(i)).eval();
       auto diff_dv = tensorMax(concrete_tensor_SO_v);
 
-      // auto diff_da = (d2f_da2_fd.at(i) - d2f_da2_ana.at(i)).norm();
-      // std::cout << "i = " << i << std::endl;
-        // std::cout << "d2f_dq2_fd.at(i) = \n" << d2f_dq2_fd.at(i) << std::endl;
+      Eigen::Tensor<double,3> concrete_tensor_SO_a = (d2f_da2_fd.at(i) - d2f_da2_ana.at(i)).eval();
+      auto diff_da = tensorMax(concrete_tensor_SO_a);
+
+      Eigen::Tensor<double,3> concrete_tensor_SO_aq = (d2f_daq_fd.at(i) - d2f_daq_ana.at(i)).eval();
+      auto diff_daq = tensorMax(concrete_tensor_SO_aq);
 
       if (diff_eq > 1e-3)
       {
         std::cout << "diff SO-q \n"   << std::endl;
-        // std::cout << "diff -------------= \n"  << concrete_tensor << std::endl;
       }
 
       if (diff_dv > 1e-3)
@@ -421,10 +431,17 @@ int main(int argc, const char ** argv)
         std::cout << "diff SO-v \n"   << std::endl;
       }
 
-      // if (diff_da > 1e-3)
-      // {
-      //   std::cout << "diff_da = " << diff_da << std::endl;
-      // }
+      if (diff_da > 1e-3)
+      {
+        std::cout << "diff SO-a =  " << diff_da   << std::endl;
+
+      }
+
+      if (diff_daq > 1e-3)
+      {
+        std::cout << "diff SO-aq \n"   << std::endl;
+     
+      }
     }
 
   }
