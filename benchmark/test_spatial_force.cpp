@@ -317,13 +317,12 @@ int main(int argc, const char ** argv)
     //--------------------------------------------------------------------------------
     //------------------------- SO partials of cumulative force-----------------------
     //--------------------------------------------------------------------------------
-    std::vector<Eigen::Tensor<double,3>> d2f_dq2_fd, d2f_dv2_fd, d2f_da2_fd , d2f_daq_fd, d2f_dvq_fd, d2f_dqv_fd, d2f_dqa_fd;
-    std::vector<Eigen::Tensor<double,3>> d2f_dq2_ana, d2f_dv2_ana, d2f_da2_ana, d2f_daq_ana, d2f_dvq_ana, d2f_dqv_ana, d2f_dqa_ana;
+    std::vector<Eigen::Tensor<double,3>> d2f_dq2_fd, d2f_dv2_fd , d2f_daq_fd, d2f_dvq_fd, d2f_dqv_fd, d2f_dqa_fd;
+    std::vector<Eigen::Tensor<double,3>> d2f_dq2_ana, d2f_dv2_ana, d2f_daq_ana, d2f_dvq_ana, d2f_dqv_ana, d2f_dqa_ana;
 
     for (int i = 0; i < model.njoints - 1; i++) {
         d2f_dq2_fd.emplace_back(6, model.nv, model.nv);  
         d2f_dv2_fd.emplace_back(6, model.nv, model.nv);  
-        d2f_da2_fd.emplace_back(6, model.nv, model.nv);  
         d2f_daq_fd.emplace_back(6, model.nv, model.nv);
         d2f_dvq_fd.emplace_back(6, model.nv, model.nv);
         d2f_dqv_fd.emplace_back(6, model.nv, model.nv);
@@ -331,15 +330,12 @@ int main(int argc, const char ** argv)
 
         d2f_dq2_ana.emplace_back(6, model.nv, model.nv);  
         d2f_dv2_ana.emplace_back(6, model.nv, model.nv);  
-        d2f_da2_ana.emplace_back(6, model.nv, model.nv);  
         d2f_daq_ana.emplace_back(6, model.nv, model.nv);  
         d2f_dvq_ana.emplace_back(6, model.nv, model.nv);
         d2f_dqv_ana.emplace_back(6, model.nv, model.nv);
         d2f_dqa_ana.emplace_back(6, model.nv, model.nv);
     }
 
-
-    for (auto &t : d2f_da2_fd) t.setZero();
 
     double alpha = 1e-6; // performs well
 
@@ -462,9 +458,6 @@ int main(int argc, const char ** argv)
       Eigen::Tensor<double,3> concrete_tensor_SO_v = (d2f_dv2_fd.at(i) - d2f_dv2_ana.at(i)).eval();
       auto diff_dv = tensorMax(concrete_tensor_SO_v);
 
-      Eigen::Tensor<double,3> concrete_tensor_SO_a = (d2f_da2_fd.at(i) - d2f_da2_ana.at(i)).eval();
-      auto diff_da = tensorMax(concrete_tensor_SO_a);
-
       Eigen::Tensor<double,3> concrete_tensor_SO_aq = (d2f_daq_fd.at(i) - d2f_daq_ana.at(i)).eval();
       auto diff_daq = tensorMax(concrete_tensor_SO_aq);
 
@@ -486,12 +479,6 @@ int main(int argc, const char ** argv)
       if (diff_dv > 1e-3)
       {
         std::cout << "diff SO-v \n"   << std::endl;
-      }
-
-      if (diff_da > 1e-3)
-      {
-        std::cout << "diff SO-a =  " << diff_da   << std::endl;
-
       }
 
       if (diff_daq > 1e-3)
