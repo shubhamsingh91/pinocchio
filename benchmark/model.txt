@@ -1,1 +1,1 @@
-../models/ur10_robot.urdf
+../models/simple_humanoid.urdf
