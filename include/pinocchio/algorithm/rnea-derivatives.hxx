@@ -249,7 +249,8 @@ namespace pinocchio
       
       data.oh[i] = data.oYcrb[i] * ov;
       data.of[i] = data.oYcrb[i] * oa_gf + ov.cross(data.oh[i]);
-      
+      data.f[i] = data.oMi[i].actInv(data.of[i]);
+    
       typedef typename SizeDepType<JointModel::NV>::template ColsReturn<typename Data::Matrix6x>::Type ColsBlock;
       ColsBlock J_cols = jmodel.jointCols(data.J);
       ColsBlock dJ_cols = jmodel.jointCols(data.dJ);
@@ -332,7 +333,10 @@ namespace pinocchio
       MatrixType1 & rnea_partial_dq_ = PINOCCHIO_EIGEN_CONST_CAST(MatrixType1,rnea_partial_dq);
       MatrixType2 & rnea_partial_dv_ = PINOCCHIO_EIGEN_CONST_CAST(MatrixType2,rnea_partial_dv);
       MatrixType3 & rnea_partial_da_ = PINOCCHIO_EIGEN_CONST_CAST(MatrixType3,rnea_partial_da);
-      
+
+      pinocchio::SE3 X_0_m = data.oMi[i];
+      typename Data::Matrix6 X_0_mT_mat = X_0_m.toActionMatrix().transpose();
+
       // tau
       jmodel.jointVelocitySelector(data.tau).noalias() = J_cols.transpose()*data.of[i].toVector();
       
@@ -385,8 +389,8 @@ namespace pinocchio
         data.oYcrb[parent] += data.oYcrb[i];
         data.doYcrb[parent] += data.doYcrb[i];
         data.of[parent] += data.of[i];
-      }
-      
+        data.f[parent] += data.liMi[i].act(data.f[i]);
+      }      
       // Restore the status of dAdq_cols (remove gravity)
       PINOCCHIO_CHECK_INPUT_ARGUMENT(isZero(model.gravity.angular()),
                                      "The gravity must be a pure force vector, no angular part");

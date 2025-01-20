@@ -99,6 +99,7 @@ struct computeSpatialForceDerivsBackwardStep
     {
         typedef typename Model::JointIndex JointIndex;
         typedef typename Data::Force Force;
+        typedef typename Motion::ActionMatrixType ActionMatrixType;
 
         const JointIndex& i = jmodel.id();
         const JointIndex& parent = model.parents[i];
@@ -109,7 +110,7 @@ struct computeSpatialForceDerivsBackwardStep
 
         Matrix6 mat6tmp1;
         mat6tmp1.setZero();
-        Vector6c vec6tmp1, vec6tmp2, vec6tmp3;
+        Vector6c vec6tmp1, vec6tmp2, vec6tmp3, vec6tmp4;
         Vector6c S_j, psidot_j, psiddot_j, phidot_j;
         Vector6c S_i, psidot_i, psiddot_i, phidot_i;
 
@@ -118,36 +119,40 @@ struct computeSpatialForceDerivsBackwardStep
         psiddot_i = data.psidd.col(i-1); // psi_dotdot_i
         phidot_i = data.dJ.col(i-1); // phi_dot_i
         Force ofci = data.of[i]; // fc_i
+        Force ftmp1;
 
         JointIndex j = i;
 
          while (j > 0) {
-          
+            const MotionRef<typename Data::Matrix6x::ColXpr> S_jc = data.J.col(j-1);
             S_j = data.J.col(j-1);  // S_j
             psidot_j = data.psid.col(j-1); // psi_dot_j
             psiddot_j = data.psidd.col(j-1); // psi_dotdot_j
             phidot_j = data.dJ.col(j-1); // phi_dot_j
             auto Ic_j = data.oYcrb[j]; // Ic_j
             auto Bc_j = data.oBcrb[j]; // Bc_j
-            Force ofcj = data.of[j]; // fc_j
+            const ActionMatrixType crfSt = S_jc.toDualActionMatrix();                             //(S{i}(:,p) )x* matrix
+
             mat6tmp1.setZero();
             motionSet::inertiaAction(data.oYcrb[i], psiddot_j, vec6tmp1); // IiC * psi_dotdot_j
             motionSet::coriolisAction(data.oBcrb[i], psidot_j, vec6tmp2); // Bic * psi_dot_j  
 
-            addForceCrossMatrix(ofci, mat6tmp1); //  crm_bar(fc_i)
+            addForceCrossMatrix(ofci, mat6tmp1); //  cmf_bar(fc_i)
             vec6tmp3 = mat6tmp1* S_j;   
-            
-            tens_assign6_col(df_dq,vec6tmp1 + vec6tmp2 + vec6tmp3,j-1,i-1); // dfci_dqj
+            vec6tmp4 = -crfSt * ofci.toVector(); // - S_j x* 0_fc_i
+            ftmp1.toVector() = vec6tmp1 + vec6tmp2 + vec6tmp3 + vec6tmp4;
+            tens_assign6_col(df_dq,data.oMi[i].actInv(ftmp1).toVector(),j-1,i-1); // dfci_dqj
 
             // partials w.r.t v
             motionSet::inertiaAction(data.oYcrb[i], (psidot_j + phidot_j) , vec6tmp1); // 
             motionSet::coriolisAction(data.oBcrb[i], S_j, vec6tmp2); // Bic * psi_dot_j 
-            tens_assign6_col(df_dv,vec6tmp1 + vec6tmp2,j-1,i-1); // dfci_dv
+            ftmp1.toVector() = vec6tmp1 + vec6tmp2;
+            tens_assign6_col(df_dv,data.oMi[i].actInv(ftmp1).toVector(),j-1,i-1); // dfci_dv
 
             // partials w.r.t a
             motionSet::inertiaAction(data.oYcrb[i], S_j , vec6tmp1); 
-            tens_assign6_col(df_da,vec6tmp1,j-1,i-1); // dfci_da
-
+            ftmp1.toVector() = vec6tmp1;
+            tens_assign6_col(df_da,data.oMi[i].actInv(ftmp1).toVector(),j-1,i-1); // dfci_da
 
             if (j !=i){ // for the case j>i
 
@@ -156,16 +161,19 @@ struct computeSpatialForceDerivsBackwardStep
                 mat6tmp1.setZero();
                 addForceCrossMatrix(ofci, mat6tmp1); // 
                 vec6tmp3 = mat6tmp1* S_i;  
-                tens_assign6_col(df_dq,vec6tmp1 + vec6tmp2 + vec6tmp3,i-1,j-1); // dfCj_dqi
+                ftmp1.toVector() = vec6tmp1 + vec6tmp2 + vec6tmp3;
+                tens_assign6_col(df_dq,data.oMi[j].actInv(ftmp1).toVector(),i-1,j-1); // dfCj_dqi
 
                 // partials w.r.t v
                 motionSet::inertiaAction(data.oYcrb[i], (psidot_i + phidot_i) , vec6tmp1); // 
                 motionSet::coriolisAction(data.oBcrb[i], S_i, vec6tmp2); // Bic * psi_dot_j 
-                tens_assign6_col(df_dv,vec6tmp1 + vec6tmp2,i-1,j-1); // dfcj_dvi
+                ftmp1.toVector() = vec6tmp1 + vec6tmp2;
+                tens_assign6_col(df_dv,data.oMi[j].actInv(ftmp1).toVector(),i-1,j-1); // dfcj_dvi
   
-                  // partials w.r.t a
+                // partials w.r.t a
                 motionSet::inertiaAction(data.oYcrb[i], S_i , vec6tmp1);
-                tens_assign6_col(df_da,vec6tmp1,i-1,j-1); // dfcj_dai
+                ftmp1.toVector() = vec6tmp1;
+                tens_assign6_col(df_da,data.oMi[j].actInv(ftmp1).toVector(),i-1,j-1); // dfcj_dai
 
             }
             j = model.parents[j];
@@ -228,18 +236,6 @@ inline void computeSpatialForceDerivs(const ModelTpl<Scalar, Options, JointColle
         Pass1::run(model.joints[i], data.joints[i],
             typename Pass1::ArgsType(model, data, q.derived(), v.derived(), a.derived()));
     }
-
-    // for (JointIndex i = (JointIndex)(model.njoints - 1); i > 0; --i)  // i from 29 to 1
-    // {
-    //     const JointIndex& parent = model.parents[i];
-
-    //     if (parent > 0) {
-    //         data.oYcrb[parent] += data.oYcrb[i];
-    //         data.oBcrb[parent] += data.oBcrb[i];
-    //         data.of[parent] += data.of[i];
-    //     }
-
-    // }
 
     typedef computeSpatialForceDerivsBackwardStep<Scalar, Options, JointCollectionTpl>
         Pass2;
