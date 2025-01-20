@@ -122,6 +122,10 @@ struct computeSpatialForceDerivsBackwardStep
         Force ftmp1;
 
         JointIndex j = i;
+        
+        auto get_f_vec  = [&data, &ftmp1](JointIndex idx){
+            return data.oMi[idx].actInv(ftmp1).toVector();
+        };
 
          while (j > 0) {
             const MotionRef<typename Data::Matrix6x::ColXpr> S_jc = data.J.col(j-1);
@@ -141,18 +145,18 @@ struct computeSpatialForceDerivsBackwardStep
             vec6tmp3 = mat6tmp1* S_j;   
             vec6tmp4 = -crfSt * ofci.toVector(); // - S_j x* 0_fc_i
             ftmp1.toVector() = vec6tmp1 + vec6tmp2 + vec6tmp3 + vec6tmp4;
-            tens_assign6_col(df_dq,data.oMi[i].actInv(ftmp1).toVector(),j-1,i-1); // dfci_dqj
+            tens_assign6_col(df_dq,get_f_vec(i),j-1,i-1); // dfci_dqj
 
             // partials w.r.t v
             motionSet::inertiaAction(data.oYcrb[i], (psidot_j + phidot_j) , vec6tmp1); // 
             motionSet::coriolisAction(data.oBcrb[i], S_j, vec6tmp2); // Bic * psi_dot_j 
             ftmp1.toVector() = vec6tmp1 + vec6tmp2;
-            tens_assign6_col(df_dv,data.oMi[i].actInv(ftmp1).toVector(),j-1,i-1); // dfci_dv
+            tens_assign6_col(df_dv,get_f_vec(i),j-1,i-1); // dfci_dv
 
             // partials w.r.t a
             motionSet::inertiaAction(data.oYcrb[i], S_j , vec6tmp1); 
             ftmp1.toVector() = vec6tmp1;
-            tens_assign6_col(df_da,data.oMi[i].actInv(ftmp1).toVector(),j-1,i-1); // dfci_da
+            tens_assign6_col(df_da,get_f_vec(i),j-1,i-1); // dfci_da
 
             if (j !=i){ // for the case j>i
 
@@ -162,18 +166,18 @@ struct computeSpatialForceDerivsBackwardStep
                 addForceCrossMatrix(ofci, mat6tmp1); // 
                 vec6tmp3 = mat6tmp1* S_i;  
                 ftmp1.toVector() = vec6tmp1 + vec6tmp2 + vec6tmp3;
-                tens_assign6_col(df_dq,data.oMi[j].actInv(ftmp1).toVector(),i-1,j-1); // dfCj_dqi
+                tens_assign6_col(df_dq,get_f_vec(j),i-1,j-1); // dfCj_dqi
 
                 // partials w.r.t v
                 motionSet::inertiaAction(data.oYcrb[i], (psidot_i + phidot_i) , vec6tmp1); // 
                 motionSet::coriolisAction(data.oBcrb[i], S_i, vec6tmp2); // Bic * psi_dot_j 
                 ftmp1.toVector() = vec6tmp1 + vec6tmp2;
-                tens_assign6_col(df_dv,data.oMi[j].actInv(ftmp1).toVector(),i-1,j-1); // dfcj_dvi
+                tens_assign6_col(df_dv,get_f_vec(j),i-1,j-1); // dfcj_dvi
   
                 // partials w.r.t a
                 motionSet::inertiaAction(data.oYcrb[i], S_i , vec6tmp1);
                 ftmp1.toVector() = vec6tmp1;
-                tens_assign6_col(df_da,data.oMi[j].actInv(ftmp1).toVector(),i-1,j-1); // dfcj_dai
+                tens_assign6_col(df_da,get_f_vec(j),i-1,j-1); // dfcj_dai
 
             }
             j = model.parents[j];
