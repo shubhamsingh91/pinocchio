@@ -81,7 +81,7 @@ g++ timings_cg_v1.cpp -DNDEBUG -I /usr/include/eigen3 -O0 -I /usr/include -L /us
 Running test_spatial_force with O0 optimization flag- using gcc
 #-------------------------------------------------------------#
 
-g++ test_spatial_force.cpp -DNDEBUG  -I /usr/include/eigen3 -O0 -I /usr/include -L /usr/local/lib -l pinocchio -ldl -o spatial_force
+g++ test_spatial_force_body.cpp -DNDEBUG  -I /usr/include/eigen3 -O0 -I /usr/include -L /usr/local/lib -l pinocchio -ldl -o spatial_force_body
 
 g++ test_spatial_force.cpp -DNDEBUG  -I /usr/include/eigen3 -O3 -I /usr/include -L /usr/local/lib -l pinocchio -ldl -o spatial_force
 

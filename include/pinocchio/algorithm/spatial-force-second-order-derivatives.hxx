@@ -316,8 +316,13 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
               // k <= j <= i
 
               // expr-1 SO-q
-              tmp_vec = s3*psid_dk.toVector() + ICi_St*psidd_dk.toVector() + crfSk * s2;
-              slice_in_v6(d2fc_dqdq_.at(i_idx), tmp_vec ,  jq, kr); // d2fc_dqdq_(i)(1:6, jq, kr) 
+              Vector6c FO_q_j = oYcrb.matrix() * psidd_dj.toVector() + fic_cross * S_j.toVector() + oBcrb * psid_dj.toVector();
+              Vector6c FO_q_k = oYcrb.matrix() * psidd_dk.toVector() + fic_cross * S_k.toVector() + oBcrb * psid_dk.toVector();
+
+              tmp_vec = s3*psid_dk.toVector() + ICi_St*psidd_dk.toVector() + crfSk * s2 - 
+                          crfSt * FO_q_k - crfSk * FO_q_j + crfSt * crfSk * data.of[i].toVector();
+              ftmp1.toVector() = tmp_vec;
+              slice_in_v6(d2fc_dqdq_.at(i_idx), data.oMi[i].actInv(ftmp1).toVector() ,  jq, kr); // d2fc_dqdq_(i)(1:6, jq, kr) 
 
               //  expr-1 SO-aq
               //  d2fc_daq{i}(:, jj(t), kk(r)) = crfSr * s4;
@@ -335,12 +340,14 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
               if (j != i) { // k <= j < i
 
                 //  expr-5 SO-q 
-                tmp_vec = ICi_Sp * psidd_dk.toVector() + u4 * S_k.toVector() + u3 * psid_dk.toVector();
-                slice_in_v6(d2fc_dqdq_.at(j_idx), tmp_vec,  kr, ip); // d2fc_dqdq_(j)(1:6, kr, ip)
+                tmp_vec = ICi_Sp * psidd_dk.toVector() + u4 * S_k.toVector() + u3 * psid_dk.toVector()-
+                          crfSk * (oYcrb.matrix() * psidd_dm.toVector() + fic_cross * S_i.toVector() + oBcrb * psid_dm.toVector());
+                ftmp1.toVector() = tmp_vec;
+                slice_in_v6(d2fc_dqdq_.at(j_idx), data.oMi[j].actInv(ftmp1).toVector(),  kr, ip); // d2fc_dqdq_(j)(1:6, kr, ip)
               
 
                 // expr-6 SO-q
-                slice_in_v6(d2fc_dqdq_.at(j_idx), tmp_vec,  ip, kr); // d2fc_dqdq_(j)(1:6, ip, kr) 
+                slice_in_v6(d2fc_dqdq_.at(j_idx), data.oMi[j].actInv(ftmp1).toVector(),  ip, kr); // d2fc_dqdq_(j)(1:6, ip, kr) 
 
                 // expr-7 SO-v
                 // d2fc_dv{j}(:, kk(r), ii(p)) = Bic_phii*S_r;      
@@ -387,7 +394,8 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
   
                 // expr-3 SO-q
                 // d2fc_dq{k}(:, ii(p), jj(t))
-                slice_in_v6(d2fc_dqdq_.at(k_idx), s6 ,  ip, jq); // d2fc_dqdq_(k)(1:6, ip, jq)
+                ftmp1.toVector() = s6;
+                slice_in_v6(d2fc_dqdq_.at(k_idx), data.oMi[k].actInv(ftmp1).toVector() ,  ip, jq); // d2fc_dqdq_(k)(1:6, ip, jq)
            
 
                 // % expr-1 SO-v
