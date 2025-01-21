@@ -1,1 +1,1 @@
-../models/ur3_robot.urdf
+../models/atlas.urdf
