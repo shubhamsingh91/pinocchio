@@ -176,8 +176,12 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
 
     Vector6c s1, s2, s4, s5, s6, s7, s8, s9, s10, s11, s12 ;
     Matrix6  s3, s13;
-    Force f_tmp, f_tmp2, f_tmp3, f_tmp4;
-  
+    Force f_tmp, ftmp1, f_tmp2, f_tmp3, f_tmp4;
+
+    auto get_f_vec  = [&data, &ftmp1](JointIndex idx){
+        return data.oMi[idx].actInv(ftmp1).toVector();
+    };
+
     ForceCrossMatrix(data.of[i], fic_cross); // cmf_bar(f{i}) 
 
     for (int p = 0; p < model.nvs[i]; p++) {
@@ -343,11 +347,12 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
                 // expr-7 SO-v
                 // d2fc_dv{j}(:, kk(r), ii(p)) = Bic_phii*S_r;      
                 tmp_vec.noalias() = Bicphii * S_k.toVector(); 
-                slice_in_v6(d2fc_dvdv_.at(j_idx), tmp_vec,  kr, ip); // d2fc_dvdv_(j)(1:6, kr, ip) 
+                ftmp1.toVector() = tmp_vec; 
+                slice_in_v6(d2fc_dvdv_.at(j_idx), data.oMi[j].actInv(ftmp1).toVector(),  kr, ip); // d2fc_dvdv_(j)(1:6, kr, ip) 
 
                 //  expr-8 SO-v
                 //  d2fc_dv{j}(:, ii(p), kk(r)) = d2fc_dv{j}(:, kk(r), ii(p)); 
-                slice_in_v6(d2fc_dvdv_.at(j_idx), tmp_vec,  ip, kr); // d2fc_dvdv_(j)(1:6, ip, kr)
+                slice_in_v6(d2fc_dvdv_.at(j_idx), data.oMi[j].actInv(ftmp1).toVector(),  ip, kr); // d2fc_dvdv_(j)(1:6, ip, kr)
 
                 // % expr-2 SO-aq
                 // d2fc_daq{j}(:, ii(p), kk(r)) = crfSr * u2;
@@ -386,11 +391,12 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
                 // % expr-1 SO-v
                 // d2fc_dv{i}(:, jj(t), kk(r)) = Bic_phij*S_r;
                 tmp_vec.noalias() = Bic_phij * S_k.toVector();
-                slice_in_v6(d2fc_dvdv_.at(i_idx), tmp_vec,  jq, kr); // d2fc_dvdv_(i)(1:6, jq, kr)
+                ftmp1.toVector() = tmp_vec; 
+                slice_in_v6(d2fc_dvdv_.at(i_idx), data.oMi[i].actInv(ftmp1).toVector(), jq, kr); // d2fc_dvdv_(i)(1:6, jq, kr)
 
                 // % expr-2 SO-v
                 // d2fc_dv{i}(:, kk(r), jj(t)) = d2fc_dv{i}(:, jj(t), kk(r));
-                slice_in_v6(d2fc_dvdv_.at(i_idx), tmp_vec,  kr, jq); // d2fc_dvdv_(i)(1:6, kr, jq)
+                slice_in_v6(d2fc_dvdv_.at(i_idx), data.oMi[i].actInv(ftmp1).toVector(), kr, jq); // d2fc_dvdv_(i)(1:6, kr, jq)
 
                 // expr-3 SO-aq 
                 // d2fc_daq{i}(:, kk(r), jj(t)) = ICi_St * S_r;
@@ -419,11 +425,12 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
 
                   // % expr-4 SO-v
                   // d2fc_dv{k}(:, ii(p), jj(t)) = s7;
-                  slice_in_v6(d2fc_dvdv_.at(k_idx), s7,  ip, jq); // d2fc_dvdv_(k)(1:6, ip, jq)
+                  ftmp1.toVector() = s7;   
+                  slice_in_v6(d2fc_dvdv_.at(k_idx), data.oMi[k].actInv(ftmp1).toVector(),  ip, jq); // d2fc_dvdv_(k)(1:6, ip, jq)
 
                   // % expr-5 SO-v
                   // d2fc_dv{k}(:, jj(t), ii(p)) = d2fc_dv{k}(:, ii(p), jj(t));
-                  slice_in_v6(d2fc_dvdv_.at(k_idx), s7,  jq, ip); // d2fc_dvdv_(k)(1:6, jq, ip)
+                  slice_in_v6(d2fc_dvdv_.at(k_idx), data.oMi[k].actInv(ftmp1).toVector(),  jq, ip); // d2fc_dvdv_(k)(1:6, jq, ip)
 
 
                   // % expr-6 SO-aq
@@ -437,7 +444,8 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
                 } else { // k < j = i
                   // expr-6 SO-v 
                   // d2fc_dv{k}(:, ii(p), jj(t)) = s12;
-                  slice_in_v6(d2fc_dvdv_.at(k_idx), s12,  ip, jq); // d2fc_dvdv_(k)(1:6, ip, jq)
+                  ftmp1.toVector() = s12;   
+                  slice_in_v6(d2fc_dvdv_.at(k_idx), data.oMi[k].actInv(ftmp1).toVector(),  ip, jq); // d2fc_dvdv_(k)(1:6, ip, jq)
 
                 }
 
@@ -445,7 +453,8 @@ struct ComputeSpatialForceSecondOrderDerivativesBackwardStep
                 // expr-3 SO-v 
                 // d2fc_dv{i}(:, jj(t), kk(r)) = s13 * S_r;
                 tmp_vec.noalias() = s13 * S_k.toVector();
-                slice_in_v6(d2fc_dvdv_.at(i_idx), tmp_vec,  jq, kr); // d2fc_dvdv_(i)(1:6, jq, kr)
+                ftmp1.toVector() = tmp_vec;   
+                slice_in_v6(d2fc_dvdv_.at(i_idx), data.oMi[i].actInv(ftmp1).toVector(),  jq, kr); // d2fc_dvdv_(i)(1:6, jq, kr)
 
               }
               
