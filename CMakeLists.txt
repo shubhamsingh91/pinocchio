@@ -15,7 +15,6 @@ SET(PROJECT_USE_KEYWORD_LINK_LIBRARIES TRUE)
 # Disable -Werror on Unix for now.
 SET(CXX_DISABLE_WERROR True)
 SET(CMAKE_VERBOSE_MAKEFILE True)
-
 # new settings
 # SET(CMAKE_BUILD_TYPE Release)
 # SET(CMAKE_CXX_FLAGS_RELEASE "-O3")
@@ -54,7 +53,7 @@ ENDIF(WIN32)
 # --- OPTIONS ----------------------------------------
 OPTION(BUILD_BENCHMARK "Build the benchmarks" OFF)
 OPTION(BUILD_UTILS "Build the utils" OFF)
-OPTION(BUILD_PYTHON_INTERFACE "Build the Python bindings" ON)
+OPTION(BUILD_PYTHON_INTERFACE "Build the Python bindings" OFF)
 OPTION(BUILD_WITH_COMMIT_VERSION "Build libraries by setting specific commit version" OFF)
 
 IF(DEFINED BUILD_UNIT_TESTS)
@@ -70,7 +69,7 @@ OPTION(BUILD_ADVANCED_TESTING "Build the advanced tests (multiprecision, etc.) o
 OPTION(BUILD_WITH_URDF_SUPPORT "Build the library with the URDF format support" ON)
 OPTION(BUILD_WITH_COLLISION_SUPPORT "Build the library with the collision support (required HPP-FCL)" OFF)
 OPTION(BUILD_WITH_AUTODIFF_SUPPORT "Build the library with the automatic differentiation support (via CppAD)" ON)
-OPTION(BUILD_WITH_CASADI_SUPPORT "Build the library with the support of CASADI" OFF)
+OPTION(BUILD_WITH_CASADI_SUPPORT "Build the library with the support of CASADI" ON)
 OPTION(BUILD_WITH_CODEGEN_SUPPORT "Build the library with the support of code generation (via CppADCodeGen)" ON)
 OPTION(BUILD_WITH_OPENMP_SUPPORT "Build the library with the OpenMP support" OFF)
 cmake_dependent_option(LINK_PYTHON_INTERFACE_TO_OPENM "Link OpenMP to the Python interface" ON BUILD_WITH_OPENMP_SUPPORT OFF)
@@ -131,7 +130,9 @@ IF(BUILD_WITH_AUTODIFF_SUPPORT)
 ENDIF(BUILD_WITH_AUTODIFF_SUPPORT)
 
 IF(BUILD_WITH_CASADI_SUPPORT)
-  ADD_PROJECT_DEPENDENCY(casadi 3.4.5 REQUIRED PKG_CONFIG_REQUIRES "casadi >= 3.4.5")
+  ADD_PROJECT_DEPENDENCY(casadi 3.6.3 REQUIRED PKG_CONFIG_REQUIRES "casadi >= 3.6.3")
+ # ADD_PROJECT_DEPENDENCY(casadi 3.5.5 REQUIRED PKG_CONFIG_REQUIRES "casadi >= 3.5.5")
+  MESSAGE(STATUS "Found CASADI correct version")
 ENDIF(BUILD_WITH_CASADI_SUPPORT)
 
 IF(BUILD_WITH_OPENMP_SUPPORT)
@@ -144,7 +145,7 @@ SET(BOOST_REQUIRED_COMPONENTS filesystem serialization system)
 #EXPORT_BOOST_DEFAULT_OPTIONS()
 SET(BOOST_BUILD_COMPONENTS unit_test_framework)
 SET(BOOST_OPTIONAL_COMPONENTS "")
-find_package(Boost COMPONENTS python38 REQUIRED)
+# find_package(Boost COMPONENTS python38 REQUIRED)
 
 ADD_PROJECT_DEPENDENCY(Boost REQUIRED COMPONENTS ${BOOST_REQUIRED_COMPONENTS})
 
