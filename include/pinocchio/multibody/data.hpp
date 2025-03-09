@@ -105,8 +105,17 @@ namespace pinocchio
     /// \brief Vector of joint velocities expressed at the centers of the joints.
     PINOCCHIO_ALIGNED_STD_VECTOR(Motion) v;
     
-        /// \brief Vector of joint velocities expressed at the centers of the joints.
+    /// \brief Vector of lambda velocities expressed at the centers of the joints.
+    PINOCCHIO_ALIGNED_STD_VECTOR(Motion) w;
+
+    /// \brief Vector of joint velocities expressed at the centers of the joints.
     PINOCCHIO_ALIGNED_STD_VECTOR(Motion) vJ;
+    
+    /// \brief Vector of lambda velocities expressed at the centers of the joints.
+    PINOCCHIO_ALIGNED_STD_VECTOR(Motion) wJ;
+
+    /// @brief Joint torques contracted with a lambda vector
+    Scalar modtau;
 
     /// \brief Vector of joint velocities expressed at the origin.
     PINOCCHIO_ALIGNED_STD_VECTOR(Motion) ov;
