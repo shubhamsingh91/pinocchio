@@ -2,12 +2,13 @@
 # Note: this feature requires Meshcat to be installed, this can be done using
 # pip install --user meshcat
 
-import pinocchio as pin
-import numpy as np
 import sys
+import time
 
-from pinocchio.visualize import MeshcatVisualizer
 import hppfcl as fcl
+import numpy as np
+import pinocchio as pin
+from pinocchio.visualize import MeshcatVisualizer
 
 if tuple(map(int, fcl.__version__.split("."))) >= (3, 0, 0):
     with_octomap = fcl.WITH_OCTOMAP
@@ -30,7 +31,8 @@ visual_model = collision_model
 viz = MeshcatVisualizer(model, collision_model, visual_model)
 
 # Start a new MeshCat server and client.
-# Note: the server can also be started separately using the "meshcat-server" command in a terminal:
+# Note: the server can also be started separately using the "meshcat-server" command in
+# a terminal:
 # this enables the server to remain active after the current script ends.
 #
 # Option open=True pens the visualizer.
@@ -39,10 +41,11 @@ try:
     viz.initViewer(open=True)
 except ImportError as err:
     print(
-        "Error while initializing the viewer. It seems you should install Python meshcat"
+        "Error while initializing the viewer. "
+        "It seems you should install Python meshcat"
     )
     print(err)
     sys.exit(0)
 
 viz.loadViewerModel()
-viz.clearDefaultLights()
+time.sleep(1.0)

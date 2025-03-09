@@ -17,8 +17,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType,
       typename TangentVectorType1,
       typename TangentVectorType2>
@@ -66,7 +65,7 @@ namespace pinocchio
           data.v[i] += data.liMi[i].actInv(data.v[parent]);
 
         data.a_gf[i] = jdata.c() + (data.v[i] ^ jdata.v());
-        data.a_gf[i] += jdata.S() * jmodel.jointVelocitySelector(a);
+        data.a_gf[i] += jdata.S() * jmodel.JointMappedVelocitySelector(a);
         data.a_gf[i] += data.liMi[i].actInv(data.a_gf[parent]);
         //
         //      data.f[i] = model.inertias[i]*data.a_gf[i];// + model.inertias[i].vxiv(data.v[i]);
@@ -100,8 +99,8 @@ namespace pinocchio
 
         const JointIndex i = jmodel.id();
         const JointIndex parent = model.parents[i];
-
-        jmodel.jointVelocitySelector(data.tau) = jdata.S().transpose() * data.f[i];
+        // Mimic joint contributes to the torque of their mimicked and don't have their own
+        jmodel.JointMappedVelocitySelector(data.tau) += jdata.S().transpose() * data.f[i];
 
         if (parent > 0)
           data.f[parent] += data.liMi[i].act(data.f[i]);
@@ -111,8 +110,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType,
       typename TangentVectorType1,
       typename TangentVectorType2>
@@ -133,6 +131,9 @@ namespace pinocchio
       typedef ModelTpl<Scalar, Options, JointCollectionTpl> Model;
       typedef typename Model::JointIndex JointIndex;
 
+      // Set to zero, because it's not an assignation, that is done in the algorithm but a sum to
+      // take mimic joint into account
+      data.tau.setZero();
       data.v[0].setZero();
       data.a_gf[0] = -model.gravity;
 
@@ -162,8 +163,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType,
       typename TangentVectorType1,
       typename TangentVectorType2,
@@ -187,6 +187,9 @@ namespace pinocchio
       typedef ModelTpl<Scalar, Options, JointCollectionTpl> Model;
       typedef typename Model::JointIndex JointIndex;
 
+      // Set to zero, because it's not an assignation, that is done in the algorithm but a sum to
+      // take mimic joint into account
+      data.tau.setZero();
       data.v[0].setZero();
       data.a_gf[0] = -model.gravity;
 
@@ -218,8 +221,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType,
       typename TangentVectorType>
     struct NLEForwardStep
@@ -283,7 +285,8 @@ namespace pinocchio
         const JointIndex & i = jmodel.id();
         const JointIndex & parent = model.parents[i];
 
-        jmodel.jointVelocitySelector(data.nle) = jdata.S().transpose() * data.f[i];
+        // Mimic joint contributes to the nle of their mimicked and don't have their own
+        jmodel.JointMappedVelocitySelector(data.nle) += jdata.S().transpose() * data.f[i];
         if (parent > 0)
           data.f[parent] += data.liMi[i].act(data.f[i]);
       }
@@ -292,8 +295,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType,
       typename TangentVectorType>
     const typename DataTpl<Scalar, Options, JointCollectionTpl>::TangentVectorType &
@@ -311,6 +313,9 @@ namespace pinocchio
       typedef ModelTpl<Scalar, Options, JointCollectionTpl> Model;
       typedef typename Model::JointIndex JointIndex;
 
+      // Set to zero, because it's not an assignation, that is done in the algorithm but a sum to
+      // take mimic joint into account
+      data.nle.setZero();
       data.v[0].setZero();
       data.a_gf[0] = -model.gravity;
 
@@ -336,8 +341,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType>
     struct ComputeGeneralizedGravityForwardStep
     : public fusion::JointUnaryVisitorBase<
@@ -392,8 +396,8 @@ namespace pinocchio
 
         const JointIndex & i = jmodel.id();
         const JointIndex & parent = model.parents[i];
-
-        jmodel.jointVelocitySelector(g) = jdata.S().transpose() * data.f[i];
+        // Mimic joint contributes to the gravity of their mimicked and don't have their own
+        jmodel.JointMappedVelocitySelector(g) += jdata.S().transpose() * data.f[i];
         if (parent > 0)
           data.f[(size_t)parent] += data.liMi[i].act(data.f[i]);
       }
@@ -402,8 +406,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType>
     const typename DataTpl<Scalar, Options, JointCollectionTpl>::TangentVectorType &
     computeGeneralizedGravity(
@@ -418,6 +421,9 @@ namespace pinocchio
       typedef ModelTpl<Scalar, Options, JointCollectionTpl> Model;
       typedef typename Model::JointIndex JointIndex;
 
+      // Set to zero, because it's not an assignation, that is done in the algorithm but a sum to
+      // take mimic joint into account
+      data.g.setZero();
       data.a_gf[0] = -model.gravity;
 
       typedef ComputeGeneralizedGravityForwardStep<
@@ -429,6 +435,7 @@ namespace pinocchio
           model.joints[i], data.joints[i], typename Pass1::ArgsType(model, data, q.derived()));
       }
 
+      data.g.setZero();
       typedef ComputeGeneralizedGravityBackwardStep<Scalar, Options, JointCollectionTpl> Pass2;
       for (JointIndex i = (JointIndex)(model.njoints - 1); i > 0; --i)
       {
@@ -441,8 +448,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType>
     const typename DataTpl<Scalar, Options, JointCollectionTpl>::TangentVectorType &
     computeStaticTorque(
@@ -471,7 +477,9 @@ namespace pinocchio
           model.joints[i], data.joints[i], typename Pass1::ArgsType(model, data, q.derived()));
         data.f[i] -= fext[i];
       }
-
+      // Set to zero, because it's not an assignation, that is done in the algorithm but a sum to
+      // take mimic joint into account
+      data.tau.setZero();
       typedef ComputeGeneralizedGravityBackwardStep<Scalar, Options, JointCollectionTpl> Pass2;
       for (JointIndex i = (JointIndex)(model.njoints - 1); i > 0; --i)
       {
@@ -485,8 +493,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType,
       typename TangentVectorType>
     struct CoriolisMatrixForwardStep
@@ -539,11 +546,11 @@ namespace pinocchio
         typedef
           typename SizeDepType<JointModel::NV>::template ColsReturn<typename Data::Matrix6x>::Type
             ColsBlock;
-        ColsBlock J_cols = jmodel.jointCols(data.J);
+        ColsBlock J_cols = jmodel.jointExtendedModelCols(data.J);
         J_cols = data.oMi[i].act(jdata.S()); // collection of S expressed at the world frame
 
         // computes vxS expressed at the world frame
-        ColsBlock dJ_cols = jmodel.jointCols(data.dJ);
+        ColsBlock dJ_cols = jmodel.jointExtendedModelCols(data.dJ);
         motionSet::motionAction(data.ov[i], J_cols, dJ_cols);
 
         data.B[i] = data.oYcrb[i].variation(Scalar(0.5) * data.ov[i]);
@@ -591,8 +598,8 @@ namespace pinocchio
         typedef
           typename SizeDepType<JointModel::NV>::template ColsReturn<typename Data::Matrix6x>::Type
             ColsBlock;
-        ColsBlock dJ_cols = jmodel.jointCols(data.dJ);
-        ColsBlock J_cols = jmodel.jointCols(data.J);
+        ColsBlock dJ_cols = jmodel.jointExtendedModelCols(data.dJ);
+        ColsBlock J_cols = jmodel.jointExtendedModelCols(data.J);
         ColsBlock Ag_cols = jmodel.jointCols(data.Ag);
 
         motionSet::inertiaAction(data.oYcrb[i], dJ_cols, jmodel.jointCols(data.dFdv));
@@ -624,8 +631,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType,
       typename TangentVectorType>
     const typename DataTpl<Scalar, Options, JointCollectionTpl>::MatrixXs & computeCoriolisMatrix(
@@ -635,6 +641,7 @@ namespace pinocchio
       const Eigen::MatrixBase<TangentVectorType> & v)
     {
       assert(model.check(data) && "data is not consistent with model.");
+      assert(model.check(MimicChecker()) && "Function does not support mimic joints");
       PINOCCHIO_CHECK_ARGUMENT_SIZE(q.size(), model.nq);
       PINOCCHIO_CHECK_ARGUMENT_SIZE(v.size(), model.nv);
 
@@ -721,6 +728,7 @@ namespace pinocchio
     DataTpl<Scalar, Options, JointCollectionTpl> & data)
   {
     assert(model.check(data) && "data is not consistent with model.");
+    assert(model.check(MimicChecker()) && "Function does not support mimic joints");
 
     typedef DataTpl<Scalar, Options, JointCollectionTpl> Data;
     typedef ModelTpl<Scalar, Options, JointCollectionTpl> Model;
@@ -751,8 +759,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType,
     typename TangentVectorType1,
     typename TangentVectorType2>
@@ -769,8 +776,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType,
     typename TangentVectorType1,
     typename TangentVectorType2,
@@ -789,8 +795,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType,
     typename TangentVectorType>
   const typename DataTpl<Scalar, Options, JointCollectionTpl>::TangentVectorType & nonLinearEffects(
@@ -805,8 +810,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType>
   const typename DataTpl<Scalar, Options, JointCollectionTpl>::TangentVectorType &
   computeGeneralizedGravity(
@@ -820,8 +824,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType>
   const typename DataTpl<Scalar, Options, JointCollectionTpl>::TangentVectorType &
   computeStaticTorque(
@@ -836,8 +839,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType,
     typename TangentVectorType>
   const typename DataTpl<Scalar, Options, JointCollectionTpl>::MatrixXs & computeCoriolisMatrix(

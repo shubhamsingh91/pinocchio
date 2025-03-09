@@ -34,8 +34,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType>
     bp::tuple buildReducedModel(
       const ModelTpl<Scalar, Options, JointCollectionTpl> & model,
@@ -57,8 +56,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType>
     bp::tuple buildReducedModel(
       const ModelTpl<Scalar, Options, JointCollectionTpl> & model,
@@ -85,6 +83,22 @@ namespace pinocchio
       return bp::make_tuple(ancestor_id, index_ancestor_in_support1, index_ancestor_in_support2);
     }
 
+    template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl>
+    ModelTpl<Scalar, Options, JointCollectionTpl> transformJointIntoMimic_proxy(
+      const ModelTpl<Scalar, Options, JointCollectionTpl> & input_model,
+      const JointIndex & index_mimicked,
+      const JointIndex & index_mimicking,
+      const Scalar & scaling,
+      const Scalar & offset)
+    {
+      typedef ModelTpl<Scalar, Options, JointCollectionTpl> Model;
+
+      Model model;
+      pinocchio::transformJointIntoMimic(
+        input_model, index_mimicked, index_mimicking, scaling, offset, model);
+      return model;
+    }
+
     void exposeModelAlgo()
     {
       using namespace Eigen;
@@ -95,8 +109,9 @@ namespace pinocchio
 
       bp::def(
         "appendModel",
-        (Model(*)(const Model &, const Model &, const FrameIndex, const SE3 &))
-          & appendModel<double, 0, JointCollectionDefaultTpl>,
+        (Model(*)(
+          const Model &, const Model &, const FrameIndex,
+          const SE3 &))&appendModel<double, 0, JointCollectionDefaultTpl>,
         bp::args("modelA", "modelB", "frame_in_modelA", "aMb"),
         "Append a child model into a parent model, after a specific frame given by its index.\n\n"
         "Parameters:\n"
@@ -121,8 +136,9 @@ namespace pinocchio
       bp::def(
         "buildReducedModel",
         (Model(*)(
-          const Model &, const std::vector<JointIndex> &, const Eigen::MatrixBase<VectorXd> &))
-          & pinocchio::buildReducedModel<double, 0, JointCollectionDefaultTpl, VectorXd>,
+          const Model &, const std::vector<JointIndex> &,
+          const Eigen::MatrixBase<VectorXd> &))&pinocchio::
+          buildReducedModel<double, 0, JointCollectionDefaultTpl, VectorXd>,
         bp::args("model", "list_of_joints_to_lock", "reference_configuration"),
         "Build a reduce model from a given input model and a list of joint to lock.\n\n"
         "Parameters:\n"
@@ -135,8 +151,8 @@ namespace pinocchio
         "buildReducedModel",
         (bp::tuple(*)(
           const Model &, const GeometryModel &, const std::vector<JointIndex> &,
-          const Eigen::MatrixBase<VectorXd> &))
-          & buildReducedModel<double, 0, JointCollectionDefaultTpl, VectorXd>,
+          const Eigen::MatrixBase<
+            VectorXd> &))&buildReducedModel<double, 0, JointCollectionDefaultTpl, VectorXd>,
         bp::args("model", "geom_model", "list_of_joints_to_lock", "reference_configuration"),
         "Build a reduced model and a reduced geometry model from a given input model,"
         "an input geometry model and a list of joints to lock.\n\n"
@@ -175,6 +191,19 @@ namespace pinocchio
         "\tjoint2_id: index of the second joint\n"
         "Returns a tuple containing the index of the common joint ancestor, the position of this "
         "ancestor in model.supports[joint1_id] and model.supports[joint2_id].\n");
+
+      bp::def(
+        "transformJointIntoMimic",
+        transformJointIntoMimic_proxy<double, 0, JointCollectionDefaultTpl>,
+        bp::args("input_model", "index_mimicked", "index_mimicking", "scaling", "offset"),
+        "Transform of a joint of the model into a mimic joint. Keep the type of the joint as it "
+        "was previously. \n\n"
+        "Parameters:\n"
+        "\tinput_model: model the input model to take joints from.\n"
+        "\tindex_mimicked: index of the joint to mimic\n"
+        "\tindex_mimicking: index of the joint that will mimic\n"
+        "\tscaling: Scaling of joint velocity and configuration\n"
+        "\toffset: Offset of joint configuration\n");
     }
 
   } // namespace python

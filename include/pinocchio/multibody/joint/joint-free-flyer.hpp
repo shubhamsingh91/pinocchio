@@ -168,7 +168,8 @@ namespace pinocchio
     enum
     {
       NQ = 7,
-      NV = 6
+      NV = 6,
+      NVExtended = 6
     };
     typedef _Scalar Scalar;
     enum
@@ -189,6 +190,8 @@ namespace pinocchio
 
     typedef Eigen::Matrix<Scalar, NQ, 1, Options> ConfigVector_t;
     typedef Eigen::Matrix<Scalar, NV, 1, Options> TangentVector_t;
+
+    typedef boost::mpl::false_ is_mimicable_t;
 
     PINOCCHIO_JOINT_DATA_BASE_ACCESSOR_DEFAULT_RETURN_TYPE
   };
@@ -253,6 +256,30 @@ namespace pinocchio
 
   }; // struct JointDataFreeFlyerTpl
 
+  /// @brief Free-flyer joint in \f$SE(3)\f$.
+  ///
+  /// A free-flyer joint adds seven coordinates to the configuration space.
+  /// Given a configuration vector `q`:
+  ///
+  /// - `q[idx_q:idx_q + 3]` are the translation coordinates, in meters,
+  ///   representing the position of the child frame in the parent frame.
+  /// - `q[idx_q + 3:idx_q + 7]` is a unit quaternion representing the rotation
+  ///   from the child frame to the parent frame, with quaternion coordinates
+  ///   ordered as (x, y, z, w).
+  ///
+  /// Likewise, a free-flyer joint adds six coordinates to the tangent space.
+  /// Let's consider a tangent vector `v`, say, a velocity vector. Following
+  /// Featherstone's convention, all our tangent vectors are body rather than
+  /// spatial vectors:
+  ///
+  /// - `v[idx_v:idx_v + 3]` is the linear velocity, in meters / second,
+  ///   corresponding to the linear velocity of the child frame with respect
+  ///   to the parent frame, expressed in the child frame (body linear velocity
+  ///   of the child frame).
+  /// - `v[idx_v + 3:idx_v + 6]` is the angular velocity, in radians / second,
+  ///   corresponding to the angular velocity from the child frame to the
+  ///   parent frame, expressed in the child frame (body angular velocity of the
+  ///   child frame).
   PINOCCHIO_JOINT_CAST_TYPE_SPECIALIZATION(JointModelFreeFlyerTpl);
   template<typename _Scalar, int _Options>
   struct JointModelFreeFlyerTpl : public JointModelBase<JointModelFreeFlyerTpl<_Scalar, _Options>>
@@ -265,6 +292,7 @@ namespace pinocchio
     using Base::id;
     using Base::idx_q;
     using Base::idx_v;
+    using Base::idx_vExtended;
     using Base::setIndexes;
 
     JointDataDerived createData() const
@@ -378,7 +406,7 @@ namespace pinocchio
     {
       typedef JointModelFreeFlyerTpl<NewScalar, Options> ReturnType;
       ReturnType res;
-      res.setIndexes(id(), idx_q(), idx_v());
+      res.setIndexes(id(), idx_q(), idx_v(), idx_vExtended());
       return res;
     }
 

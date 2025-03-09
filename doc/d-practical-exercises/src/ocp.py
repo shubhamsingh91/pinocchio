@@ -7,9 +7,8 @@ import time
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.optimize import fmin_l_bfgs_b
-
 from pendulum import Pendulum
+from scipy.optimize import fmin_l_bfgs_b
 
 env = Pendulum(1)
 NSTEPS = 50
@@ -31,13 +30,13 @@ def display(U, verbose=False):
     """Display the trajectory on Gepetto viewer."""
     x = x0.copy()
     if verbose:
-        print("U = ", " ".join(map(lambda u: "%.1f" % u, np.asarray(U).flatten())))
+        print("U = ", " ".join(map(lambda u: f"{u:.1f}", np.asarray(U).flatten())))
     for i in range(len(U) / env.nu):
         env.dynamics(x, U[env.nu * i : env.nu * (i + 1)], True)
         env.display(x)
         time.sleep(5e-2)
         if verbose:
-            print("X%d" % i, x.T)
+            print(f"X{i}")
 
 
 class CallBack:
@@ -52,7 +51,7 @@ class CallBack:
         print(
             "Iteration ",
             self.iter,
-            " ".join(map(lambda u: "%.1f" % u, np.asarray(U).flatten())),
+            " ".join(map(lambda u: f"{u:.1f}", np.asarray(U).flatten())),
         )
         self.iter += 1
         self.U = U.copy()
@@ -67,8 +66,9 @@ class CallBack:
 callback = CallBack()
 signal.signal(signal.SIGTSTP, lambda x, y: callback.setWithDisplay())
 
-### --- OCP resolution
-U0 = np.zeros(NSTEPS * env.nu) - env.umax  # Initial guess for the control trajectory.
+# --- OCP resolution
+# Initial guess for the control trajectory.
+U0 = np.zeros(NSTEPS * env.nu) - env.umax
 bounds = (
     [
         [-env.umax, env.umax],

@@ -54,6 +54,8 @@ namespace pinocchio
       typedef MotionTpl<Scalar, Options> Motion;
       typedef ForceTpl<Scalar, Options> Force;
       typedef InertiaTpl<Scalar, Options> Inertia;
+      typedef PseudoInertiaTpl<Scalar, Options> PseudoInertia;
+      typedef LogCholeskyParametersTpl<Scalar, Options> LogCholeskyParameters;
       typedef Symmetric3Tpl<Scalar, Options> Symmetric3;
 
       // Multibody
@@ -135,6 +137,9 @@ namespace pinocchio
 
       typedef JointModelCompositeTpl<Scalar> JointModelComposite;
       typedef JointDataCompositeTpl<Scalar> JointDataComposite;
+
+      typedef JointModelMimicTpl<Scalar> JointModelMimic;
+      typedef JointDataMimicTpl<Scalar> JointDataMimic;
 
       // Algorithm
       typedef ProximalSettingsTpl<Scalar> ProximalSettings;

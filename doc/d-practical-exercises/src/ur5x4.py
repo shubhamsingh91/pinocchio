@@ -1,24 +1,25 @@
 """
-Load 4 times the UR5 model, plus a plate object on top of them, to feature a simple parallel robot.
+Load 4 times the UR5 model, plus a plate object on top of them, to feature a simple
+parallel robot.
 No optimization, this file is just an example of how to load the models.
 """
 
-from os.path import join
-
-from pinocchio import SE3
-from pinocchio.robot_wrapper import RobotWrapper
-from pinocchio.utils import rotate, zero, eye, se3ToXYZQUATtuple, urdf
+from pathlib import Path
 
 import numpy as np
+from pinocchio import SE3
+from pinocchio.robot_wrapper import RobotWrapper
+from pinocchio.utils import eye, rotate, se3ToXYZQUATtuple, urdf, zero
 
-PKG = "/opt/openrobots/share"
-URDF = join(PKG, "ur5_description/urdf/ur5_gripper.urdf")
+PKG = Path("/opt/openrobots/share")
+URDF = PKG / "ur5_description/urdf/ur5_gripper.urdf"
 
 
 def loadRobot(M0, name):
     """
     This function load a UR5 robot n a new model, move the basis to placement <M0>
-    and add the corresponding visuals in gepetto viewer with name prefix given by string <name>.
+    and add the corresponding visuals in gepetto viewer with name prefix given by string
+    <name>.
     It returns the robot wrapper (model,data).
     """
     robot = RobotWrapper(urdf, [PKG])
@@ -35,9 +36,7 @@ robots = []
 # Load 4 Ur5 robots, placed at 0.3m from origin in the 4 directions x,y,-x,-y.
 Mt = SE3(eye(3), np.array([0.3, 0, 0]))  # First robot is simply translated
 for i in range(4):
-    robots.append(
-        loadRobot(SE3(rotate("z", np.pi / 2 * i), zero(3)) * Mt, "robot%d" % i)
-    )
+    robots.append(loadRobot(SE3(rotate("z", np.pi / 2 * i), zero(3)) * Mt, f"robot{i}"))
 
 # Set up the robots configuration with end effector pointed upward.
 q0 = np.array([np.pi / 4, -np.pi / 4, -np.pi / 2, np.pi / 4, np.pi / 2, 0])

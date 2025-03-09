@@ -19,8 +19,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType,
       typename TangentVectorType1,
       typename TangentVectorType2>
@@ -247,8 +246,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType,
       typename TangentVectorType1,
       typename TangentVectorType2,
@@ -282,6 +280,7 @@ namespace pinocchio
       PINOCCHIO_CHECK_ARGUMENT_SIZE(dhdot_da.cols(), model.nv);
       PINOCCHIO_CHECK_ARGUMENT_SIZE(dhdot_da.rows(), 6);
       assert(model.check(data) && "data is not consistent with model.");
+      assert(model.check(MimicChecker()) && "Function does not support mimic joints");
 
       typedef ModelTpl<Scalar, Options, JointCollectionTpl> Model;
       typedef DataTpl<Scalar, Options, JointCollectionTpl> Data;
@@ -407,8 +406,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename Matrix6xLike0,
       typename Matrix6xLike1,
       typename Matrix6xLike2,
@@ -428,6 +426,7 @@ namespace pinocchio
       PINOCCHIO_CHECK_ARGUMENT_SIZE(dhdot_da.cols(), model.nv);
       PINOCCHIO_CHECK_ARGUMENT_SIZE(dhdot_da.rows(), 6);
       assert(model.check(data) && "data is not consistent with model.");
+      assert(model.check(MimicChecker()) && "Function does not support mimic joints");
 
       typedef ModelTpl<Scalar, Options, JointCollectionTpl> Model;
       typedef DataTpl<Scalar, Options, JointCollectionTpl> Data;
@@ -496,8 +495,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType,
     typename TangentVectorType1,
     typename TangentVectorType2,
@@ -524,8 +522,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename Matrix6xLike0,
     typename Matrix6xLike1,
     typename Matrix6xLike2,

@@ -5,7 +5,8 @@
 #ifndef __pinocchio_algorithm_contact_cholesky_hxx__
 #define __pinocchio_algorithm_contact_cholesky_hxx__
 
-#include "pinocchio/algorithm/check.hpp"
+#include "pinocchio/algorithm/check-model.hpp"
+#include "pinocchio/multibody/data.hpp"
 
 #include <algorithm>
 
@@ -26,6 +27,8 @@ namespace pinocchio
     typedef typename Model::JointModel JointModel;
     typedef RigidConstraintModelTpl<S1, O1> RigidConstraintModel;
     typedef std::vector<RigidConstraintModel, Allocator> RigidConstraintModelVector;
+
+    assert(model.check(MimicChecker()) && "Function does not support mimic joints");
 
     nv = model.nv;
     num_contacts = (Eigen::DenseIndex)contact_models.size();
@@ -174,8 +177,7 @@ namespace pinocchio
   template<
     typename S1,
     int O1,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     class ConstraintModelAllocator,
     class ConstraintDataAllocator,
     typename VectorLike>
@@ -190,6 +192,8 @@ namespace pinocchio
     typedef RigidConstraintDataTpl<S1, O1> RigidConstraintData;
 
     assert(model.check(data) && "data is not consistent with model.");
+    assert(model.check(MimicChecker()) && "Function does not support mimic joints");
+
     PINOCCHIO_CHECK_INPUT_ARGUMENT(
       (Eigen::DenseIndex)contact_models.size() == num_contacts,
       "The number of contacts inside contact_models and the one during allocation do not match.\n"
@@ -624,6 +628,41 @@ namespace pinocchio
     Matrix res(size(), size());
     inverse(res);
     return res;
+  }
+
+  template<typename Scalar, int Options>
+  template<typename S1, int O1>
+  bool ContactCholeskyDecompositionTpl<Scalar, Options>::operator==(
+    const ContactCholeskyDecompositionTpl<S1, O1> & other) const
+  {
+    bool is_same = true;
+
+    if (nv != other.nv || num_contacts != other.num_contacts)
+      return false;
+
+    if (
+      D.size() != other.D.size() || Dinv.size() != other.Dinv.size() || U.rows() != other.U.rows()
+      || U.cols() != other.U.cols())
+      return false;
+
+    is_same &= (D == other.D);
+    is_same &= (Dinv == other.Dinv);
+    is_same &= (U == other.U);
+
+    is_same &= (parents_fromRow == other.parents_fromRow);
+    is_same &= (nv_subtree_fromRow == other.nv_subtree_fromRow);
+    is_same &= (last_child == other.last_child);
+    //        is_same &= (rowise_sparsity_pattern == other.rowise_sparsity_pattern);
+
+    return is_same;
+  }
+
+  template<typename Scalar, int Options>
+  template<typename S1, int O1>
+  bool ContactCholeskyDecompositionTpl<Scalar, Options>::operator!=(
+    const ContactCholeskyDecompositionTpl<S1, O1> & other) const
+  {
+    return !(*this == other);
   }
 
   namespace details

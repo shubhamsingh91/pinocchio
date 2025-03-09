@@ -41,8 +41,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType>
   void forwardKinematics(
     const ModelTpl<Scalar, Options, JointCollectionTpl> & model,
@@ -65,8 +64,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType,
     typename TangentVectorType>
   void forwardKinematics(
@@ -92,8 +90,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType,
     typename TangentVectorType1,
     typename TangentVectorType2>
@@ -103,6 +100,32 @@ namespace pinocchio
     const Eigen::MatrixBase<ConfigVectorType> & q,
     const Eigen::MatrixBase<TangentVectorType1> & v,
     const Eigen::MatrixBase<TangentVectorType2> & a);
+
+  /**
+   * @brief      Returns the relative placement of two joints expressed in the desired reference
+   * frame. You must first call pinocchio::forwardKinematics to update placement values in data
+   * structure. LOCAL convention should only be used when aba and crba algorithms are called in
+   * LOCAL convention as well.
+   *
+   * @param[in] model      The kinematic model
+   * @param[in] data       Data associated to model
+   * @param[in] jointId    Id of the reference joint
+   * @param[in] jointId    Id of the target joint
+   * @param[in] convention Convention to use (computation is done using data.liMi if LOCAL, and
+   * data.oMi if WORLD).
+   *
+   * @return     The relative placement of the target joint wrt to the refence joint, expressed in
+   * the desired reference frame.
+   *
+   * \note  WORLD convention complexity is in O(1) and LOCAL is in O(n).
+   */
+  template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl>
+  SE3Tpl<Scalar, Options> getRelativePlacement(
+    const ModelTpl<Scalar, Options, JointCollectionTpl> & model,
+    const DataTpl<Scalar, Options, JointCollectionTpl> & data,
+    const JointIndex jointIdRef,
+    const JointIndex jointIdTarget,
+    const Convention convention = Convention::LOCAL);
 
   /**
    * @brief      Returns the spatial velocity of the joint expressed in the desired reference frame.

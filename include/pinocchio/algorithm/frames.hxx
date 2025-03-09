@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2015-2021 CNRS INRIA
+// Copyright (c) 2015-2024 CNRS INRIA
 //
 
 #ifndef __pinocchio_algorithm_frames_hxx__
@@ -54,8 +54,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType>
   inline void framesForwardKinematics(
     const ModelTpl<Scalar, Options, JointCollectionTpl> & model,
@@ -152,8 +151,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename Matrix6xLike>
   inline void getFrameJacobian(
     const ModelTpl<Scalar, Options, JointCollectionTpl> & model,
@@ -173,15 +171,13 @@ namespace pinocchio
 
     const typename Data::SE3 oMframe = data.oMi[joint_id] * placement;
     details::translateJointJacobian(
-      model, data, joint_id, reference_frame, oMframe, data.J,
-      PINOCCHIO_EIGEN_CONST_CAST(Matrix6xLike, J));
+      model, data, joint_id, reference_frame, oMframe, data.J, J.const_cast_derived());
   }
 
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType,
     typename Matrix6xLike>
   inline void computeFrameJacobian(
@@ -201,67 +197,90 @@ namespace pinocchio
       "number of Dofs in the model.");
 
     typedef ModelTpl<Scalar, Options, JointCollectionTpl> Model;
-    typedef DataTpl<Scalar, Options, JointCollectionTpl> Data;
     typedef typename Model::Frame Frame;
     typedef typename Model::JointIndex JointIndex;
     typedef typename Model::IndexVector IndexVector;
 
     const Frame & frame = model.frames[frameId];
     const JointIndex & joint_id = frame.parentJoint;
-
     const IndexVector & joint_support = model.supports[joint_id];
 
     switch (reference_frame)
     {
-    case WORLD:
-    case LOCAL_WORLD_ALIGNED: {
-      typedef impl::JointJacobiansForwardStep<
+    // In WORLD and LOCAL_WORLD_ALIGNED we first compute the WORLD jacobian.
+    // Then, in LOCAL_WORLD_ALIGNED, we will apply the translation to frameId.
+    case WORLD: {
+      typedef impl::JointJacobianWorldForwardStep<
         Scalar, Options, JointCollectionTpl, ConfigVectorType, Matrix6xLike>
-        Pass;
+        ForwardPass;
+      typedef impl::JointJacobianWorldMimicStep<Scalar, Options, JointCollectionTpl, Matrix6xLike>
+        MimicPass;
       for (size_t k = 1; k < joint_support.size(); k++)
       {
         JointIndex parent = joint_support[k];
-        Pass::run(
+        ForwardPass::run(
           model.joints[parent], data.joints[parent],
-          typename Pass::ArgsType(
-            model, data, q.derived(), PINOCCHIO_EIGEN_CONST_CAST(Matrix6xLike, J)));
+          typename ForwardPass::ArgsType(model, data, q.derived(), J.const_cast_derived()));
       }
 
-      if (reference_frame == LOCAL_WORLD_ALIGNED)
+      const IndexVector & mimic_joint_support = model.mimic_joint_supports[joint_id];
+      for (size_t i = 1; i < mimic_joint_support.size(); i++)
       {
-        typename Data::SE3 & oMframe = data.oMf[frameId];
-        oMframe = data.oMi[joint_id] * frame.placement;
-
-        Matrix6xLike & J_ = PINOCCHIO_EIGEN_CONST_CAST(Matrix6xLike, J);
-
-        const int colRef = nv(model.joints[joint_id]) + idx_v(model.joints[joint_id]) - 1;
-        for (Eigen::DenseIndex j = colRef; j >= 0; j = data.parents_fromRow[(size_t)j])
-        {
-          typedef typename Matrix6xLike::ColXpr ColXprOut;
-          MotionRef<ColXprOut> J_col(J_.col(j));
-
-          J_col.linear() -= oMframe.translation().cross(J_col.angular());
-        }
+        MimicPass::run(
+          model.joints[mimic_joint_support[i]], data.joints[mimic_joint_support[i]],
+          typename MimicPass::ArgsType(data, J.const_cast_derived()));
+      }
+      break;
+    }
+    case LOCAL_WORLD_ALIGNED: {
+      typedef impl::ForwardKinematicZeroStep<Scalar, Options, JointCollectionTpl, ConfigVectorType>
+        KinematicsPass;
+      typedef impl::JointJacobianLocalWorldAlignedForwardStep<
+        Scalar, Options, JointCollectionTpl, Matrix6xLike>
+        JacobianPass;
+      for (size_t k = 1; k < joint_support.size(); k++)
+      {
+        JointIndex support_idx = joint_support[k];
+        KinematicsPass::run(
+          model.joints[support_idx], data.joints[support_idx],
+          typename KinematicsPass::ArgsType(model, data, q.derived()));
+      }
+      auto & oMframe = data.oMf[frameId];
+      oMframe = data.oMi[joint_id] * frame.placement;
+      for (size_t k = 1; k < joint_support.size(); k++)
+      {
+        JointIndex support_idx = joint_support[k];
+        JacobianPass::run(
+          model.joints[support_idx], data.joints[support_idx],
+          typename JacobianPass::ArgsType(data, oMframe, J.const_cast_derived()));
       }
       break;
     }
     case LOCAL: {
       data.iMf[joint_id] = frame.placement;
 
-      typedef impl::JointJacobianForwardStep<
+      typedef impl::JointJacobianLocalBackwardStep<
         Scalar, Options, JointCollectionTpl, ConfigVectorType, Matrix6xLike>
-        Pass;
+        BackwardPass;
+      typedef impl::JointJacobianLocalMimicStep<Scalar, Options, JointCollectionTpl, Matrix6xLike>
+        MimicPass;
+
       for (JointIndex i = joint_id; i > 0; i = model.parents[i])
       {
-        Pass::run(
+        BackwardPass::run(
           model.joints[i], data.joints[i],
-          typename Pass::ArgsType(
-            model, data, q.derived(), PINOCCHIO_EIGEN_CONST_CAST(Matrix6xLike, J)));
+          typename BackwardPass::ArgsType(model, data, q.derived(), J.const_cast_derived()));
+      }
+
+      const typename Model::IndexVector & mimic_joint_support =
+        model.mimic_joint_supports[joint_id];
+      for (size_t i = 1; i < mimic_joint_support.size(); i++)
+      {
+        MimicPass::run(
+          model.joints[mimic_joint_support[i]], data.joints[mimic_joint_support[i]],
+          typename MimicPass::ArgsType(data, J.const_cast_derived()));
       }
       break;
-    }
-    default: {
-      assert(false && "must never happened");
     }
     }
   }
@@ -269,17 +288,18 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename Matrix6xLike>
   void getFrameJacobianTimeVariation(
     const ModelTpl<Scalar, Options, JointCollectionTpl> & model,
     DataTpl<Scalar, Options, JointCollectionTpl> & data,
     const FrameIndex frame_id,
     const ReferenceFrame rf,
-    const Eigen::MatrixBase<Matrix6xLike> & dJ)
+    const Eigen::MatrixBase<Matrix6xLike> & dJ_)
   {
     assert(model.check(data) && "data is not consistent with model.");
+
+    Matrix6xLike & dJ = dJ_.const_cast_derived();
     PINOCCHIO_CHECK_ARGUMENT_SIZE(
       dJ.cols(), model.nv,
       "The numbers of columns in the Jacobian matrix does not math the "
@@ -288,6 +308,9 @@ namespace pinocchio
     typedef ModelTpl<Scalar, Options, JointCollectionTpl> Model;
     typedef DataTpl<Scalar, Options, JointCollectionTpl> Data;
     typedef typename Model::Frame Frame;
+    typedef typename Data::SE3 SE3;
+    typedef typename SE3::Vector3 Vector3;
+    typedef typename Data::Motion Motion;
 
     const Frame & frame = model.frames[frame_id];
     const JointIndex & joint_id = frame.parentJoint;
@@ -296,7 +319,54 @@ namespace pinocchio
     oMframe = data.oMi[joint_id] * frame.placement;
 
     details::translateJointJacobian(
-      model, data, joint_id, rf, oMframe, data.dJ, PINOCCHIO_EIGEN_CONST_CAST(Matrix6xLike, dJ));
+      model, data, joint_id, rf, oMframe, data.dJ, dJ.const_cast_derived());
+
+    // Add contribution for LOCAL and LOCAL_WORLD_ALIGNED
+    switch (rf)
+    {
+    case LOCAL: {
+      const Motion & v_joint = data.v[joint_id];
+      const Motion v_frame = frame.placement.actInv(v_joint);
+
+      const int colRef = nv(model.joints[joint_id]) + idx_v(model.joints[joint_id]) - 1;
+      for (Eigen::DenseIndex j = colRef; j >= 0; j = data.parents_fromRow[(size_t)j])
+      {
+        typedef typename Data::Matrix6x::ColXpr ColXprIn;
+        typedef const MotionRef<ColXprIn> MotionIn;
+
+        typedef typename Matrix6xLike::ColXpr ColXprOut;
+        typedef MotionRef<ColXprOut> MotionOut;
+        MotionIn v_in(data.J.col(j));
+        MotionOut v_out(dJ.col(j));
+
+        v_out -= v_frame.cross(oMframe.actInv(v_in));
+      }
+      break;
+    }
+    case LOCAL_WORLD_ALIGNED: {
+      const Motion & ov_joint = data.ov[joint_id];
+      const int colRef = nv(model.joints[joint_id]) + idx_v(model.joints[joint_id]) - 1;
+      for (Eigen::DenseIndex j = colRef; j >= 0; j = data.parents_fromRow[(size_t)j])
+      {
+        typedef typename Data::Matrix6x::ColXpr ColXprIn;
+        typedef const MotionRef<ColXprIn> MotionIn;
+
+        typedef typename Matrix6xLike::ColXpr ColXprOut;
+        typedef MotionRef<ColXprOut> MotionOut;
+        MotionIn v_in(data.J.col(j));
+        MotionOut v_out(dJ.col(j));
+
+        v_out.linear() -=
+          Vector3(ov_joint.linear() + ov_joint.angular().cross(oMframe.translation()))
+            .cross(v_in.angular());
+      }
+      break;
+    }
+
+    case WORLD:
+    default:
+      break;
+    }
   }
 
   template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl>
@@ -314,8 +384,8 @@ namespace pinocchio
     const Frame & frame = model.frames[frame_id];
     const JointIndex & joint_id = frame.parentJoint;
 
-    // Add all the inertia of child frames (i.e that are part of the same joint but comes after the
-    // given frame)
+    // Add all the inertia of child frames (i.e that are part of the same joint but comes after
+    // the given frame)
     std::vector<typename Model::JointIndex> child_frames = {frame_id};
     Inertia I = frame.placement.act(frame.inertia); // Express the inertia in the parent joint frame
     for (FrameIndex i = frame_id + 1; i < (FrameIndex)model.nframes; ++i)

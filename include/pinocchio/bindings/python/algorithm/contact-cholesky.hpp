@@ -15,6 +15,7 @@
 #include "pinocchio/bindings/python/utils/std-vector.hpp"
 #include "pinocchio/bindings/python/utils/comparable.hpp"
 #include "pinocchio/bindings/python/utils/copyable.hpp"
+#include "pinocchio/bindings/python/utils/model-checker.hpp"
 
 #include "pinocchio/bindings/python/algorithm/delassus-operator.hpp"
 
@@ -47,10 +48,13 @@ namespace pinocchio
       void visit(PyClass & cl) const
       {
         cl.def(bp::init<>(bp::arg("self"), "Default constructor."))
-          .def(bp::init<const Model &>(bp::args("self", "model"), "Constructor from a model."))
+          .def(bp::init<const Model &>(
+            bp::args("self", "model"),
+            "Constructor from a model.")[mimic_not_supported_function<>(1)])
           .def(bp::init<const Model &, const RigidConstraintModelVector &>(
             (bp::arg("self"), bp::arg("model"), bp::arg("contact_models")),
-            "Constructor from a model and a collection of RigidConstraintModels."))
+            "Constructor from a model and a collection of RigidConstraintModels.")
+                 [mimic_not_supported_function<>(1)])
 
           .PINOCCHIO_ADD_PROPERTY_READONLY_BYVALUE(Self, U, "")
           .PINOCCHIO_ADD_PROPERTY_READONLY_BYVALUE(Self, D, "")
@@ -65,36 +69,36 @@ namespace pinocchio
             "numContacts", &Self::numContacts, bp::arg("self"),
             "Returns the number of contacts associated to this decomposition.")
           .def(
-            "matrix", (Matrix(Self::*)(void) const) & Self::matrix, bp::arg("self"),
+            "matrix", (Matrix(Self::*)(void) const)&Self::matrix, bp::arg("self"),
             "Returns the matrix resulting from the decomposition.")
 
           .def(
             "compute",
             (void (*)(
               Self & self, const Model &, Data &, const RigidConstraintModelVector &,
-              RigidConstraintDataVector &, const Scalar))
-              & compute,
+              RigidConstraintDataVector &, const Scalar))&compute,
             (bp::arg("self"), bp::arg("model"), bp::arg("data"), bp::arg("contact_models"),
              bp::arg("contact_datas"), bp::arg("mu") = 0),
             "Computes the Cholesky decompostion of the augmented matrix containing the KKT matrix\n"
             "related to the system mass matrix and the Jacobians of the contact patches contained "
             "in\n"
             "the vector of RigidConstraintModel named contact_models. The decomposition is "
-            "regularized with a factor mu.")
+            "regularized with a factor mu.",
+            mimic_not_supported_function<>(1))
 
           .def(
             "compute",
             (void (*)(
               Self & self, const Model &, Data &, const RigidConstraintModelVector &,
-              RigidConstraintDataVector &, const Vector &))
-              & compute,
+              RigidConstraintDataVector &, const Vector &))&compute,
             (bp::arg("self"), bp::arg("model"), bp::arg("data"), bp::arg("contact_models"),
              bp::arg("contact_datas"), bp::arg("mus")),
             "Computes the Cholesky decompostion of the augmented matrix containing the KKT matrix\n"
             "related to the system mass matrix and the Jacobians of the contact patches contained "
             "in\n"
             "the vector of RigidConstraintModel named contact_models. The decomposition is "
-            "regularized with a factor mu.")
+            "regularized with a factor mu.",
+            mimic_not_supported_function<>(1))
 
           .def(
             "updateDamping", (void(Self::*)(const Scalar &)) & Self::updateDamping,
@@ -109,7 +113,7 @@ namespace pinocchio
 
           .def(
             "getInverseOperationalSpaceInertiaMatrix",
-            (Matrix(Self::*)(void) const) & Self::getInverseOperationalSpaceInertiaMatrix,
+            (Matrix(Self::*)(void) const)&Self::getInverseOperationalSpaceInertiaMatrix,
             bp::arg("self"),
             "Returns the Inverse of the Operational Space Inertia Matrix resulting from the "
             "decomposition.",
@@ -117,12 +121,12 @@ namespace pinocchio
 
           .def(
             "getOperationalSpaceInertiaMatrix",
-            (Matrix(Self::*)(void) const) & Self::getOperationalSpaceInertiaMatrix, bp::arg("self"),
+            (Matrix(Self::*)(void) const)&Self::getOperationalSpaceInertiaMatrix, bp::arg("self"),
             "Returns the Operational Space Inertia Matrix resulting from the decomposition.",
             bp::return_value_policy<bp::return_by_value>())
 
           .def(
-            "getInverseMassMatrix", (Matrix(Self::*)(void) const) & Self::getInverseMassMatrix,
+            "getInverseMassMatrix", (Matrix(Self::*)(void) const)&Self::getInverseMassMatrix,
             bp::arg("self"),
             "Returns the inverse of the Joint Space Inertia Matrix or \"mass matrix\".",
             bp::return_value_policy<bp::return_by_value>())
@@ -134,7 +138,7 @@ namespace pinocchio
             bp::return_value_policy<bp::return_by_value>())
 
           .def(
-            "inverse", (Matrix(Self::*)(void) const) & Self::inverse, bp::arg("self"),
+            "inverse", (Matrix(Self::*)(void) const)&Self::inverse, bp::arg("self"),
             "Returns the inverse matrix resulting from the decomposition.")
 
           .def(
