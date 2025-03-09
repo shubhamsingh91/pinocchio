@@ -20,14 +20,15 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     class Allocator>
   inline void initPvSolver(
     const ModelTpl<Scalar, Options, JointCollectionTpl> & model,
     DataTpl<Scalar, Options, JointCollectionTpl> & data,
     const std::vector<RigidConstraintModelTpl<Scalar, Options>, Allocator> & contact_models)
   {
+
+    assert(model.check(MimicChecker()) && "Function does not support mimic joints");
 
     // Allocate memory for the backward propagation of LA, KA and lA
     typedef typename Model::JointIndex JointIndex;
@@ -108,8 +109,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType,
     typename TangentVectorType>
   struct PvForwardStep1
@@ -393,8 +393,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType,
     typename TangentVectorType1,
     typename TangentVectorType2,
@@ -413,6 +412,7 @@ namespace pinocchio
   {
 
     assert(model.check(data) && "data is not consistent with model.");
+    assert(model.check(MimicChecker()) && "Function does not support mimic joints");
     PINOCCHIO_CHECK_ARGUMENT_SIZE(
       q.size(), model.nq, "The joint configuration vector is not of right size");
     PINOCCHIO_CHECK_ARGUMENT_SIZE(
@@ -590,8 +590,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType,
     typename TangentVectorType1,
     typename TangentVectorType2,
@@ -611,6 +610,7 @@ namespace pinocchio
   {
 
     assert(model.check(data) && "data is not consistent with model.");
+    assert(model.check(MimicChecker()) && "Function does not support mimic joints");
     PINOCCHIO_CHECK_ARGUMENT_SIZE(
       q.size(), model.nq, "The joint configuration vector is not of right size");
     PINOCCHIO_CHECK_ARGUMENT_SIZE(

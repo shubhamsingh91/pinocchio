@@ -79,8 +79,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType,
       typename TangentVectorType>
     struct AbaWorldConventionForwardStep1
@@ -235,8 +234,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType,
       typename TangentVectorType1,
       typename TangentVectorType2>
@@ -249,6 +247,7 @@ namespace pinocchio
       const Eigen::MatrixBase<TangentVectorType2> & tau)
     {
       assert(model.check(data) && "data is not consistent with model.");
+      assert(model.check(MimicChecker()) && "Function does not support mimic joints");
       PINOCCHIO_CHECK_INPUT_ARGUMENT(
         q.size() == model.nq, "The joint configuration vector is not of right size");
       PINOCCHIO_CHECK_INPUT_ARGUMENT(
@@ -296,8 +295,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType,
       typename TangentVectorType1,
       typename TangentVectorType2,
@@ -313,6 +311,8 @@ namespace pinocchio
 
     {
       assert(model.check(data) && "data is not consistent with model.");
+      assert(model.check(MimicChecker()) && "Function does not support mimic joints");
+
       PINOCCHIO_CHECK_INPUT_ARGUMENT(
         q.size() == model.nq, "The joint configuration vector is not of right size");
       PINOCCHIO_CHECK_INPUT_ARGUMENT(
@@ -354,8 +354,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType,
       typename TangentVectorType>
     struct AbaLocalConventionForwardStep1
@@ -479,8 +478,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType,
       typename TangentVectorType1,
       typename TangentVectorType2>
@@ -493,6 +491,8 @@ namespace pinocchio
       const Eigen::MatrixBase<TangentVectorType2> & tau)
     {
       assert(model.check(data) && "data is not consistent with model.");
+      assert(model.check(MimicChecker()) && "Function does not support mimic joints");
+
       PINOCCHIO_CHECK_ARGUMENT_SIZE(
         q.size(), model.nq, "The joint configuration vector is not of right size");
       PINOCCHIO_CHECK_ARGUMENT_SIZE(
@@ -542,8 +542,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType,
       typename TangentVectorType1,
       typename TangentVectorType2,
@@ -559,6 +558,8 @@ namespace pinocchio
 
     {
       assert(model.check(data) && "data is not consistent with model.");
+      assert(model.check(MimicChecker()) && "Function does not support mimic joints");
+
       PINOCCHIO_CHECK_ARGUMENT_SIZE(
         q.size(), model.nq, "The joint configuration vector is not of right size");
       PINOCCHIO_CHECK_ARGUMENT_SIZE(
@@ -607,8 +608,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType>
     struct ComputeMinverseForwardStep1
     : public fusion::JointUnaryVisitorBase<
@@ -833,8 +833,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType>
     const typename DataTpl<Scalar, Options, JointCollectionTpl>::RowMatrixXs & computeMinverse(
       const ModelTpl<Scalar, Options, JointCollectionTpl> & model,
@@ -842,6 +841,8 @@ namespace pinocchio
       const Eigen::MatrixBase<ConfigVectorType> & q)
     {
       assert(model.check(data) && "data is not consistent with model.");
+      assert(model.check(MimicChecker()) && "Function does not support mimic joints");
+
       PINOCCHIO_CHECK_ARGUMENT_SIZE(
         q.size(), model.nq, "The joint configuration vector is not of right size");
 
@@ -879,6 +880,7 @@ namespace pinocchio
     DataTpl<Scalar, Options, JointCollectionTpl> & data)
   {
     assert(model.check(data) && "data is not consistent with model.");
+    assert(model.check(MimicChecker()) && "Function does not support mimic joints");
 
     typedef typename ModelTpl<Scalar, Options, JointCollectionTpl>::JointIndex JointIndex;
     data.Minv.template triangularView<Eigen::Upper>().setZero();
@@ -924,8 +926,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType,
     typename TangentVectorType1,
     typename TangentVectorType2>
@@ -949,8 +950,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType,
     typename TangentVectorType1,
     typename TangentVectorType2,
@@ -976,8 +976,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType>
   const typename DataTpl<Scalar, Options, JointCollectionTpl>::RowMatrixXs & computeMinverse(
     const ModelTpl<Scalar, Options, JointCollectionTpl> & model,

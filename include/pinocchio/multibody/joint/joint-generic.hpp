@@ -29,7 +29,8 @@ namespace pinocchio
     {
       Options = _Options,
       NQ = Eigen::Dynamic, // Dynamic because unknown at compile time
-      NV = Eigen::Dynamic
+      NV = Eigen::Dynamic,
+      NVExtended = Eigen::Dynamic
     };
 
     typedef _Scalar Scalar;
@@ -69,6 +70,8 @@ namespace pinocchio
     typedef ConfigVector_t ConfigVectorTypeRef;
     typedef TangentVector_t TangentVectorTypeConstRef;
     typedef TangentVector_t TangentVectorTypeRef;
+
+    typedef boost::mpl::false_ is_mimicable_t;
   };
 
   template<typename _Scalar, int _Options, template<typename S, int O> class JointCollectionTpl>
@@ -249,8 +252,7 @@ namespace pinocchio
     typename NewScalar,
     typename Scalar,
     int Options,
-    template<typename S, int O>
-    class JointCollectionTpl>
+    template<typename S, int O> class JointCollectionTpl>
   struct CastType<NewScalar, JointModelTpl<Scalar, Options, JointCollectionTpl>>
   {
     typedef JointModelTpl<NewScalar, Options, JointCollectionTpl> type;
@@ -380,6 +382,31 @@ namespace pinocchio
         *this, data, armature.derived(), PINOCCHIO_EIGEN_CONST_CAST(Matrix6Like, I), update_I);
     }
 
+    /* Acces to dedicated segment in robot config space.  */
+    // Const access
+    template<typename D>
+    typename SizeDepType<NV>::template SegmentReturn<D>::ConstType
+    JointMappedConfigSelector_impl(const Eigen::MatrixBase<D> & a) const
+    {
+      typedef const Eigen::MatrixBase<D> & InputType;
+      typedef typename SizeDepType<NV>::template SegmentReturn<D>::ConstType ReturnType;
+      typedef JointMappedConfigSelectorVisitor<InputType, ReturnType> Visitor;
+      typename Visitor::ArgsType arg(a);
+      return Visitor::run(*this, arg);
+    }
+
+    // Non-const access
+    template<typename D>
+    typename SizeDepType<NV>::template SegmentReturn<D>::Type
+    JointMappedConfigSelector_impl(Eigen::MatrixBase<D> & a) const
+    {
+      typedef Eigen::MatrixBase<D> & InputType;
+      typedef typename SizeDepType<NV>::template SegmentReturn<D>::Type ReturnType;
+      typedef JointMappedConfigSelectorVisitor<InputType, ReturnType> Visitor;
+      typename Visitor::ArgsType arg(a);
+      return Visitor::run(*this, arg);
+    }
+
     std::string shortname() const
     {
       return ::pinocchio::shortname(*this);
@@ -397,6 +424,10 @@ namespace pinocchio
     {
       return ::pinocchio::nv(*this);
     }
+    int nvExtended_impl() const
+    {
+      return ::pinocchio::nvExtended(*this);
+    }
 
     int idx_q_impl() const
     {
@@ -406,6 +437,10 @@ namespace pinocchio
     {
       return ::pinocchio::idx_v(*this);
     }
+    int idx_vExtended_impl() const
+    {
+      return ::pinocchio::idx_vExtended(*this);
+    }
 
     JointIndex id_impl() const
     {
@@ -414,7 +449,12 @@ namespace pinocchio
 
     void setIndexes(JointIndex id, int nq, int nv)
     {
-      ::pinocchio::setIndexes(*this, id, nq, nv);
+      ::pinocchio::setIndexes(*this, id, nq, nv, nv);
+    }
+
+    void setIndexes(JointIndex id, int nq, int nv, int nvExtended)
+    {
+      ::pinocchio::setIndexes(*this, id, nq, nv, nvExtended);
     }
 
     /// \returns An expression of *this with the Scalar type casted to NewScalar.
@@ -431,8 +471,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename S, int O>
-    class JointCollectionTpl,
+    template<typename S, int O> class JointCollectionTpl,
     typename JointDataDerived>
   bool operator==(
     const JointDataBase<JointDataDerived> & joint_data,
@@ -444,8 +483,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename S, int O>
-    class JointCollectionTpl,
+    template<typename S, int O> class JointCollectionTpl,
     typename JointDataDerived>
   bool operator!=(
     const JointDataBase<JointDataDerived> & joint_data,
@@ -457,8 +495,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename S, int O>
-    class JointCollectionTpl,
+    template<typename S, int O> class JointCollectionTpl,
     typename JointModelDerived>
   bool operator==(
     const JointModelBase<JointModelDerived> & joint_model,
@@ -470,8 +507,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename S, int O>
-    class JointCollectionTpl,
+    template<typename S, int O> class JointCollectionTpl,
     typename JointModelDerived>
   bool operator!=(
     const JointModelBase<JointModelDerived> & joint_model,

@@ -18,7 +18,11 @@ set(${PROJECT_NAME}_CORE_PUBLIC_HEADERS
     ${PROJECT_SOURCE_DIR}/include/pinocchio/algorithm/centroidal.hpp
     ${PROJECT_SOURCE_DIR}/include/pinocchio/algorithm/centroidal.hxx
     ${PROJECT_SOURCE_DIR}/include/pinocchio/algorithm/check.hpp
-    ${PROJECT_SOURCE_DIR}/include/pinocchio/algorithm/check.hxx
+    ${PROJECT_SOURCE_DIR}/include/pinocchio/algorithm/check-base.hpp
+    ${PROJECT_SOURCE_DIR}/include/pinocchio/algorithm/check-data.hpp
+    ${PROJECT_SOURCE_DIR}/include/pinocchio/algorithm/check-data.hxx
+    ${PROJECT_SOURCE_DIR}/include/pinocchio/algorithm/check-model.hpp
+    ${PROJECT_SOURCE_DIR}/include/pinocchio/algorithm/check-model.hxx
     ${PROJECT_SOURCE_DIR}/include/pinocchio/algorithm/cholesky.hpp
     ${PROJECT_SOURCE_DIR}/include/pinocchio/algorithm/cholesky.hxx
     ${PROJECT_SOURCE_DIR}/include/pinocchio/algorithm/compute-all-terms.hpp
@@ -366,14 +370,21 @@ set(${PROJECT_NAME}_SDF_PUBLIC_HEADERS
     ${PROJECT_SOURCE_DIR}/include/pinocchio/parsers/sdf/model.hxx
     ${PROJECT_SOURCE_DIR}/include/pinocchio/parsers/sdf/geometry.hxx)
 
-set(${PROJECT_NAME}_LIBPYTHON_PUBLIC_HEADERS
+set(${PROJECT_NAME}_PYTHON_PARSER_PUBLIC_HEADERS
     ${PROJECT_SOURCE_DIR}/include/pinocchio/parsers/python.hpp)
+
+set(${PROJECT_NAME}_PYTHON_PARSER_SOURCES ${PROJECT_SOURCE_DIR}/src/parsers/python/model.cpp)
 
 set(${PROJECT_NAME}_EXTRA_SOURCES ${PROJECT_SOURCE_DIR}/src/extra/reachable-workspace.cpp)
 
 set(${PROJECT_NAME}_EXTRA_PUBLIC_HEADERS
     ${PROJECT_SOURCE_DIR}/include/pinocchio/extra/reachable-workspace.hpp
     ${PROJECT_SOURCE_DIR}/include/pinocchio/extra/reachable-workspace.hxx)
+
+set(${PROJECT_NAME}_VISUALIZERS_SOURCES ${PROJECT_SOURCE_DIR}/src/visualizers/base-visualizer.cpp)
+
+set(${PROJECT_NAME}_VISUALIZERS_PUBLIC_HEADERS
+    ${PROJECT_SOURCE_DIR}/include/pinocchio/visualizers/base-visualizer.hpp)
 
 set(_binary_headers_root ${${PROJECT_NAME}_BINARY_DIR}/include/pinocchio)
 set(${PROJECT_NAME}_CORE_GENERATED_PUBLIC_HEADERS
@@ -470,6 +481,7 @@ set(${PROJECT_NAME}_BINDINGS_PYTHON_PUBLIC_HEADERS
     ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/utils/version.hpp
     ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/utils/pickle-vector.hpp
     ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/utils/macros.hpp
+    ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/utils/path.hpp
     ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/utils/std-vector.hpp
     ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/utils/printable.hpp
     ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/utils/dependencies.hpp
@@ -486,6 +498,7 @@ set(${PROJECT_NAME}_BINDINGS_PYTHON_PUBLIC_HEADERS
     ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/utils/std-map.hpp
     ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/utils/cast.hpp
     ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/utils/deprecation.hpp
+    ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/utils/model-checker.hpp
     ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/utils/namespace.hpp
     ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/context/cppadcg.hpp
     ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/context/cppad.hpp
@@ -520,7 +533,8 @@ set(${PROJECT_NAME}_BINDINGS_PYTHON_PUBLIC_HEADERS
     ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/parsers/sdf.hpp
     ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/parsers/mjcf.hpp
     ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/parsers/srdf.hpp
-    ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/extra/extras.hpp)
+    ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/extra/extras.hpp
+    ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/visualizers/visualizer-visitor.hpp)
 
 set(${PROJECT_NAME}_BINDINGS_PYTHON_SOURCES
     ${PROJECT_SOURCE_DIR}/bindings/python/spatial/expose-symmetric3.cpp
@@ -568,6 +582,7 @@ set(${PROJECT_NAME}_BINDINGS_PYTHON_SOURCES
     ${PROJECT_SOURCE_DIR}/bindings/python/utils/version.cpp
     ${PROJECT_SOURCE_DIR}/bindings/python/utils/dependencies.cpp
     ${PROJECT_SOURCE_DIR}/bindings/python/utils/conversions.cpp
+    ${PROJECT_SOURCE_DIR}/bindings/python/utils/path.cpp
     ${PROJECT_SOURCE_DIR}/bindings/python/math/expose-linalg.cpp
     ${PROJECT_SOURCE_DIR}/bindings/python/math/expose-tridiagonal-matrix.cpp
     ${PROJECT_SOURCE_DIR}/bindings/python/math/expose-lanczos-decomposition.cpp
@@ -591,12 +606,6 @@ set(${PROJECT_NAME}_BINDINGS_PYTHON_SOURCES
     ${PROJECT_SOURCE_DIR}/bindings/python/parsers/mjcf/model.cpp
     ${PROJECT_SOURCE_DIR}/bindings/python/parsers/mjcf/geometry.cpp
     ${PROJECT_SOURCE_DIR}/bindings/python/extra/expose-extras.cpp)
-
-set(${PROJECT_NAME}_BINDINGS_PYTHON_LIBPYTHON_SOURCES
-    ${PROJECT_SOURCE_DIR}/bindings/python/parsers/python/model.cpp)
-
-set(${PROJECT_NAME}_BINDINGS_PYTHON_LIBPYTHON_PUBLIC_HEADERS
-    ${PROJECT_SOURCE_DIR}/include/pinocchio/bindings/python/parsers/python.hpp)
 
 set(${PROJECT_NAME}_BINDINGS_PYTHON_HPP_FCL_SOURCES
     ${PROJECT_SOURCE_DIR}/bindings/python/collision/expose-broadphase.cpp

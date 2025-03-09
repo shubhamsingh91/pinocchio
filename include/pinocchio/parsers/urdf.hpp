@@ -31,6 +31,28 @@ namespace pinocchio
     ///
     /// \param[in] filename The URDF complete file path.
     /// \param[in] rootJoint The joint at the root of the model tree.
+    /// \param[in] rootJointName Name of the rootJoint.
+    /// \param[in] verbose Print parsing info.
+    /// \param[in] mimic Parsing joints as mimic or not.
+    /// \param[out] model Reference model where to put the parsed information.
+    /// \return Return the reference on argument model for convenience.
+    ///
+    template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl>
+    ModelTpl<Scalar, Options, JointCollectionTpl> & buildModel(
+      const std::string & filename,
+      const typename ModelTpl<Scalar, Options, JointCollectionTpl>::JointModel & rootJoint,
+      const std::string & rootJointName,
+      ModelTpl<Scalar, Options, JointCollectionTpl> & model,
+      const bool verbose = false,
+      const bool mimic = false);
+
+    ///
+    /// \brief Build the model from a URDF file with a particular joint as root of the model tree
+    /// inside the model given as reference argument.
+    ///
+    /// \param[in] filename The URDF complete file path.
+    /// \param[in] rootJoint The joint at the root of the model tree.
+    /// \param[in] mimic Parsing joints as mimic or not.
     /// \param[in] verbose Print parsing info.
     /// \param[out] model Reference model where to put the parsed information.
     /// \return Return the reference on argument model for convenience.
@@ -40,12 +62,14 @@ namespace pinocchio
       const std::string & filename,
       const typename ModelTpl<Scalar, Options, JointCollectionTpl>::JointModel & rootJoint,
       ModelTpl<Scalar, Options, JointCollectionTpl> & model,
-      const bool verbose = false);
+      const bool verbose = false,
+      const bool mimic = false);
 
     ///
     /// \brief Build the model from a URDF file with a fixed joint as root of the model tree.
     ///
     /// \param[in] filename The URDF complete file path.
+    /// \param[in] mimic Parsing joints as mimic or not.
     /// \param[in] verbose Print parsing info.
     /// \param[out] model Reference model where to put the parsed information.
     /// \return Return the reference on argument model for convenience.
@@ -54,7 +78,8 @@ namespace pinocchio
     ModelTpl<Scalar, Options, JointCollectionTpl> & buildModel(
       const std::string & filename,
       ModelTpl<Scalar, Options, JointCollectionTpl> & model,
-      const bool verbose = false);
+      const bool verbose = false,
+      const bool mimic = false);
 
     ///
     /// \brief Build the model from a URDF model with a particular joint as root of the model tree
@@ -62,6 +87,7 @@ namespace pinocchio
     ///
     /// \param[in] urdfTree the tree build from the URDF
     /// \param[in] rootJoint The joint at the root of the model tree.
+    /// \param[in] mimic Parsing joints as mimic or not.
     /// \param[in] verbose Print parsing info.
     /// \param[out] model Reference model where to put the parsed information.
     /// \return Return the reference on argument model for convenience.
@@ -73,12 +99,37 @@ namespace pinocchio
       const std::shared_ptr<::urdf::ModelInterface> urdfTree,
       const typename ModelTpl<Scalar, Options, JointCollectionTpl>::JointModel & rootJoint,
       ModelTpl<Scalar, Options, JointCollectionTpl> & model,
-      const bool verbose = false);
+      const bool verbose = false,
+      const bool mimic = false);
+
+    ///
+    /// \brief Build the model from a URDF model with a particular joint as root of the model tree
+    /// inside the model given as reference argument.
+    ///
+    /// \param[in] urdfTree the tree build from the URDF
+    /// \param[in] mimic Parsing joints as mimic or not.
+    /// \param[in] rootJoint The joint at the root of the model tree.
+    /// \param[in] rootJointName Name of the rootJoint.
+    /// \param[in] verbose Print parsing info.
+    /// \param[out] model Reference model where to put the parsed information.
+    /// \return Return the reference on argument model for convenience.
+    ///
+    /// \note urdfTree can be build from ::urdf::parseURDF
+    ///       or ::urdf::parseURDFFile
+    template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl>
+    ModelTpl<Scalar, Options, JointCollectionTpl> & buildModel(
+      const std::shared_ptr<::urdf::ModelInterface> urdfTree,
+      const typename ModelTpl<Scalar, Options, JointCollectionTpl>::JointModel & rootJoint,
+      const std::string & rootJointName,
+      ModelTpl<Scalar, Options, JointCollectionTpl> & model,
+      const bool verbose = false,
+      const bool mimic = false);
 
     ///
     /// \brief Build the model from a URDF model
     ///
     /// \param[in] urdfTree the tree build from the URDF
+    /// \param[in] mimic Parsing joints as mimic or not.
     /// \param[in] verbose Print parsing info.
     /// \param[out] model Reference model where to put the parsed information.
     /// \return Return the reference on argument model for convenience.
@@ -89,7 +140,31 @@ namespace pinocchio
     ModelTpl<Scalar, Options, JointCollectionTpl> & buildModel(
       const std::shared_ptr<::urdf::ModelInterface> urdfTree,
       ModelTpl<Scalar, Options, JointCollectionTpl> & model,
-      const bool verbose = false);
+      const bool verbose = false,
+      const bool mimic = false);
+
+    ///
+    /// \brief Build the model from an XML stream with a particular joint as root of the model tree
+    /// inside the model given as reference argument.
+    ///
+    /// \param[in] xml_stream stream containing the URDF model.
+    /// \param[in] rootJoint The joint at the root of the model tree.
+    /// \param[in] rootJointName Name of the rootJoint.
+    /// \param[in] mimic Parsing joints as mimic or not.
+    /// \param[in] verbose Print parsing info.
+    /// \param[out] model Reference model where to put the parsed information.
+    /// \return Return the reference on argument model for convenience.
+    ///
+    /// \note urdfTree can be build from ::urdf::parseURDF
+    ///       or ::urdf::parseURDFFile
+    template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl>
+    ModelTpl<Scalar, Options, JointCollectionTpl> & buildModelFromXML(
+      const std::string & xml_stream,
+      const typename ModelTpl<Scalar, Options, JointCollectionTpl>::JointModel & rootJoint,
+      const std::string & rootJointName,
+      ModelTpl<Scalar, Options, JointCollectionTpl> & model,
+      const bool verbose = false,
+      const bool mimic = false);
 
     ///
     /// \brief Build the model from an XML stream with a particular joint as root of the model tree
@@ -98,6 +173,7 @@ namespace pinocchio
     /// \param[in] xml_stream stream containing the URDF model.
     /// \param[in] rootJoint The joint at the root of the model tree.
     /// \param[in] verbose Print parsing info.
+    /// \param[in] mimic Parsing joints as mimic or not.
     /// \param[out] model Reference model where to put the parsed information.
     /// \return Return the reference on argument model for convenience.
     ///
@@ -108,12 +184,14 @@ namespace pinocchio
       const std::string & xml_stream,
       const typename ModelTpl<Scalar, Options, JointCollectionTpl>::JointModel & rootJoint,
       ModelTpl<Scalar, Options, JointCollectionTpl> & model,
-      const bool verbose = false);
+      const bool verbose = false,
+      const bool mimic = false);
 
     ///
     /// \brief Build the model from an XML stream
     ///
     /// \param[in] xml_stream stream containing the URDF model.
+    /// \param[in] mimic Parsing joints as mimic or not.
     /// \param[in] verbose Print parsing info.
     /// \param[out] model Reference model where to put the parsed information.
     /// \return Return the reference on argument model for convenience.
@@ -124,7 +202,8 @@ namespace pinocchio
     ModelTpl<Scalar, Options, JointCollectionTpl> & buildModelFromXML(
       const std::string & xml_stream,
       ModelTpl<Scalar, Options, JointCollectionTpl> & model,
-      const bool verbose = false);
+      const bool verbose = false,
+      const bool mimic = false);
 
     /**
      * @brief      Build The GeometryModel from a URDF file. Search for meshes

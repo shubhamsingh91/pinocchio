@@ -17,8 +17,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename Matrix3xOut1,
     typename Matrix3xOut2>
   struct JointImpulseVelocityDerivativesBackwardStep3D
@@ -124,8 +123,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename Matrix6xOut1,
     typename Matrix6xOut2>
   struct JointImpulseVelocityDerivativesBackwardStep6D
@@ -235,8 +233,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     class ConstraintModelAllocator,
     class ConstraintDataAllocator,
     typename MatrixType1,
@@ -257,6 +254,7 @@ namespace pinocchio
     const Eigen::MatrixBase<MatrixType4> & impulse_partial_dv)
   {
     const Eigen::DenseIndex nc = data.contact_chol.constraintDim();
+    assert(model.check(MimicChecker()) && "Function does not support mimic joints");
 
     PINOCCHIO_CHECK_INPUT_ARGUMENT(
       contact_data.size() == contact_models.size(),

@@ -1,13 +1,13 @@
 import unittest
-import pinocchio as pin
-import numpy as np
 
+import numpy as np
+import pinocchio as pin
 from test_case import PinocchioTestCase
 
 
 class TestKinematicsBindings(PinocchioTestCase):
     def setUp(self):
-        self.model = pin.buildSampleModelHumanoidRandom()
+        self.model = pin.buildSampleModelHumanoidRandom(True, True)
         self.joint_idx = (
             self.model.getJointId("rarm2_joint")
             if self.model.existJointName("rarm2_joint")

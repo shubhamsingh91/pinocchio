@@ -17,8 +17,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType,
       typename TangentVectorType1,
       typename TangentVectorType2>
@@ -97,8 +96,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename ConfigVectorType,
       typename TangentVectorType1,
       typename TangentVectorType2>
@@ -115,6 +113,7 @@ namespace pinocchio
       PINOCCHIO_CHECK_ARGUMENT_SIZE(
         a.size(), model.nv, "The acceleration vector is not of right size");
       assert(model.check(data) && "data is not consistent with model.");
+      assert(model.check(MimicChecker()) && "Function does not support mimic joints");
 
       typedef ModelTpl<Scalar, Options, JointCollectionTpl> Model;
       typedef typename Model::JointIndex JointIndex;
@@ -137,8 +136,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename Matrix6xOut1,
       typename Matrix6xOut2>
     struct JointVelocityDerivativesBackwardStep
@@ -245,8 +243,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename Matrix6xOut1,
       typename Matrix6xOut2>
     void getJointVelocityDerivatives(
@@ -266,6 +263,7 @@ namespace pinocchio
       PINOCCHIO_CHECK_ARGUMENT_SIZE(v_partial_dv.cols(), model.nv);
       PINOCCHIO_CHECK_INPUT_ARGUMENT((int)jointId < model.njoints, "The joint id is invalid.");
       assert(model.check(data) && "data is not consistent with model.");
+      assert(model.check(MimicChecker()) && "Function does not support mimic joints");
 
       typedef typename Model::JointIndex JointIndex;
 
@@ -285,8 +283,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename Matrix6xOut1,
       typename Matrix6xOut2,
       typename Matrix6xOut3,
@@ -466,8 +463,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename Matrix6xOut1,
       typename Matrix6xOut2,
       typename Matrix6xOut3,
@@ -496,6 +492,7 @@ namespace pinocchio
       PINOCCHIO_CHECK_ARGUMENT_SIZE(a_partial_da.cols(), model.nv);
       PINOCCHIO_CHECK_INPUT_ARGUMENT((int)jointId < model.njoints, "The joint id is invalid.");
       assert(model.check(data) && "data is not consistent with model.");
+      assert(model.check(MimicChecker()) && "Function does not support mimic joints");
 
       typedef ModelTpl<Scalar, Options, JointCollectionTpl> Model;
       typedef typename Model::JointIndex JointIndex;
@@ -518,8 +515,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename Matrix6xOut1,
       typename Matrix6xOut2,
       typename Matrix6xOut3,
@@ -548,8 +544,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename Matrix3xOut1,
       typename Matrix3xOut2>
     struct PointVelocityDerivativesBackwardStep
@@ -651,8 +646,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename Matrix3xOut1,
       typename Matrix3xOut2>
     void getPointVelocityDerivatives(
@@ -678,6 +672,7 @@ namespace pinocchio
         rf == LOCAL || rf == LOCAL_WORLD_ALIGNED,
         "The reference frame is not valid, expected LOCAL or LOCAL_WORLD_ALIGNED");
       assert(model.check(data) && "data is not consistent with model.");
+      assert(model.check(MimicChecker()) && "Function does not support mimic joints");
 
       typedef typename Data::SE3 SE3;
       typedef typename Data::Motion Motion;
@@ -701,8 +696,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename Matrix3xOut1,
       typename Matrix3xOut2,
       typename Matrix3xOut3,
@@ -878,8 +872,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename Matrix3xOut1,
       typename Matrix3xOut2,
       typename Matrix3xOut3,
@@ -916,6 +909,7 @@ namespace pinocchio
         rf == LOCAL || rf == LOCAL_WORLD_ALIGNED,
         "The reference frame is not valid, expected LOCAL or LOCAL_WORLD_ALIGNED");
       assert(model.check(data) && "data is not consistent with model.");
+      assert(model.check(MimicChecker()) && "Function does not support mimic joints");
 
       const SE3 oMpoint = data.oMi[joint_id] * placement;
       const Motion spatial_velocity = oMpoint.actInv(data.ov[joint_id]);
@@ -940,8 +934,7 @@ namespace pinocchio
     template<
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl,
+      template<typename, int> class JointCollectionTpl,
       typename Matrix3xOut1,
       typename Matrix3xOut2,
       typename Matrix3xOut3,
@@ -978,6 +971,7 @@ namespace pinocchio
     DataTpl<Scalar, Options, JointCollectionTpl> & data)
   {
     assert(model.check(data) && "data is not consistent with model.");
+    assert(model.check(MimicChecker()) && "Function does not support mimic joints");
 
     typedef ModelTpl<Scalar, Options, JointCollectionTpl> Model;
     typedef DataTpl<Scalar, Options, JointCollectionTpl> Data;
@@ -1082,6 +1076,7 @@ namespace pinocchio
     Tensor<Scalar, 3, Options> & kinematic_hessian)
   {
     assert(model.check(data) && "data is not consistent with model.");
+    assert(model.check(MimicChecker()) && "Function does not support mimic joints");
     assert(
       joint_id < model.joints.size() && joint_id > 0
       && "joint_id is outside the valid index for a joint in model.joints");
@@ -1286,8 +1281,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType,
     typename TangentVectorType1,
     typename TangentVectorType2>
@@ -1305,8 +1299,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename Matrix6xOut1,
     typename Matrix6xOut2>
   void getJointVelocityDerivatives(
@@ -1324,8 +1317,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename Matrix6xOut1,
     typename Matrix6xOut2,
     typename Matrix6xOut3,
@@ -1348,8 +1340,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename Matrix6xOut1,
     typename Matrix6xOut2,
     typename Matrix6xOut3,
@@ -1374,8 +1365,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename Matrix3xOut1,
     typename Matrix3xOut2>
   void getPointVelocityDerivatives(
@@ -1395,8 +1385,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename Matrix3xOut1,
     typename Matrix3xOut2,
     typename Matrix3xOut3,
@@ -1420,8 +1409,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename Matrix3xOut1,
     typename Matrix3xOut2,
     typename Matrix3xOut3,

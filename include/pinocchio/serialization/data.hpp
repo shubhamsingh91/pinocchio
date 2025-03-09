@@ -24,8 +24,7 @@ namespace boost
       class Archive,
       typename Scalar,
       int Options,
-      template<typename, int>
-      class JointCollectionTpl>
+      template<typename, int> class JointCollectionTpl>
     void serialize(
       Archive & ar,
       pinocchio::DataTpl<Scalar, Options, JointCollectionTpl> & data,
@@ -90,6 +89,10 @@ namespace boost
       PINOCCHIO_MAKE_DATA_NVP(ar, data, D);
       PINOCCHIO_MAKE_DATA_NVP(ar, data, Dinv);
       PINOCCHIO_MAKE_DATA_NVP(ar, data, parents_fromRow);
+      PINOCCHIO_MAKE_DATA_NVP(ar, data, mimic_parents_fromRow);
+      PINOCCHIO_MAKE_DATA_NVP(ar, data, non_mimic_parents_fromRow);
+      PINOCCHIO_MAKE_DATA_NVP(ar, data, idx_vExtended_to_idx_v_fromRow);
+      PINOCCHIO_MAKE_DATA_NVP(ar, data, mimic_subtree_joint);
       PINOCCHIO_MAKE_DATA_NVP(ar, data, supports_fromRow);
       PINOCCHIO_MAKE_DATA_NVP(ar, data, nvSubtree_fromRow);
       PINOCCHIO_MAKE_DATA_NVP(ar, data, J);

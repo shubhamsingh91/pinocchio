@@ -21,8 +21,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     class Allocator>
   inline void initConstraintDynamics(
     const ModelTpl<Scalar, Options, JointCollectionTpl> & model,
@@ -64,8 +63,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType,
     typename TangentVectorType,
     bool ContactMode>
@@ -142,8 +140,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     bool ContactMode>
   struct ContactAndImpulseDynamicsBackwardStep
   : public fusion::JointUnaryVisitorBase<
@@ -185,8 +182,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType,
     typename TangentVectorType1,
     typename TangentVectorType2,
@@ -213,6 +209,7 @@ namespace pinocchio
     typedef RigidConstraintDataTpl<Scalar, Options> RigidConstraintData;
 
     assert(model.check(data) && "data is not consistent with model.");
+    assert(model.check(MimicChecker()) && "Function does not support mimic joints");
     PINOCCHIO_CHECK_ARGUMENT_SIZE(
       q.size(), model.nq, "The joint configuration vector is not of right size");
     PINOCCHIO_CHECK_ARGUMENT_SIZE(
@@ -527,8 +524,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType,
     typename TangentVectorType>
   struct ContactABAForwardStep1
@@ -594,8 +590,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename TangentVectorType>
   struct ContactABABackwardStep1
   : public fusion::JointUnaryVisitorBase<
@@ -657,8 +652,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename TangentVectorType>
   struct ContactABABackwardStepAugmented
   : public fusion::JointUnaryVisitorBase<
@@ -745,8 +739,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType,
     typename TangentVectorType1,
     typename TangentVectorType2,
@@ -764,6 +757,7 @@ namespace pinocchio
     ProximalSettingsTpl<Scalar> & settings)
   {
     assert(model.check(data) && "data is not consistent with model.");
+    assert(model.check(MimicChecker()) && "Function does not support mimic joints");
     PINOCCHIO_CHECK_ARGUMENT_SIZE(
       q.size(), model.nq, "The joint configuration vector is not of right size");
     PINOCCHIO_CHECK_ARGUMENT_SIZE(
@@ -976,8 +970,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename ConfigVectorType,
     typename TangentVectorType1,
     typename TangentVectorType2,
@@ -997,6 +990,7 @@ namespace pinocchio
     using namespace Eigen;
 
     assert(model.check(data) && "data is not consistent with model.");
+    assert(model.check(MimicChecker()) && "Function does not support mimic joints");
     PINOCCHIO_CHECK_ARGUMENT_SIZE(
       q.size(), model.nq, "The joint configuration vector is not of right size");
     PINOCCHIO_CHECK_ARGUMENT_SIZE(

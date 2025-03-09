@@ -13,8 +13,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename Matrix3xOut>
   struct CoMVelocityDerivativesForwardStep
   : public fusion::JointUnaryVisitorBase<
@@ -66,8 +65,7 @@ namespace pinocchio
   template<
     typename Scalar,
     int Options,
-    template<typename, int>
-    class JointCollectionTpl,
+    template<typename, int> class JointCollectionTpl,
     typename Matrix3xOut>
   void getCenterOfMassVelocityDerivatives(
     const ModelTpl<Scalar, Options, JointCollectionTpl> & model,
@@ -78,6 +76,7 @@ namespace pinocchio
 
     PINOCCHIO_CHECK_ARGUMENT_SIZE(vcom_partial_dq.cols(), model.nv);
     assert(model.check(data) && "data is not consistent with model.");
+    assert(model.check(MimicChecker()) && "Function does not support mimic joints");
 
     typedef ModelTpl<Scalar, Options, JointCollectionTpl> Model;
     typedef typename Model::JointIndex JointIndex;

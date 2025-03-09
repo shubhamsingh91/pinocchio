@@ -13,8 +13,6 @@
 #include "pinocchio/math/matrix.hpp"
 #include "pinocchio/math/rotation.hpp"
 
-#include <iostream>
-
 namespace pinocchio
 {
 
@@ -526,7 +524,8 @@ namespace pinocchio
     enum
     {
       NQ = 1,
-      NV = 1
+      NV = 1,
+      NVExtended = 1
     };
     typedef _Scalar Scalar;
     enum
@@ -547,6 +546,8 @@ namespace pinocchio
 
     typedef Eigen::Matrix<Scalar, NQ, 1, Options> ConfigVector_t;
     typedef Eigen::Matrix<Scalar, NV, 1, Options> TangentVector_t;
+
+    typedef boost::mpl::true_ is_mimicable_t;
 
     PINOCCHIO_JOINT_DATA_BASE_ACCESSOR_DEFAULT_RETURN_TYPE
   };
@@ -640,6 +641,7 @@ namespace pinocchio
     using Base::id;
     using Base::idx_q;
     using Base::idx_v;
+    using Base::idx_vExtended;
     using Base::setIndexes;
 
     JointModelHelicalUnalignedTpl()
@@ -760,7 +762,7 @@ namespace pinocchio
     {
       typedef JointModelHelicalUnalignedTpl<NewScalar, Options> ReturnType;
       ReturnType res(axis.template cast<NewScalar>(), ScalarCast<NewScalar, Scalar>::cast(m_pitch));
-      res.setIndexes(id(), idx_q(), idx_v());
+      res.setIndexes(id(), idx_q(), idx_v(), idx_vExtended());
       return res;
     }
 

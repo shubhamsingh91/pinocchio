@@ -1,9 +1,6 @@
-from __future__ import print_function
-
 import numpy as np
-from numpy.linalg import norm, solve
-
 import pinocchio
+from numpy.linalg import norm, solve
 
 model = pinocchio.buildSampleModelManipulator()
 data = model.createData()
@@ -33,15 +30,17 @@ while True:
     v = -J.T.dot(solve(J.dot(J.T) + damp * np.eye(6), err))
     q = pinocchio.integrate(model, q, v * DT)
     if not i % 10:
-        print("%d: error = %s" % (i, err.T))
+        print(f"{i}: error = {err.T}")
     i += 1
 
 if success:
     print("Convergence achieved!")
 else:
     print(
-        "\nWarning: the iterative algorithm has not reached convergence to the desired precision"
+        "\n"
+        "Warning: the iterative algorithm has not reached convergence "
+        "to the desired precision"
     )
 
-print("\nresult: %s" % q.flatten().tolist())
-print("\nfinal error: %s" % err.T)
+print(f"\nresult: {q.flatten().tolist()}")
+print(f"\nfinal error: {err.T}")
