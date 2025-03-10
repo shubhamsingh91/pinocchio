@@ -5,6 +5,7 @@
 #include "pinocchio/algorithm/aba.hpp"
 #include "pinocchio/algorithm/rnea.hpp"
 #include "pinocchio/algorithm/modrnea.hpp"
+#include "pinocchio/algorithm/modaba.hpp"
 #include "pinocchio/algorithm/crba.hpp"
 #include "pinocchio/algorithm/cholesky.hpp"
 #include "pinocchio/parsers/urdf.hpp"
@@ -56,8 +57,6 @@ for (int mm = 0; mm < n_models; mm++) {
     robot_name = str_robotname[mm];
     std ::string filename = "../models/" + robot_name + std::string(".urdf");
 
-
-
     bool with_ff = false; // All for only fixed-base models
     if ((mm == 2) || (mm == 4) || (mm == 5)) {
         with_ff = true; // True for hyQ and atlas, talos_full_v2
@@ -83,6 +82,7 @@ for (int mm = 0; mm < n_models; mm++) {
   PINOCCHIO_ALIGNED_STD_VECTOR(VectorXd) qddots (NBT);
   PINOCCHIO_ALIGNED_STD_VECTOR(VectorXd) taus (NBT);
   PINOCCHIO_ALIGNED_STD_VECTOR(VectorXd) lambdas (NBT);
+  PINOCCHIO_ALIGNED_STD_VECTOR(VectorXd) mus (NBT);
   
   
   for(size_t i=0;i<NBT;++i)
@@ -93,11 +93,13 @@ for (int mm = 0; mm < n_models; mm++) {
     qddots[i] = Eigen::VectorXd::Random(model.nv);
     taus[i] = Eigen::VectorXd::Random(model.nv);
     lambdas[i] = Eigen::VectorXd::Random(model.nv);
+    mus[i] = Eigen::VectorXd::Random(model.nv);
   }
 
 
   SMOOTH(NBT)
   {
+    // Compute modified ID
     rnea(model,data,qs[_smooth],qdots[_smooth],qddots[_smooth]);
     taus[_smooth] = data.tau;
 
@@ -110,6 +112,20 @@ for (int mm = 0; mm < n_models; mm++) {
       throw std::runtime_error("modID is not correct");
     std::cout << "modtau = " << modtau << 
        "  , Accuracy check for modID = " << diff_mod << std::endl;
+    }
+
+    // compute Modified FD
+
+    Eigen::VectorXd qddot = aba(model,data,qs[_smooth],qdots[_smooth],taus[_smooth]);
+    double modqdd = modaba(model,data,qs[_smooth],qdots[_smooth],taus[_smooth], mus[_smooth]);
+
+    double diff_modFD = modqdd - mus[_smooth].transpose()*qddot;
+
+    if (abs(diff_modFD)>1e-6) {
+      throw std::runtime_error("modFD is not correct");
+    std::cout << "modqdd = " << modqdd << 
+       "  , Accuracy check for modFD = " << diff_modFD << std::endl;
+
     }
 
 

@@ -52,6 +52,7 @@ SET(${PROJECT_NAME}_CORE_PUBLIC_HEADERS
   include/pinocchio/algorithm/kinematics.hpp
   include/pinocchio/algorithm/rnea.hxx
   include/pinocchio/algorithm/modrnea.hxx
+  include/pinocchio/algorithm/modaba.hxx
   include/pinocchio/algorithm/regressor.hpp
   include/pinocchio/algorithm/frames.hpp
   include/pinocchio/algorithm/kinematics-derivatives.hxx
@@ -87,6 +88,7 @@ SET(${PROJECT_NAME}_CORE_PUBLIC_HEADERS
   include/pinocchio/algorithm/geometry.hxx
   include/pinocchio/algorithm/rnea.hpp
   include/pinocchio/algorithm/modrnea.hpp
+  include/pinocchio/algorithm/modaba.hpp
   include/pinocchio/algorithm/parallel/geometry.hpp
   include/pinocchio/algorithm/parallel/aba.hpp
   include/pinocchio/algorithm/parallel/rnea.hpp
