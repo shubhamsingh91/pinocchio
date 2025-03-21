@@ -6,6 +6,8 @@
 #include "pinocchio/algorithm/rnea.hpp"
 #include "pinocchio/algorithm/modrnea.hpp"
 #include "pinocchio/algorithm/modaba.hpp"
+#include "pinocchio/algorithm/rnea-derivatives.hpp"
+#include "pinocchio/algorithm/mod-rnea-derivatives.hpp"
 #include "pinocchio/algorithm/crba.hpp"
 #include "pinocchio/algorithm/cholesky.hpp"
 #include "pinocchio/parsers/urdf.hpp"
@@ -100,13 +102,12 @@ for (int mm = 0; mm < n_models; mm++) {
   SMOOTH(NBT)
   {
     // Compute modified ID
-    rnea(model,data,qs[_smooth],qdots[_smooth],qddots[_smooth]);
+    rnea(model,data,qs[_smooth],qdots[_smooth],qddots[_smooth]); // ID
     taus[_smooth] = data.tau;
 
+    double modtau = modrnea(model,data,qs[_smooth],qdots[_smooth],qddots[_smooth], lambdas[_smooth]); // Mod ID
 
-    double modtau = modrnea(model,data,qs[_smooth],qdots[_smooth],qddots[_smooth], lambdas[_smooth]);
-
-    double diff_mod = modtau - lambdas[_smooth].transpose()*taus[_smooth];
+    double diff_mod = modtau - lambdas[_smooth].transpose()*taus[_smooth]; // Check if modID is correct
 
     if (abs(diff_mod)>1e-6) {
       throw std::runtime_error("modID is not correct");
@@ -116,8 +117,8 @@ for (int mm = 0; mm < n_models; mm++) {
 
     // compute Modified FD
 
-    Eigen::VectorXd qddot = aba(model,data,qs[_smooth],qdots[_smooth],taus[_smooth]);
-    double modqdd = modaba(model,data,qs[_smooth],qdots[_smooth],taus[_smooth], mus[_smooth]);
+    Eigen::VectorXd qddot = aba(model,data,qs[_smooth],qdots[_smooth],taus[_smooth]); // FD
+    double modqdd = modaba(model,data,qs[_smooth],qdots[_smooth],taus[_smooth], mus[_smooth]); // Mod FD
 
     double diff_modFD = modqdd - mus[_smooth].transpose()*qddot;
 
@@ -128,6 +129,31 @@ for (int mm = 0; mm < n_models; mm++) {
 
     }
 
+    // compute Mod ID derivatives
+
+    computeRNEADerivatives(model,data,qs[_smooth],qdots[_smooth],qddots[_smooth]); // ID derivatives
+    auto dtau_dq = data.dtau_dq;
+    auto dtau_dv = data.dtau_dv;
+    auto M = data.M;
+
+    computeModRNEADerivatives(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth], lambdas[_smooth]); // Mod ID derivatives
+
+    auto dtau_dq_mod = data.dtau_dq_mod;
+    auto dtau_dv_mod = data.dtau_dv_mod;
+    auto M_mod = data.M_mod;
+
+    // Check if modID derivatives are correct
+
+    Eigen::VectorXd dtau_dq_diff = dtau_dq_mod - lambdas[_smooth].transpose()*dtau_dq;
+
+
+    if (dtau_dq_diff.norm()>1e-6) {
+      std::cout << "dtau_dq_mod_diff = " << dtau_dq_diff.norm() << std::endl;
+      throw std::runtime_error("dtau_dq_mod is not correct");
+    }
+
+    
+   
 
   }
    
