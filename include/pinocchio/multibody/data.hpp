@@ -168,6 +168,9 @@ namespace pinocchio
 
     /// \brief The joint space inertia matrix (a square matrix of dim model.nv).
     MatrixXs M;
+
+    /// \brief The joint space inertia matrix (a square matrix of dim model.nv), contracted with lambda.
+    MatrixXs M_mod;
     
     /// \brief The inverse of the joint space inertia matrix (a square matrix of dim model.nv).
     RowMatrixXs Minv;
@@ -374,6 +377,12 @@ namespace pinocchio
     
     /// \brief Partial derivative of the joint torque vector with respect to the joint velocity.
     MatrixXs dtau_dv;
+    
+    /// \brief Partial derivative of the joint torque vector with respect to the joint configuration, contracted with a lambda vector.
+    VectorXs dtau_dq_mod;
+    
+    /// \brief Partial derivative of the joint torque vector with respect to the joint velocity, contracted with a lambda vector.
+    VectorXs dtau_dv_mod;
     
     /// \brief Partial derivative of the joint acceleration vector with respect to the joint configuration.
     MatrixXs ddq_dq;

@@ -43,6 +43,7 @@ namespace pinocchio
   , dYcrb((std::size_t)model.njoints,Inertia::Zero())
   , oBcrb((std::size_t)model.njoints, Coriolis::Zero())
   , M(MatrixXs::Zero(model.nv,model.nv))
+  , M_mod(VectorXs::Zero(model.nv))
   , Minv(MatrixXs::Zero(model.nv,model.nv))
   , C(MatrixXs::Zero(model.nv,model.nv))
   , dHdq(Matrix6x::Zero(6,model.nv))
@@ -93,6 +94,8 @@ namespace pinocchio
   , dAdv(Matrix6x::Zero(6,model.nv))
   , dtau_dq(MatrixXs::Zero(model.nv,model.nv))
   , dtau_dv(MatrixXs::Zero(model.nv,model.nv))
+  , dtau_dq_mod(VectorXs::Zero(model.nv))
+  , dtau_dv_mod(VectorXs::Zero(model.nv))  
   , ddq_dq(MatrixXs::Zero(model.nv,model.nv))
   , ddq_dv(MatrixXs::Zero(model.nv,model.nv))
   , iMf((std::size_t)model.njoints,SE3::Identity())
@@ -262,6 +265,7 @@ namespace pinocchio
     && data1.Ycrb == data2.Ycrb
     && data1.dYcrb == data2.dYcrb
     && data1.M == data2.M
+    && data1.M_mod == data2.M_mod
     && data1.Minv == data2.Minv
     && data1.C == data2.C
     && data1.dHdq == data2.dHdq
@@ -305,6 +309,8 @@ namespace pinocchio
     && data1.dAdv == data2.dAdv
     && data1.dtau_dq == data2.dtau_dq
     && data1.dtau_dv == data2.dtau_dv
+    && data1.dtau_dq_mod == data2.dtau_dq_mod
+    && data1.dtau_dv_mod == data2.dtau_dv_mod
     && data1.ddq_dq == data2.ddq_dq
     && data1.ddq_dv == data2.ddq_dv
     && data1.iMf == data2.iMf
