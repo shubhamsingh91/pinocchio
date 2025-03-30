@@ -160,11 +160,12 @@ namespace pinocchio
         const Eigen::Index joint_idx = (Eigen::Index)jmodel.idx_v();
         const Eigen::Index joint_dofs = (Eigen::Index)jmodel.nv();
 
-        motionSet::act(J_cols, data.of[i], tmp3); // 
+        motionSet::act(J_cols, data.of[i], tmp3); // S{i} x* f{i}
 
         rnea_partial_dq_mod_.segment(joint_idx, joint_dofs).noalias()
-          = tmp3.transpose() * data.ow[parent].toVector();
-
+          = tmp3.transpose() * data.ow[parent].toVector() + 
+             dJ_cols.transpose() * data.oz[i].toVector() + 
+             ddJ_cols.transpose() * data.oh_lam[i].toVector();
 
       rnea_partial_dv_mod_.segment(joint_idx, joint_dofs).noalias()
           = vdJ_cols.transpose() * data.oh_lam[i].toVector()
@@ -175,8 +176,7 @@ namespace pinocchio
             data.oh_lam[parent] += data.oh_lam[i];
             data.of[parent] += data.of[i];
         }
-      
-
+    
 
     }
     
