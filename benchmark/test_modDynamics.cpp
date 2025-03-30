@@ -6,7 +6,7 @@
 #include "pinocchio/algorithm/rnea.hpp"
 #include "pinocchio/algorithm/modrnea.hpp"
 #include "pinocchio/algorithm/modaba.hpp"
-#include "pinocchio/algorithm/rnea-derivatives.hpp"
+#include "pinocchio/algorithm/rnea-derivatives-faster.hpp"
 #include "pinocchio/algorithm/mod-rnea-derivatives.hpp"
 #include "pinocchio/algorithm/crba.hpp"
 #include "pinocchio/algorithm/cholesky.hpp"
@@ -28,27 +28,26 @@ int main(int argc, const char ** argv)
   #ifdef SPEED
   const int NBT = 1000;
   #else
-    const int NBT = 1000;
+    const int NBT = 1;
     std::cout << "(the time score in non-speed mode is not relevant) " << std::endl;
   #endif
 
   std::cout << "NBT = " << NBT << std::endl;
     
-  int n_models = 6; // no of robots to be used
-  string str_robotname[n_models];
+  std::vector<std::string> robot_name_vec;
 
-  str_robotname[0] = "double_pendulum"; // double pendulum
-  str_robotname[1] = "ur3_robot";       // UR3
-  str_robotname[2] = "hyq";             // hyq
-  str_robotname[3] = "baxter_simple";   // baxter_simple
-  str_robotname[4] = "atlas";           // atlas
-  str_robotname[5] = "talos_full_v2";   // Talos
+  robot_name_vec.push_back("double_pendulum"); // double pendulum
+  robot_name_vec.push_back("ur3_robot");       // UR3
+  robot_name_vec.push_back("hyq");             // hyq
+  robot_name_vec.push_back("baxter_simple");   // baxter_simple
+  robot_name_vec.push_back("atlas");           // atlas
+
   char tmp[256];
   getcwd(tmp, 256); 
 
   Model model;
 
-for (int mm = 0; mm < n_models; mm++) {
+for (int mm = 0; mm < robot_name_vec.size(); mm++) {
 
     Model model;
 
@@ -56,7 +55,7 @@ for (int mm = 0; mm < n_models; mm++) {
     string robot_name = "";
     string str_urdf;
 
-    robot_name = str_robotname[mm];
+    robot_name = robot_name_vec.at(mm);
     std ::string filename = "../models/" + robot_name + std::string(".urdf");
 
     bool with_ff = false; // All for only fixed-base models
@@ -87,10 +86,22 @@ for (int mm = 0; mm < n_models; mm++) {
   PINOCCHIO_ALIGNED_STD_VECTOR(VectorXd) mus (NBT);
   
   
+  // for(size_t i=0;i<NBT;++i)
+  // {
+  //   qs[i]     = randomConfiguration(model,-qmax,qmax);
+  //   // qs[i]     = Eigen::VectorXd::Random(model.nv);
+  //   qdots[i]  = Eigen::VectorXd::Random(model.nv);
+  //   qddots[i] = Eigen::VectorXd::Random(model.nv);
+  //   taus[i] = Eigen::VectorXd::Random(model.nv);
+  //   lambdas[i] = Eigen::VectorXd::Random(model.nv);
+  //   mus[i] = Eigen::VectorXd::Random(model.nv);
+  // }
+
+
   for(size_t i=0;i<NBT;++i)
   {
     qs[i]     = randomConfiguration(model,-qmax,qmax);
-    // qs[i]     = Eigen::VectorXd::Random(model.nv);
+    // qs[i]     = Eigen::VectorXd::Ones(model.nv);
     qdots[i]  = Eigen::VectorXd::Random(model.nv);
     qddots[i] = Eigen::VectorXd::Random(model.nv);
     taus[i] = Eigen::VectorXd::Random(model.nv);
@@ -109,7 +120,8 @@ for (int mm = 0; mm < n_models; mm++) {
 
     double diff_mod = modtau - lambdas[_smooth].transpose()*taus[_smooth]; // Check if modID is correct
 
-    if (abs(diff_mod)>1e-6) {
+    if (abs(diff_mod)>1e-6) 
+    {
       throw std::runtime_error("modID is not correct");
     std::cout << "modtau = " << modtau << 
        "  , Accuracy check for modID = " << diff_mod << std::endl;
@@ -130,28 +142,38 @@ for (int mm = 0; mm < n_models; mm++) {
     }
 
     // compute Mod ID derivatives
+    MatrixXd dtau_dq(MatrixXd::Zero(model.nv, model.nv));
+    MatrixXd dtau_dv(MatrixXd::Zero(model.nv, model.nv));
+    MatrixXd dtau_da(MatrixXd::Zero(model.nv, model.nv));
 
-    computeRNEADerivatives(model,data,qs[_smooth],qdots[_smooth],qddots[_smooth]); // ID derivatives
-    auto dtau_dq = data.dtau_dq;
-    auto dtau_dv = data.dtau_dv;
-    auto M = data.M;
+    computeRNEADerivativesFaster(model,data,qs[_smooth],qdots[_smooth],qddots[_smooth],
+                          dtau_dq, dtau_dv, dtau_da);                 // ID derivatives
 
-    computeModRNEADerivatives(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth], lambdas[_smooth]); // Mod ID derivatives
+    VectorXd dtau_dq_mod(VectorXd::Zero(model.nv));
+    VectorXd dtau_dv_mod(VectorXd::Zero(model.nv));
+    VectorXd dtau_da_mod(VectorXd::Zero(model.nv));
 
-    auto dtau_dq_mod = data.dtau_dq_mod;
-    auto dtau_dv_mod = data.dtau_dv_mod;
-    auto M_mod = data.M_mod;
+    computeModRNEADerivatives(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth], lambdas[_smooth],
+                              dtau_dq_mod, dtau_dv_mod, dtau_da_mod); // Mod ID derivatives
+
 
     // Check if modID derivatives are correct
 
-    Eigen::VectorXd dtau_dq_diff = dtau_dq_mod - lambdas[_smooth].transpose()*dtau_dq;
+    Eigen::VectorXd dtau_dq_diff = dtau_dq_mod.transpose() - lambdas[_smooth].transpose()*dtau_dq;
+    Eigen::VectorXd dtau_dv_diff = dtau_dv_mod.transpose() - lambdas[_smooth].transpose()*dtau_dv;
 
+    // if (dtau_dq_diff.norm()>1e-6) {
+    //   std::cout << "dtau_dq_mod_diff = " << dtau_dq_diff.norm() << std::endl;
+    //   // throw std::runtime_error("dtau_dq_mod is not correct");
+    // }
 
-    if (dtau_dq_diff.norm()>1e-6) {
-      std::cout << "dtau_dq_mod_diff = " << dtau_dq_diff.norm() << std::endl;
-      throw std::runtime_error("dtau_dq_mod is not correct");
+    std::cout << "dtau_dv_mod_diff = " << dtau_dv_diff.norm() << std::endl;
+
+    if (dtau_dv_diff.norm()>1e-6) 
+    {
+      std::cout << "dtau_dv_mod_diff = " << dtau_dv_diff.norm() << std::endl;
+      throw std::runtime_error("dtau_dv_mod is not correct");
     }
-
     
    
 

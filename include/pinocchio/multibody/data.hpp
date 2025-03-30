@@ -119,6 +119,9 @@ namespace pinocchio
 
     /// \brief Vector of joint velocities expressed at the origin.
     PINOCCHIO_ALIGNED_STD_VECTOR(Motion) ov;
+
+    /// \brief Vector of  lambda velocities expressed at the origin of the world.
+    PINOCCHIO_ALIGNED_STD_VECTOR(Motion) ow;
     
     /// \brief Vector of body forces expressed in the local frame of the joint. For each body, the force represents the sum of
     ///        all external forces acting on the body.
@@ -134,6 +137,12 @@ namespace pinocchio
     /// \brief Vector of spatial momenta expressed in the world frame.
     PINOCCHIO_ALIGNED_STD_VECTOR(Force) oh;
     
+    /// \brief Vector of spatial momenta using lambda expressed in the world frame.
+    PINOCCHIO_ALIGNED_STD_VECTOR(Force) oh_lam;
+
+     /// \brief Vector of spatial momenta using lambda expressed in the world frame.
+    PINOCCHIO_ALIGNED_STD_VECTOR(Force) oz;
+
     /// \brief Vector of absolute joint placements (wrt the world).
     PINOCCHIO_ALIGNED_STD_VECTOR(SE3) oMi;
 

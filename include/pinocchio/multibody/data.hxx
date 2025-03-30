@@ -22,6 +22,7 @@ namespace pinocchio
   : joints(0)
   , a((std::size_t)model.njoints,Motion::Zero())
   , oa((std::size_t)model.njoints,Motion::Zero())
+  , ow((std::size_t)model.njoints,Motion::Zero())
   , a_gf((std::size_t)model.njoints,Motion::Zero())
   , oa_gf((std::size_t)model.njoints,Motion::Zero())
   , v((std::size_t)model.njoints,Motion::Zero())
@@ -33,6 +34,8 @@ namespace pinocchio
   , of((std::size_t)model.njoints,Force::Zero())
   , h((std::size_t)model.njoints,Force::Zero())
   , oh((std::size_t)model.njoints,Force::Zero())
+  , oh_lam((std::size_t)model.njoints,Force::Zero())
+  , oz((std::size_t)model.njoints,Force::Zero())
   , oMi((std::size_t)model.njoints,SE3::Identity())
   , liMi((std::size_t)model.njoints,SE3::Identity())
   , tau(VectorXs::Zero(model.nv))
@@ -248,6 +251,7 @@ namespace pinocchio
        data1.joints == data2.joints
     && data1.a == data2.a
     && data1.oa == data2.oa
+    && data1.ow == data2.ow
     && data1.a_gf == data2.a_gf
     && data1.oa_gf == data2.oa_gf
     && data1.v == data2.v
@@ -256,6 +260,8 @@ namespace pinocchio
     && data1.of == data2.of
     && data1.h == data2.h
     && data1.oh == data2.oh
+    && data1.oh_lam == data2.oh_lam
+    && data1.oz == data2.oz
     && data1.oMi == data2.oMi
     && data1.liMi == data2.liMi
     && data1.tau == data2.tau

@@ -38,70 +38,71 @@ namespace pinocchio
                      const Eigen::MatrixBase<TangentVectorType2> & a,
                      const Eigen::MatrixBase<TangentVectorType3> & lambda)
     {
-      typedef typename Model::JointIndex JointIndex;
-      typedef typename Data::Motion Motion;
+        typedef typename Model::JointIndex JointIndex;
+        typedef typename Data::Motion Motion;
+        typedef typename Data::Inertia Inertia;
+        typedef typename Data::Coriolis Coriolis;
 
-      const JointIndex & i = jmodel.id();
-      const JointIndex & parent = model.parents[i];
-      Motion & ov = data.ov[i];
-      Motion & oa = data.oa[i];
-      Motion & oa_gf = data.oa_gf[i];
-      
-      jmodel.calc(jdata.derived(),q.derived(),v.derived());
-      
-      data.liMi[i] = model.jointPlacements[i]*jdata.M();
-      
-      data.v[i] = jdata.v();
-      
-      if(parent > 0)
-      {
-        data.oMi[i] = data.oMi[parent] * data.liMi[i];
-        data.v[i] += data.liMi[i].actInv(data.v[parent]);
-      }
-      else
-        data.oMi[i] = data.liMi[i];
-      
-      data.a[i] = jdata.S() * jmodel.jointVelocitySelector(a) + jdata.c() + (data.v[i] ^ jdata.v());
-      if(parent > 0)
-      {
-        data.a[i] += data.liMi[i].actInv(data.a[parent]);
-      }
-      
-      data.oYcrb[i] = data.oinertias[i] = data.oMi[i].act(model.inertias[i]);
-      ov = data.oMi[i].act(data.v[i]);
-      oa = data.oMi[i].act(data.a[i]);
-      oa_gf = oa - model.gravity; // add gravity contribution
-      
-      data.oh[i] = data.oYcrb[i] * ov;
-      data.of[i] = data.oYcrb[i] * oa_gf + ov.cross(data.oh[i]);
-      data.f[i] = data.oMi[i].actInv(data.of[i]);
-    
-      typedef typename SizeDepType<JointModel::NV>::template ColsReturn<typename Data::Matrix6x>::Type ColsBlock;
-      ColsBlock J_cols = jmodel.jointCols(data.J);
-      ColsBlock dJ_cols = jmodel.jointCols(data.dJ);
-      ColsBlock dVdq_cols = jmodel.jointCols(data.dVdq);
-      ColsBlock dAdq_cols = jmodel.jointCols(data.dAdq);
-      ColsBlock dAdv_cols = jmodel.jointCols(data.dAdv);
+        const JointIndex& i = jmodel.id();
+        const JointIndex& parent = model.parents[i];
+        Motion& ov = data.ov[i];
+        Motion& oa = data.oa[i];
+        Motion& ow = data.ow[i];
+        Motion& vJ = data.vJ[i];
+        Motion& wJ = data.wJ[i];
 
-      J_cols = data.oMi[i].act(jdata.S());
-      motionSet::motionAction(ov,J_cols,dJ_cols);
-      motionSet::motionAction(data.oa_gf[parent],J_cols,dAdq_cols);
-      dAdv_cols = dJ_cols;
-      if(parent > 0)
-      {
-        motionSet::motionAction(data.ov[parent],J_cols,dVdq_cols);
-        motionSet::motionAction<ADDTO>(data.ov[parent],dVdq_cols,dAdq_cols);
-        dAdv_cols.noalias() += dVdq_cols;
-      }
-      else
-      {
-        dVdq_cols.setZero();
-      }
+        jmodel.calc(jdata.derived(), q.derived(), v.derived());
 
-      // computes variation of inertias
-      data.doYcrb[i] = data.oYcrb[i].variation(ov);
-      
-      addForceCrossMatrix(data.oh[i],data.doYcrb[i]);
+        data.liMi[i] = model.jointPlacements[i] * jdata.M();
+
+        if (parent > 0) {
+            data.oMi[i] = data.oMi[parent] * data.liMi[i];
+            ov = data.ov[parent];
+            oa = data.oa[parent];
+            ow = data.ow[parent];
+        } else {
+            data.oMi[i] = data.liMi[i];
+            ov.setZero();
+            ow.setZero();
+            oa = -model.gravity;
+        }
+
+        typedef typename SizeDepType<JointModel::NV>::template ColsReturn<typename Data::Matrix6x>::Type ColsBlock;
+        ColsBlock J_cols = jmodel.jointCols(data.J);
+        ColsBlock dJ_cols = jmodel.jointCols(data.dJ);
+        ColsBlock ddJ_cols = jmodel.jointCols(data.ddJ);
+        ColsBlock vdJ_cols = jmodel.jointCols(data.vdJ);
+
+        // J and vJ
+        J_cols.noalias() = data.oMi[i].act(jdata.S());
+        vJ = data.oMi[i].act(jdata.v());
+        wJ = data.oMi[i].act(jdata.S() * jmodel.jointVelocitySelector(lambda));
+
+        // dJ
+        motionSet::motionAction(ov, J_cols, dJ_cols);
+
+        // ddJ
+        motionSet::motionAction(oa, J_cols, ddJ_cols);
+        motionSet::motionAction<ADDTO>(ov, dJ_cols, ddJ_cols);
+
+        // vdJ
+        motionSet::motionAction(vJ, J_cols, vdJ_cols);
+        vdJ_cols.noalias() += dJ_cols + dJ_cols;
+
+        // velocity and accelaration finishing
+        ov += vJ;
+        oa += (ov ^ vJ) + data.oMi[i].act(jdata.S() * jmodel.jointVelocitySelector(a) + jdata.c());
+        ow += wJ;
+
+        // Composite rigid body inertia
+        Inertia& oY = data.oYcrb[i];
+
+        oY = data.oMi[i].act(model.inertias[i]); // 0_IC_i
+        data.of[i] = oY * oa + oY.vxiv(ov); // 0_f_i
+        data.oh_lam[i]  = oY * ow; // 0_h_i
+
+        data.oBcrb[i] = Coriolis(oY, ov); // 0_BC_i
+        data.oz[i] = data.oBcrb[i].matrix().transpose() * data.ow[i].toVector(); // 0_z_i
     }
     
     template<typename ForceDerived, typename M6>
@@ -139,91 +140,44 @@ namespace pinocchio
                      const Eigen::MatrixBase<VectorType3> & rnea_partial_da_mod)
     {
       typedef typename Model::JointIndex JointIndex;
-      
-      // const JointIndex & i = jmodel.id();
-      // const JointIndex & parent = model.parents[i];
-      // typename Data::RowMatrix6 & M6tmpR = data.M6tmpR;
-      // typename Data::RowMatrix6 & M6tmpR2 = data.M6tmpR2;
+        
+        const JointIndex& i = jmodel.id();
+        const JointIndex& parent = model.parents[i];
 
-      // typedef typename SizeDepType<JointModel::NV>::template ColsReturn<typename Data::Matrix6x>::Type ColsBlock;
-      
-      // ColsBlock J_cols = jmodel.jointCols(data.J);
-      // ColsBlock dVdq_cols = jmodel.jointCols(data.dVdq);
-      // ColsBlock dAdq_cols = jmodel.jointCols(data.dAdq);
-      // ColsBlock dAdv_cols = jmodel.jointCols(data.dAdv);
-      // ColsBlock dFdq_cols = jmodel.jointCols(data.dFdq);
-      // ColsBlock dFdv_cols = jmodel.jointCols(data.dFdv);
-      // ColsBlock dFda_cols = jmodel.jointCols(data.dFda);
-      
-      // VectorType1 & rnea_partial_dq_mod_ = PINOCCHIO_EIGEN_CONST_CAST(VectorType1,rnea_partial_dq_mod);
-      // VectorType2 & rnea_partial_dv_ = PINOCCHIO_EIGEN_CONST_CAST(VectorType2,rnea_partial_dv_mod);
-      // VectorType3 & rnea_partial_da_ = PINOCCHIO_EIGEN_CONST_CAST(VectorType3,rnea_partial_da_mod);
+        VectorType1& rnea_partial_dq_mod_ = PINOCCHIO_EIGEN_CONST_CAST(VectorType1,rnea_partial_dq_mod);
+        VectorType2& rnea_partial_dv_mod_ = PINOCCHIO_EIGEN_CONST_CAST(VectorType2,rnea_partial_dv_mod);
+        VectorType3& rnea_partial_da_mod_ = PINOCCHIO_EIGEN_CONST_CAST(VectorType3,rnea_partial_da_mod);
 
-      // pinocchio::SE3 X_0_m = data.oMi[i];
-      // typename Data::Matrix6 X_0_mT_mat = X_0_m.toActionMatrix().transpose();
+        typedef typename SizeDepType<JointModel::NV>::template ColsReturn<typename Data::Matrix6x>::Type ColsBlock;
 
-      // // tau
-      // jmodel.jointVelocitySelector(data.tau).noalias() = J_cols.transpose()*data.of[i].toVector();
-      
-      // // dtau/da similar to data.M
-      // motionSet::inertiaAction(data.oYcrb[i],J_cols,dFda_cols);
-      // rnea_partial_da_.block(jmodel.idx_v(),jmodel.idx_v(),jmodel.nv(),data.nvSubtree[i]).noalias()
-      // = J_cols.transpose()*data.dFda.middleCols(jmodel.idx_v(),data.nvSubtree[i]);
-      
-      // // dtau/dv
-      // dFdv_cols.noalias() = data.doYcrb[i] * J_cols;
-      // motionSet::inertiaAction<ADDTO>(data.oYcrb[i],dAdv_cols,dFdv_cols);
+        ColsBlock J_cols = jmodel.jointCols(data.J);
+        ColsBlock dJ_cols = jmodel.jointCols(data.dJ);
+        ColsBlock ddJ_cols = jmodel.jointCols(data.ddJ);
+        ColsBlock vdJ_cols = jmodel.jointCols(data.vdJ);
 
-      // rnea_partial_dv_.block(jmodel.idx_v(),jmodel.idx_v(),jmodel.nv(),data.nvSubtree[i]).noalias()
-      // = J_cols.transpose()*data.dFdv.middleCols(jmodel.idx_v(),data.nvSubtree[i]);
-      
-      // // dtau/dq
-      // if(parent>0)
-      // {
-      //   dFdq_cols.noalias() = data.doYcrb[i] * dVdq_cols;
-      //   motionSet::inertiaAction<ADDTO>(data.oYcrb[i],dAdq_cols,dFdq_cols);
-      // }
-      // else
-      //   motionSet::inertiaAction(data.oYcrb[i],dAdq_cols,dFdq_cols);
+        ColsBlock tmp3 = jmodel.jointCols(data.Ftmp3); // tmp3 is for this joint only, Ftmp3 is for the full body
 
-      // rnea_partial_dq_mod_.block(jmodel.idx_v(),jmodel.idx_v(),jmodel.nv(),data.nvSubtree[i]).noalias()
-      // = J_cols.transpose()*data.dFdq.middleCols(jmodel.idx_v(),data.nvSubtree[i]);
+        const Eigen::Index joint_idx = (Eigen::Index)jmodel.idx_v();
+        const Eigen::Index joint_dofs = (Eigen::Index)jmodel.nv();
+
+        motionSet::act(J_cols, data.of[i], tmp3); // 
+
+        rnea_partial_dq_mod_.segment(joint_idx, joint_dofs).noalias()
+          = tmp3.transpose() * data.ow[parent].toVector();
+
+
+      rnea_partial_dv_mod_.segment(joint_idx, joint_dofs).noalias()
+          = vdJ_cols.transpose() * data.oh_lam[i].toVector()
+          + J_cols.transpose() * data.oz[i].toVector();
+
+        if (parent > 0) {
+            data.oz[parent] += data.oz[i];
+            data.oh_lam[parent] += data.oh_lam[i];
+            data.of[parent] += data.of[i];
+        }
       
-      // motionSet::act<ADDTO>(J_cols,data.of[i],dFdq_cols);
-      
-      // if(parent > 0)
-      // {
-      //   lhsInertiaMult(data.oYcrb[i],J_cols.transpose(),M6tmpR.topRows(jmodel.nv()));
-      //   M6tmpR2.topRows(jmodel.nv()).noalias() = J_cols.transpose() * data.doYcrb[i];
-      //   for(int j = data.parents_fromRow[(typename Model::Index)jmodel.idx_v()];j >= 0; j = data.parents_fromRow[(typename Model::Index)j])
-      //   {
-      //     rnea_partial_dq_.middleRows(jmodel.idx_v(),jmodel.nv()).col(j).noalias()
-      //     = M6tmpR.topRows(jmodel.nv()) * data.dAdq.col(j)
-      //     + M6tmpR2.topRows(jmodel.nv()) * data.dVdq.col(j);
-      //   }
-      //   for(int j = data.parents_fromRow[(typename Model::Index)jmodel.idx_v()];j >= 0; j = data.parents_fromRow[(typename Model::Index)j])
-      //   {
-      //     rnea_partial_dv_.middleRows(jmodel.idx_v(),jmodel.nv()).col(j).noalias()
-      //     = M6tmpR.topRows(jmodel.nv()) * data.dAdv.col(j)
-      //     + M6tmpR2.topRows(jmodel.nv()) * data.J.col(j);
-      //   }
-      // }
-      // if(parent>0)
-      // {
-      //   data.oYcrb[parent] += data.oYcrb[i];
-      //   data.doYcrb[parent] += data.doYcrb[i];
-      //   data.of[parent] += data.of[i];
-      //   data.f[parent] += data.liMi[i].act(data.f[i]);
-      // }      
-      // // Restore the status of dAdq_cols (remove gravity)
-      // PINOCCHIO_CHECK_INPUT_ARGUMENT(isZero(model.gravity.angular()),
-      //                                "The gravity must be a pure force vector, no angular part");
-      // for(Eigen::DenseIndex k =0; k < jmodel.nv(); ++k)
-      // {
-      //   MotionRef<typename ColsBlock::ColXpr> m_in(J_cols.col(k));
-      //   MotionRef<typename ColsBlock::ColXpr> m_out(dAdq_cols.col(k));
-      //   m_out.linear() += model.gravity.linear().cross(m_in.angular());
-      // }
+
+
     }
     
     template<typename Min, typename Mout>
