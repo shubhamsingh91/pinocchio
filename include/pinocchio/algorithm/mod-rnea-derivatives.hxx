@@ -167,9 +167,12 @@ namespace pinocchio
              dJ_cols.transpose() * data.oz[i].toVector() + 
              ddJ_cols.transpose() * data.oh_lam[i].toVector();
 
-      rnea_partial_dv_mod_.segment(joint_idx, joint_dofs).noalias()
+        rnea_partial_dv_mod_.segment(joint_idx, joint_dofs).noalias()
           = vdJ_cols.transpose() * data.oh_lam[i].toVector()
           + J_cols.transpose() * data.oz[i].toVector();
+
+        rnea_partial_da_mod_.segment(joint_idx, joint_dofs).noalias()
+          = J_cols.transpose() * data.oh_lam[i].toVector();  
 
         if (parent > 0) {
             data.oz[parent] += data.oz[i];

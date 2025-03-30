@@ -149,6 +149,8 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
     computeRNEADerivativesFaster(model,data,qs[_smooth],qdots[_smooth],qddots[_smooth],
                           dtau_dq, dtau_dv, dtau_da);                 // ID derivatives
 
+    dtau_da.triangularView<Eigen::StrictlyLower>() = dtau_da.transpose().triangularView<Eigen::StrictlyLower>();
+
     VectorXd dtau_dq_mod(VectorXd::Zero(model.nv));
     VectorXd dtau_dv_mod(VectorXd::Zero(model.nv));
     VectorXd dtau_da_mod(VectorXd::Zero(model.nv));
@@ -161,21 +163,28 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
 
     Eigen::VectorXd dtau_dq_diff = dtau_dq_mod.transpose() - lambdas[_smooth].transpose()*dtau_dq;
     Eigen::VectorXd dtau_dv_diff = dtau_dv_mod.transpose() - lambdas[_smooth].transpose()*dtau_dv;
-
-    if (dtau_dq_diff.norm()>1e-6) {
-      std::cout << "dtau_dq_mod_diff = " << dtau_dq_diff.norm() << std::endl;
-      // throw std::runtime_error("dtau_dq_mod is not correct");
-    }
+    Eigen::VectorXd dtau_da_diff = dtau_da_mod.transpose() - lambdas[_smooth].transpose()*dtau_da;
 
     std::cout << "dtau_dq_mod_diff = " << dtau_dq_diff.norm() << std::endl;
     std::cout << "dtau_dv_mod_diff = " << dtau_dv_diff.norm() << std::endl;
+    std::cout << "dtau_da_mod_diff = " << dtau_da_diff.norm() << std::endl;
+
+    if (dtau_dq_diff.norm()>1e-6) {
+      std::cout << "dtau_dq_mod_diff = " << dtau_dq_diff.norm() << std::endl;
+      throw std::runtime_error("dtau_dq_mod is not correct");
+    }
 
     if (dtau_dv_diff.norm()>1e-6) 
     {
       std::cout << "dtau_dv_mod_diff = " << dtau_dv_diff.norm() << std::endl;
       throw std::runtime_error("dtau_dv_mod is not correct");
     }
-    
+
+    if (dtau_da_diff.norm()>1e-6) 
+    {
+      std::cout << "dtau_da_mod_diff = " << dtau_da_diff.norm() << std::endl;
+      throw std::runtime_error("dtau_da_mod is not correct");
+    }    
    
 
   }
