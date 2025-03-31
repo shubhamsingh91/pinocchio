@@ -38,6 +38,7 @@ namespace pinocchio
                      const Eigen::MatrixBase<TangentVectorType3> & lambda)
     {
       typedef typename Model::JointIndex JointIndex;
+      typedef typename Data::Force Force;
 
       const JointIndex i = jmodel.id();
       const JointIndex parent = model.parents[i];
@@ -62,8 +63,8 @@ namespace pinocchio
       data.a_gf[i] += data.liMi[i].actInv(data.a_gf[parent]);
 
       model.inertias[i].__mult__(data.v[i],data.h[i]);
-      model.inertias[i].__mult__(data.a_gf[i],data.f[i]);
-      data.f[i] += data.v[i].cross(data.h[i]); // body-frame spatial force
+
+      data.f[i] += data.v[i].cross(data.h[i]) + model.inertias[i]*data.a_gf[i]; // body-frame spatial force
 
       data.modtau += data.f[i].dot(data.w[i]); // joint torque contracted with w
     }
@@ -97,6 +98,7 @@ namespace pinocchio
     typename Pass1::ArgsType arg1(model,data,q.derived(),v.derived(),a.derived(),lambda.derived());
     for(JointIndex i=1; i<(JointIndex)model.njoints; ++i)
     {
+      data.f[i].setZero();
       Pass1::run(model.joints[i],data.joints[i],
                  arg1);
     }
@@ -133,9 +135,9 @@ namespace pinocchio
     typedef ModRneaForwardStep<Scalar,Options,JointCollectionTpl,ConfigVectorType,TangentVectorType1,TangentVectorType2,TangentVectorType3> Pass1;
     for(JointIndex i=1; i<(JointIndex)model.njoints; ++i)
     {
+      data.f[i] = -fext[i];
       Pass1::run(model.joints[i],data.joints[i],
                  typename Pass1::ArgsType(model,data,q.derived(),v.derived(),a.derived(),lambda.derived()));
-      data.f[i] -= fext[i];
     }
     
     return data.modtau;

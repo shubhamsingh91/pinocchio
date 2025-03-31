@@ -85,18 +85,6 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
   PINOCCHIO_ALIGNED_STD_VECTOR(VectorXd) lambdas (NBT);
   PINOCCHIO_ALIGNED_STD_VECTOR(VectorXd) mus (NBT);
   
-  
-  // for(size_t i=0;i<NBT;++i)
-  // {
-  //   qs[i]     = randomConfiguration(model,-qmax,qmax);
-  //   // qs[i]     = Eigen::VectorXd::Random(model.nv);
-  //   qdots[i]  = Eigen::VectorXd::Random(model.nv);
-  //   qddots[i] = Eigen::VectorXd::Random(model.nv);
-  //   taus[i] = Eigen::VectorXd::Random(model.nv);
-  //   lambdas[i] = Eigen::VectorXd::Random(model.nv);
-  //   mus[i] = Eigen::VectorXd::Random(model.nv);
-  // }
-
 
   for(size_t i=0;i<NBT;++i)
   {
@@ -112,6 +100,12 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
 
   SMOOTH(NBT)
   {
+    // randomizing fext
+    typedef PINOCCHIO_ALIGNED_STD_VECTOR(Force) ForceVector;
+    ForceVector fext((size_t)model.njoints);
+    for(ForceVector::iterator it = fext.begin(); it != fext.end(); ++it)
+      (*it).setRandom();
+
     // Compute modified ID
     rnea(model,data,qs[_smooth],qdots[_smooth],qddots[_smooth]); // ID
     taus[_smooth] = data.tau;
@@ -122,9 +116,8 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
 
     if (abs(diff_mod)>1e-6) 
     {
+      std::cout << "Accuracy check for modID = " << diff_mod << std::endl;
       throw std::runtime_error("modID is not correct");
-    std::cout << "modtau = " << modtau << 
-       "  , Accuracy check for modID = " << diff_mod << std::endl;
     }
 
     // compute Modified FD
@@ -135,11 +128,23 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
     double diff_modFD = modqdd - mus[_smooth].transpose()*qddot;
 
     if (abs(diff_modFD)>1e-6) {
+      std::cout << "Accuracy check for modFD = " << diff_modFD << std::endl;
       throw std::runtime_error("modFD is not correct");
-    std::cout << "modqdd = " << modqdd << 
-       "  , Accuracy check for modFD = " << diff_modFD << std::endl;
-
     }
+
+    // Compute Modified ID with fext as an argument
+    auto tau2 = rnea(model,data,qs[_smooth],qdots[_smooth],qddots[_smooth], fext); // ID with fext
+    auto modtau_fext = modrnea(model,data,qs[_smooth],qdots[_smooth],qddots[_smooth], lambdas[_smooth], fext); // Mod ID with fext
+
+    double diff_mod_fext = modtau_fext - lambdas[_smooth].transpose()*tau2; // Check if modID is correct
+
+    if (abs(diff_mod_fext)>1e-6) 
+    {
+      std::cout << "Accuracy check for modID with fext = " << diff_mod_fext << std::endl;
+      throw std::runtime_error("modID with fext is not correct");
+    }
+
+
 
     // compute Mod ID derivatives
     MatrixXd dtau_dq(MatrixXd::Zero(model.nv, model.nv));
@@ -185,6 +190,53 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
       std::cout << "dtau_da_mod_diff = " << dtau_da_diff.norm() << std::endl;
       throw std::runtime_error("dtau_da_mod is not correct");
     }    
+
+    // compute Modified ID derivatives with fext as an argument
+
+    MatrixXd dtau_dq_fext(MatrixXd::Zero(model.nv, model.nv));
+    MatrixXd dtau_dv_fext(MatrixXd::Zero(model.nv, model.nv));
+    MatrixXd dtau_da_fext(MatrixXd::Zero(model.nv, model.nv));
+
+    computeRNEADerivativesFaster(model,data,qs[_smooth],qdots[_smooth],qddots[_smooth], fext,
+                          dtau_dq_fext, dtau_dv_fext, dtau_da_fext);                 // ID derivatives with fext
+
+
+    dtau_da_fext.triangularView<Eigen::StrictlyLower>() = dtau_da_fext.transpose().triangularView<Eigen::StrictlyLower>();
+
+    VectorXd dtau_dq_mod_fext(VectorXd::Zero(model.nv));
+    VectorXd dtau_dv_mod_fext(VectorXd::Zero(model.nv));
+    VectorXd dtau_da_mod_fext(VectorXd::Zero(model.nv));
+
+    computeModRNEADerivatives(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth], lambdas[_smooth], fext,
+                              dtau_dq_mod_fext, dtau_dv_mod_fext, dtau_da_mod_fext); // Mod ID derivatives with fext
+
+    // Check if modID derivatives with fext are correct
+
+    Eigen::VectorXd dtau_dq_diff_fext = dtau_dq_mod_fext.transpose() - lambdas[_smooth].transpose()*dtau_dq_fext;
+    Eigen::VectorXd dtau_dv_diff_fext = dtau_dv_mod_fext.transpose() - lambdas[_smooth].transpose()*dtau_dv_fext;
+    Eigen::VectorXd dtau_da_diff_fext = dtau_da_mod_fext.transpose() - lambdas[_smooth].transpose()*dtau_da_fext;
+
+
+    std::cout << "dtau_dq_mod_diff_fext = " << dtau_dq_diff_fext.norm() << std::endl;
+    std::cout << "dtau_dv_mod_diff_fext = " << dtau_dv_diff_fext.norm() << std::endl;
+    std::cout << "dtau_da_mod_diff_fext = " << dtau_da_diff_fext.norm() << std::endl;
+
+    if (dtau_dq_diff_fext.norm()>1e-6) {
+      std::cout << "dtau_dq_mod_diff_fext = " << dtau_dq_diff_fext.norm() << std::endl;
+      throw std::runtime_error("dtau_dq_mod with fext is not correct");
+    }
+
+    if (dtau_dv_diff_fext.norm()>1e-6) 
+    {
+      std::cout << "dtau_dv_mod_diff_fext = " << dtau_dv_diff_fext.norm() << std::endl;
+      throw std::runtime_error("dtau_dv_mod with fext is not correct");
+    }
+
+    if (dtau_da_diff_fext.norm()>1e-6) 
+    {
+      std::cout << "dtau_da_mod_diff_fext = " << dtau_da_diff_fext.norm() << std::endl;
+      throw std::runtime_error("dtau_da_mod with fext is not correct");
+    }
    
 
   }
