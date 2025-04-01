@@ -395,9 +395,18 @@ namespace pinocchio
     
     /// \brief Partial derivative of the joint acceleration vector with respect to the joint configuration.
     MatrixXs ddq_dq;
-    
+
     /// \brief Partial derivative of the joint acceleration vector with respect to the joint velocity.
     MatrixXs ddq_dv;
+
+    /// \brief Partial derivative of the modified joint acceleration vector with respect to the joint configuration.
+    VectorXs ddq_dq_mod;
+
+    /// \brief Partial derivative of the modified joint acceleration vector with respect to the joint velocity.
+    VectorXs ddq_dv_mod;
+
+    /// \brief Partial derivative of the modified joint acceleration vector with respect to the joint torque.
+    VectorXs ddq_dtau_mod;
     
     /// \brief Vector of joint placements wrt to algorithm end effector.
     PINOCCHIO_ALIGNED_STD_VECTOR(SE3) iMf;
