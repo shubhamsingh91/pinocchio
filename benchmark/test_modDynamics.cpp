@@ -8,6 +8,7 @@
 #include "pinocchio/algorithm/modaba.hpp"
 #include "pinocchio/algorithm/rnea-derivatives-faster.hpp"
 #include "pinocchio/algorithm/mod-rnea-derivatives.hpp"
+#include "pinocchio/algorithm/mod-aba-derivatives.hpp"
 #include "pinocchio/algorithm/crba.hpp"
 #include "pinocchio/algorithm/cholesky.hpp"
 #include "pinocchio/parsers/urdf.hpp"
@@ -238,6 +239,17 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
       throw std::runtime_error("dtau_da_mod with fext is not correct");
     }
    
+
+   // Testing modFD derivatives
+
+   Eigen::VectorXd dqdd_dq_mod(VectorXd::Zero(model.nv));
+   Eigen::VectorXd dqdd_dv_mod(VectorXd::Zero(model.nv));
+   Eigen::VectorXd dqdd_dtau_mod(VectorXd::Zero(model.nv));
+
+  //  computeModABA derivatives
+
+   computeModABADerivatives(model, data, qs[_smooth], qdots[_smooth], taus[_smooth], lambdas[_smooth],
+                            dqdd_dq_mod, dqdd_dv_mod, dqdd_dtau_mod); // Mod FD derivatives
 
   }
    

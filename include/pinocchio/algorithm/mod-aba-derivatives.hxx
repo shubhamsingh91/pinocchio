@@ -9,6 +9,7 @@
 #include "pinocchio/algorithm/check.hpp"
 #include "pinocchio/algorithm/aba.hpp"
 #include "pinocchio/algorithm/mod-aba-derivatives.hpp"
+#include "pinocchio/algorithm/mod-rnea-derivatives.hpp"
 
 namespace pinocchio
 {
@@ -218,43 +219,23 @@ namespace pinocchio
     
     typedef ModelTpl<Scalar,Options,JointCollectionTpl> Model;
     typedef typename Model::JointIndex JointIndex;
-    
-    ModelTpl<Scalar, Options, JointCollectionTpl> mutable_model(model);  // make a copy
+
+    Motion original_gravity = model.gravity;
+    Model & mutable_model = const_cast<Model &>(model); // mutable_model is a reference to the original model
     mutable_model.gravity = MotionTpl<Scalar, Options>::Zero();
 
-    data.ddq = aba(mutable_model, data, q.derived(), v.derived(), tau.derived());
-
-    typename DataTpl<Scalar,Options,JointCollectionTpl>::Vector6c grav = model.gravity.toVector();
-
-    //zero out the gravity
-    model.gravity = MotionTpl<Scalar,Options>::Zero();
+    Eigen::VectorXd ddq = aba(mutable_model, data, q.derived(), v.derived(), tau.derived());
+    
+    mutable_model.gravity = original_gravity;
 
     auto mu = aba(model, data, q.derived(), v.derived()*0.0, tau.derived()*0.0);
-    
-    // restore the gravity
-    std::cout << "model.gravity = " << model.gravity.toVector_impl().transpose() << std::endl;
 
-    // model.gravity = grav;
-    // std::cout << "mu = " << mu << std::endl;
+    // computeModRNEADerivatives(model, data, q.derived(), v.derived(), data.ddq.derived(), (-mu).eval());
 
-    // data.oa_gf[0] = -model.gravity;
-    
-    // typedef ComputeModRNEADerivativesForwardStep<Scalar,Options,JointCollectionTpl,ConfigVectorType,TangentVectorType1,TangentVectorType2,TangentVectorType3> Pass1;
-    // for(JointIndex i=1; i<(JointIndex) model.njoints; ++i)
-    // {
-    //   Pass1::run(model.joints[i],data.joints[i],
-    //              typename Pass1::ArgsType(model,data,q.derived(),v.derived(),a.derived(),lambda.derived()));
-    // }
-    
-    // typedef ComputeModRNEADerivativesBackwardStep<Scalar,Options,JointCollectionTpl,VectorType1,VectorType2,VectorType3> Pass2;
-    // for(JointIndex i=(JointIndex)(model.njoints-1); i>0; --i)
-    // {
-    //   Pass2::run(model.joints[i],
-    //              typename Pass2::ArgsType(model,data,
-    //                                       PINOCCHIO_EIGEN_CONST_CAST(VectorType1,aba_partial_dq_mod),
-    //                                       PINOCCHIO_EIGEN_CONST_CAST(VectorType2,aba_partial_dv_mod),
-    //                                       PINOCCHIO_EIGEN_CONST_CAST(VectorType3,aba_partial_dtau_mod)));
-    // }
+    // aba_partial_dq_mod = data.dtau_dq_mod;
+    // aba_partial_dv_mod = data.dtau_dv_mod;
+    // aba_partial_dtau_mod = mu.derived();
+                              
   }
   
   template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl, typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2,
