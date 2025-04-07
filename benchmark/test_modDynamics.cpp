@@ -16,14 +16,23 @@
 #include "pinocchio/container/aligned-vector.hpp"
 #include <iostream>
 #include <fstream>
-
+#include <iomanip>
 #include "pinocchio/utils/timer.hpp"
 #include "pinocchio/utils/tensor_utils.hpp"
+
+void print_pretty(const std::string & str)
+{
+  std::cout << "\n##############################################" << std::endl;
+  std::cout << str << std::endl;
+  std::cout << "##############################################\n" << std::endl;
+}
 
 int main(int argc, const char ** argv)
 {
   using namespace Eigen;
   using namespace pinocchio;
+
+  // std::cout << std::fixed << std::setprecision(10); // Uncomment for more precision
 
   PinocchioTicToc timer(PinocchioTicToc::US);
   #ifdef SPEED
@@ -114,6 +123,8 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
     double modtau = modrnea(model,data,qs[_smooth],qdots[_smooth],qddots[_smooth], lambdas[_smooth]); // Mod ID
 
     double diff_mod = modtau - lambdas[_smooth].transpose()*taus[_smooth]; // Check if modID is correct
+    
+    print_pretty("mod ID");
 
     if (abs(diff_mod)>1e-6) 
     {
@@ -127,10 +138,23 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
     double modqdd = modaba(model,data,qs[_smooth],qdots[_smooth],taus[_smooth], mus[_smooth]); // Mod FD
 
     double diff_modFD = modqdd - mus[_smooth].transpose()*qddot;
-
+    print_pretty("mod FD");
     if (abs(diff_modFD)>1e-6) {
       std::cout << "Accuracy check for modFD = " << diff_modFD << std::endl;
       throw std::runtime_error("modFD is not correct");
+    }
+
+    // modified FD with fext
+    print_pretty("mod FD with fext");
+    Eigen::VectorXd qddot_fext = aba(model,data,qs[_smooth],qdots[_smooth],taus[_smooth], fext); // FD with fext
+
+    double modqdd_fext = modaba(model,data,qs[_smooth],qdots[_smooth],taus[_smooth], mus[_smooth], fext); // Mod FD with fext
+
+    double diff_modFD_fext = modqdd_fext - mus[_smooth].transpose()*qddot_fext; // Check if modFD with fext is correct
+    if (abs(diff_modFD_fext)>1e-6) 
+    {
+      std::cout << "Accuracy check for modFD with fext = " << diff_modFD_fext << std::endl;
+      throw std::runtime_error("modFD with fext is not correct");
     }
 
     // Compute Modified ID with fext as an argument
@@ -168,7 +192,7 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
     dtau_da_mod = data.M_mod;
 
     // Check if modID derivatives are correct
-
+    print_pretty("mod ID derivatives");
     Eigen::VectorXd dtau_dq_diff = dtau_dq_mod.transpose() - lambdas[_smooth].transpose()*dtau_dq;
     Eigen::VectorXd dtau_dv_diff = dtau_dv_mod.transpose() - lambdas[_smooth].transpose()*dtau_dv;
     Eigen::VectorXd dtau_da_diff = dtau_da_mod.transpose() - lambdas[_smooth].transpose()*dtau_da;
@@ -195,7 +219,7 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
     }    
 
     // compute Modified ID derivatives with fext as an argument
-
+    print_pretty("mod ID derivatives with fext");
     MatrixXd dtau_dq_fext(MatrixXd::Zero(model.nv, model.nv));
     MatrixXd dtau_dv_fext(MatrixXd::Zero(model.nv, model.nv));
     MatrixXd dtau_da_fext(MatrixXd::Zero(model.nv, model.nv));
@@ -210,8 +234,11 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
     VectorXd dtau_dv_mod_fext(VectorXd::Zero(model.nv));
     VectorXd dtau_da_mod_fext(VectorXd::Zero(model.nv));
 
-    computeModRNEADerivatives(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth], lambdas[_smooth], fext,
-                              dtau_dq_mod_fext, dtau_dv_mod_fext, dtau_da_mod_fext); // Mod ID derivatives with fext
+    computeModRNEADerivatives(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth], lambdas[_smooth], fext);
+    dtau_dq_mod_fext = data.dtau_dq_mod;
+    dtau_dv_mod_fext = data.dtau_dv_mod;
+    dtau_da_mod_fext = data.M_mod;
+
 
     // Check if modID derivatives with fext are correct
 
@@ -249,7 +276,7 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
    Eigen::VectorXd dqdd_dtau_mod(VectorXd::Zero(model.nv));
 
    //  computeModABA derivatives
-
+    print_pretty("mod FD derivatives");
     computeModABADerivatives(model, data, qs[_smooth], qdots[_smooth], taus[_smooth], lambdas[_smooth],
                             dqdd_dq_mod, dqdd_dv_mod, dqdd_dtau_mod); // Mod FD derivatives
 
@@ -264,6 +291,7 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
     const double alpha = 1e-7;
 
     double ddq_orig = modaba(model,data,qs[_smooth],qdots[_smooth],taus[_smooth], lambdas[_smooth]);
+
     // dABA/dq
     for(int k = 0; k < model.nv; ++k)
     {
@@ -322,9 +350,80 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
       throw std::runtime_error("dqdd_dtau_mod_fd is not correct");
     }
 
+     // Testing modFD derivatives with fext
+     print_pretty("mod FD derivatives with fext");
+     Eigen::VectorXd dqdd_dq_mod_fext(VectorXd::Zero(model.nv));
+     Eigen::VectorXd dqdd_dv_mod_fext(VectorXd::Zero(model.nv));
+     Eigen::VectorXd dqdd_dtau_mod_fext(VectorXd::Zero(model.nv));
 
+     computeModABADerivatives(model, data, qs[_smooth], qdots[_smooth], taus[_smooth], lambdas[_smooth], fext,
+                            dqdd_dq_mod_fext, dqdd_dv_mod_fext, dqdd_dtau_mod_fext); // Mod FD derivatives with fext
 
+    // Using ModABA derivatives using Finite differences with fext
 
+    // dABA/dq
+    Eigen::VectorXd dqdd_dq_mod_fd_fext(VectorXd::Zero(model.nv));
+    Eigen::VectorXd dqdd_dv_mod_fd_fext(VectorXd::Zero(model.nv));
+    Eigen::VectorXd dqdd_dtau_mod_fd_fext(VectorXd::Zero(model.nv));
+
+    double ddq_orig_fext = modaba(model,data,qs[_smooth],qdots[_smooth],taus[_smooth], lambdas[_smooth], fext);
+    v_eps.setZero();
+
+    for (int k = 0; k < model.nv; ++k)
+    {
+      v_eps[k] += alpha;
+      pinocchio::integrate(model,qs[_smooth],v_eps,q_plus);
+      double ddq_plus = modaba(model,data,q_plus, qdots[_smooth],taus[_smooth], lambdas[_smooth], fext);
+
+      dqdd_dq_mod_fd_fext[k] = (ddq_plus - ddq_orig_fext)/alpha;
+      v_eps[k] -= alpha;
+    }
+
+    // dABA/dv
+
+    for (int k = 0; k < model.nv; ++k)
+    {
+      v_plus[k] += alpha;
+      double ddq_plus = modaba(model,data,qs[_smooth],v_plus,taus[_smooth], lambdas[_smooth], fext);
+
+      dqdd_dv_mod_fd_fext[k] = (ddq_plus - ddq_orig_fext)/alpha;
+      v_plus[k] -= alpha;
+    }
+
+    // dABA/dtau
+
+    for (int k = 0; k < model.nv; ++k)
+    {
+      tau_plus[k] += alpha;
+      double ddq_plus = modaba(model,data,qs[_smooth],qdots[_smooth],tau_plus, lambdas[_smooth], fext);
+
+      dqdd_dtau_mod_fd_fext[k] = (ddq_plus - ddq_orig_fext)/alpha;
+      tau_plus[k] -= alpha;
+    }
+    
+    Eigen::VectorXd dqdd_dq_diff_fd_fext = dqdd_dq_mod_fd_fext - dqdd_dq_mod_fext;
+    Eigen::VectorXd dqdd_dv_diff_fd_fext = dqdd_dv_mod_fd_fext - dqdd_dv_mod_fext;
+    Eigen::VectorXd dqdd_dtau_diff_fd_fext = dqdd_dtau_mod_fd_fext - dqdd_dtau_mod_fext;
+
+    std::cout << "dqdd_dq_mod_fd_diff_fext = " << dqdd_dq_diff_fd_fext.norm() << std::endl;
+    std::cout << "dqdd_dv_mod_fd_diff_fext = " << dqdd_dv_diff_fd_fext.norm() << std::endl;
+    std::cout << "dqdd_dtau_mod_fd_diff_fext = " << dqdd_dtau_diff_fd_fext.norm() << std::endl;
+
+    if (dqdd_dq_diff_fd_fext.norm()> std::sqrt(alpha)) {
+      std::cout << "dqdd_dq_mod_fd_diff_fext = " << dqdd_dq_diff_fd_fext.norm() << std::endl;
+      throw std::runtime_error("dqdd_dq_mod_fd with fext is not correct");
+    }
+
+    if (dqdd_dv_diff_fd_fext.norm()>std::sqrt(alpha)) 
+    {
+      std::cout << "dqdd_dv_mod_fd_diff_fext = " << dqdd_dv_diff_fd_fext.norm() << std::endl;
+      throw std::runtime_error("dqdd_dv_mod_fd with fext is not correct");
+    }
+    if (dqdd_dtau_diff_fd_fext.norm()>std::sqrt(alpha)) 
+    {
+      std::cout << "dqdd_dtau_mod_fd_diff_fext = " << dqdd_dtau_diff_fd_fext.norm() << std::endl;
+      throw std::runtime_error("dqdd_dtau_mod_fd with fext is not correct");
+    }
 
 
 
