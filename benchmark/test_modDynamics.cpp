@@ -161,9 +161,11 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
     VectorXd dtau_dv_mod(VectorXd::Zero(model.nv));
     VectorXd dtau_da_mod(VectorXd::Zero(model.nv));
 
-    computeModRNEADerivatives(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth], lambdas[_smooth],
-                              dtau_dq_mod, dtau_dv_mod, dtau_da_mod); // Mod ID derivatives
+    computeModRNEADerivatives(model, data, qs[_smooth], qdots[_smooth], qddots[_smooth], lambdas[_smooth]);
 
+    dtau_dq_mod = data.dtau_dq_mod;
+    dtau_dv_mod = data.dtau_dv_mod;
+    dtau_da_mod = data.M_mod;
 
     // Check if modID derivatives are correct
 
@@ -246,12 +248,90 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
    Eigen::VectorXd dqdd_dv_mod(VectorXd::Zero(model.nv));
    Eigen::VectorXd dqdd_dtau_mod(VectorXd::Zero(model.nv));
 
-  //  computeModABA derivatives
+   //  computeModABA derivatives
 
-   computeModABADerivatives(model, data, qs[_smooth], qdots[_smooth], taus[_smooth], lambdas[_smooth],
+    computeModABADerivatives(model, data, qs[_smooth], qdots[_smooth], taus[_smooth], lambdas[_smooth],
                             dqdd_dq_mod, dqdd_dv_mod, dqdd_dtau_mod); // Mod FD derivatives
 
+    // Using ModABA derivatives using Finite differences
+
+    Eigen::VectorXd dqdd_dq_mod_fd(VectorXd::Zero(model.nv));
+    Eigen::VectorXd dqdd_dv_mod_fd(VectorXd::Zero(model.nv));
+    Eigen::VectorXd dqdd_dtau_mod_fd(VectorXd::Zero(model.nv));
+
+    VectorXd v_eps(VectorXd::Zero(model.nv));
+    VectorXd q_plus(model.nq);
+    const double alpha = 1e-7;
+
+    double ddq_orig = modaba(model,data,qs[_smooth],qdots[_smooth],taus[_smooth], lambdas[_smooth]);
+    // dABA/dq
+    for(int k = 0; k < model.nv; ++k)
+    {
+      v_eps[k] += alpha;
+      pinocchio::integrate(model,qs[_smooth],v_eps,q_plus);
+      double ddq_plus = modaba(model,data,q_plus,qdots[_smooth],taus[_smooth], lambdas[_smooth]);
+
+      dqdd_dq_mod_fd[k] = (ddq_plus - ddq_orig)/alpha;
+      v_eps[k] -= alpha;
+    }
+
+    // dABA/dv
+    VectorXd v_plus(qdots[_smooth]);
+    for(int k = 0; k < model.nv; ++k)
+    {
+      v_plus[k] += alpha;
+      double ddq_plus = modaba(model,data,qs[_smooth],v_plus,taus[_smooth], lambdas[_smooth]);
+
+      dqdd_dv_mod_fd[k] = (ddq_plus - ddq_orig)/alpha;
+      v_plus[k] -= alpha;
+    }
+
+    // dABA/dtau
+    VectorXd tau_plus(taus[_smooth]);
+    for(int k = 0; k < model.nv; ++k)
+    {
+      tau_plus[k] += alpha;
+      double ddq_plus = modaba(model,data,qs[_smooth],qdots[_smooth],tau_plus, lambdas[_smooth]);
+
+      dqdd_dtau_mod_fd[k] = (ddq_plus - ddq_orig)/alpha;
+      tau_plus[k] -= alpha;
+    }
+
+    Eigen::VectorXd dqdd_dq_diff_fd = dqdd_dq_mod_fd - dqdd_dq_mod;
+    Eigen::VectorXd dqdd_dv_diff_fd = dqdd_dv_mod_fd - dqdd_dv_mod;
+    Eigen::VectorXd dqdd_dtau_diff_fd = dqdd_dtau_mod_fd - dqdd_dtau_mod;
+
+    std::cout << "dqdd_dq_mod_fd_diff = " << dqdd_dq_diff_fd.norm() << std::endl;
+    std::cout << "dqdd_dv_mod_fd_diff = " << dqdd_dv_diff_fd.norm() << std::endl;
+    std::cout << "dqdd_dtau_mod_fd_diff = " << dqdd_dtau_diff_fd.norm() << std::endl;
+
+    if (dqdd_dq_diff_fd.norm()> std::sqrt(alpha)) {
+      std::cout << "dqdd_dq_mod_fd_diff = " << dqdd_dq_diff_fd.norm() << std::endl;
+      throw std::runtime_error("dqdd_dq_mod_fd is not correct");
+    }
+
+    if (dqdd_dv_diff_fd.norm()>std::sqrt(alpha)) 
+    {
+      std::cout << "dqdd_dv_mod_fd_diff = " << dqdd_dv_diff_fd.norm() << std::endl;
+      throw std::runtime_error("dqdd_dv_mod_fd is not correct");
+    }
+
+    if (dqdd_dtau_diff_fd.norm()>std::sqrt(alpha)) 
+    {
+      std::cout << "dqdd_dtau_mod_fd_diff = " << dqdd_dtau_diff_fd.norm() << std::endl;
+      throw std::runtime_error("dqdd_dtau_mod_fd is not correct");
+    }
+
+
+
+
+
+
+
+
+
   }
+
    
 
 

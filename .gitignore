@@ -6,3 +6,8 @@ coverage*
 .travis
 .vscode*
 *.sh
+# Ignore running_pinocchio
+running_pinocchio
+
+# Ignore sources.cmake
+sources.cmake

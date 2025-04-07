@@ -179,7 +179,7 @@ namespace pinocchio
     MatrixXs M;
 
     /// \brief The joint space inertia matrix (a square matrix of dim model.nv), contracted with lambda.
-    MatrixXs M_mod;
+    VectorXs M_mod;
     
     /// \brief The inverse of the joint space inertia matrix (a square matrix of dim model.nv).
     RowMatrixXs Minv;

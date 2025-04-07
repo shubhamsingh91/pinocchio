@@ -216,25 +216,29 @@ namespace pinocchio
     PINOCCHIO_CHECK_ARGUMENT_SIZE(aba_partial_dv_mod.rows(), model.nv);
     PINOCCHIO_CHECK_ARGUMENT_SIZE(aba_partial_dtau_mod.rows(), model.nv);
     assert(model.check(data) && "data is not consistent with model.");
+
+    VectorType1 & aba_partial_dq_mod_ = PINOCCHIO_EIGEN_CONST_CAST(VectorType1,aba_partial_dq_mod);
+    VectorType2 & aba_partial_dv_mod_ = PINOCCHIO_EIGEN_CONST_CAST(VectorType2,aba_partial_dv_mod);
+    VectorType3 & aba_partial_dtau_mod_ = PINOCCHIO_EIGEN_CONST_CAST(VectorType3,aba_partial_dtau_mod);
     
     typedef ModelTpl<Scalar,Options,JointCollectionTpl> Model;
     typedef typename Model::JointIndex JointIndex;
 
-    Motion original_gravity = model.gravity;
-    Model & mutable_model = const_cast<Model &>(model); // mutable_model is a reference to the original model
-    mutable_model.gravity = MotionTpl<Scalar, Options>::Zero();
+    pinocchio::Motion original_grav = model.gravity;
+    Model & mutable_model = const_cast<Model &>(model);
+    mutable_model.gravity = MotionTpl<double>::Zero();
 
-    Eigen::VectorXd ddq = aba(mutable_model, data, q.derived(), v.derived(), tau.derived());
+    Eigen::VectorXd mu = aba(mutable_model,data, q, v * 0.0,lambda);
+
+    mutable_model.gravity = original_grav;
+
+    Eigen::VectorXd ddq = aba(model, data, q, v, tau);
     
-    mutable_model.gravity = original_gravity;
+    computeModRNEADerivatives(model, data, q, v, ddq, -mu);
 
-    auto mu = aba(model, data, q.derived(), v.derived()*0.0, tau.derived()*0.0);
-
-    // computeModRNEADerivatives(model, data, q.derived(), v.derived(), data.ddq.derived(), (-mu).eval());
-
-    // aba_partial_dq_mod = data.dtau_dq_mod;
-    // aba_partial_dv_mod = data.dtau_dv_mod;
-    // aba_partial_dtau_mod = mu.derived();
+    aba_partial_dq_mod_ = data.dtau_dq_mod;
+    aba_partial_dv_mod_ = data.dtau_dv_mod;
+    aba_partial_dtau_mod_ = mu;
                               
   }
   
