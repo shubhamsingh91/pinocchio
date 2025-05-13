@@ -135,18 +135,18 @@ namespace pinocchio
     static void algo(const JointModelBase<JointModel> & jmodel,
                      const Model & model,
                      Data & data,
-                     const Eigen::MatrixBase<MatrixType1> & rnea_partial_dq_mod,
-                     const Eigen::MatrixBase<MatrixType2> & rnea_partial_dv_mod,
-                     const Eigen::MatrixBase<MatrixType3> & rnea_partial_da_mod)
+                     const Eigen::MatrixBase<MatrixType1> & rnea_partial_dqdq_mod,
+                     const Eigen::MatrixBase<MatrixType2> & rnea_partial_dvdv_mod,
+                     const Eigen::MatrixBase<MatrixType3> & rnea_partial_dvdq_mod)
     {
       typedef typename Model::JointIndex JointIndex;
         
         const JointIndex& i = jmodel.id();
         const JointIndex& parent = model.parents[i];
 
-        MatrixType1& rnea_partial_dq_mod_ = PINOCCHIO_EIGEN_CONST_CAST(MatrixType1,rnea_partial_dq_mod);
-        MatrixType2& rnea_partial_dv_mod_ = PINOCCHIO_EIGEN_CONST_CAST(MatrixType2,rnea_partial_dv_mod);
-        MatrixType3& rnea_partial_da_mod_ = PINOCCHIO_EIGEN_CONST_CAST(MatrixType3,rnea_partial_da_mod);
+        MatrixType1& rnea_partial_dqdq_mod_ = PINOCCHIO_EIGEN_CONST_CAST(MatrixType1,rnea_partial_dqdq_mod);
+        MatrixType2& rnea_partial_dvdv_mod_ = PINOCCHIO_EIGEN_CONST_CAST(MatrixType2,rnea_partial_dvdv_mod);
+        MatrixType3& rnea_partial_dvdq_mod_ = PINOCCHIO_EIGEN_CONST_CAST(MatrixType3,rnea_partial_dvdq_mod);
 
         typedef typename SizeDepType<JointModel::NV>::template ColsReturn<typename Data::Matrix6x>::Type ColsBlock;
 
@@ -162,17 +162,17 @@ namespace pinocchio
 
         motionSet::act(J_cols, data.of[i], tmp3); // S{i} x* f{i}
 
-        rnea_partial_dq_mod_.segment(joint_idx, joint_dofs).noalias()
-          = tmp3.transpose() * data.ow[parent].toVector() + 
-             dJ_cols.transpose() * data.oz[i].toVector() + 
-             ddJ_cols.transpose() * data.oh_lam[i].toVector();
+        // rnea_partial_dqdq_mod_.segment(joint_idx, joint_dofs).noalias()
+        //   = tmp3.transpose() * data.ow[parent].toVector() + 
+        //      dJ_cols.transpose() * data.oz[i].toVector() + 
+        //      ddJ_cols.transpose() * data.oh_lam[i].toVector();
 
-        rnea_partial_dv_mod_.segment(joint_idx, joint_dofs).noalias()
-          = vdJ_cols.transpose() * data.oh_lam[i].toVector()
-          + J_cols.transpose() * data.oz[i].toVector();
+        // rnea_partial_dvdv_mod_.segment(joint_idx, joint_dofs).noalias()
+        //   = vdJ_cols.transpose() * data.oh_lam[i].toVector()
+        //   + J_cols.transpose() * data.oz[i].toVector();
 
-        rnea_partial_da_mod_.segment(joint_idx, joint_dofs).noalias()
-          = J_cols.transpose() * data.oh_lam[i].toVector();  
+        // rnea_partial_dvdq_mod_.segment(joint_idx, joint_dofs).noalias()
+        //   = J_cols.transpose() * data.oh_lam[i].toVector();  
 
         if (parent > 0) {
             data.oz[parent] += data.oz[i];
@@ -215,7 +215,7 @@ namespace pinocchio
     PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dvdv_mod.rows(), model.nv);
     PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dvdv_mod.cols(), model.nv);
     PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dvdq_mod.rows(), model.nv);
-    PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_da_mod.rows(), model.nv);
+    PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dvdq_mod.rows(), model.nv);
     assert(model.check(data) && "data is not consistent with model.");
     
     typedef ModelTpl<Scalar,Options,JointCollectionTpl> Model;
