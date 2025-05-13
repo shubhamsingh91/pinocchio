@@ -389,6 +389,21 @@ namespace pinocchio
     
     /// \brief Partial derivative of the joint torque vector with respect to the joint configuration, contracted with a lambda vector.
     VectorXs dtau_dq_mod;
+
+    /// \brief Second-order Partial derivative of the joint torque vector with respect to the joint configuration, contracted with a lambda vector.
+    MatrixXs d2tau_dqdq_mod;
+
+    /// \brief Second-order Partial derivative of the joint torque vector with respect to the joint velocity, contracted with a lambda vector.
+    MatrixXs d2tau_dvdv_mod;
+
+    /// \brief Cross-Partial derivative of the joint torque vector with respect to the joint configuration/velocity, contracted with a lambda vector.
+    MatrixXs d2tau_dqdv_mod;
+
+    /// \brief Cross-Partial derivative of the joint torque vector with respect to the joint acceleration/configuration, contracted with a lambda vector.
+    MatrixXs d2tau_dadq_mod;
+
+    /// \brief Cross-Partial derivative of the joint torque vector with respect to the joint velocity/configuration, contracted with a lambda vector.
+    MatrixXs d2tau_dvdq_mod;
     
     /// \brief Partial derivative of the joint torque vector with respect to the joint velocity, contracted with a lambda vector.
     VectorXs dtau_dv_mod;
