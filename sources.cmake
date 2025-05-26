@@ -59,6 +59,7 @@ SET(${PROJECT_NAME}_CORE_PUBLIC_HEADERS
   include/pinocchio/algorithm/jacobian.hxx
   include/pinocchio/algorithm/rnea-derivatives.hpp
   include/pinocchio/algorithm/mod-rnea-derivatives.hpp
+  include/pinocchio/algorithm/mod-rnea-second-order-derivatives.hpp
   include/pinocchio/algorithm/mod-aba-derivatives.hpp
   include/pinocchio/algorithm/ID_FO_AZA.hpp
   include/pinocchio/algorithm/rnea-derivatives-faster.hpp
@@ -75,6 +76,7 @@ SET(${PROJECT_NAME}_CORE_PUBLIC_HEADERS
   include/pinocchio/algorithm/model.hpp
   include/pinocchio/algorithm/rnea-derivatives.hxx
   include/pinocchio/algorithm/mod-rnea-derivatives.hxx
+  include/pinocchio/algorithm/mod-rnea-second-order-derivatives.hxx
   include/pinocchio/algorithm/mod-aba-derivatives.hxx
   include/pinocchio/algorithm/rnea-derivatives-faster.hxx
   include/pinocchio/algorithm/spatial-force-derivatives.hxx

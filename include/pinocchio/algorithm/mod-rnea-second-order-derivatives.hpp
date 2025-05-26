@@ -83,7 +83,7 @@ namespace pinocchio
   template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl, typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2,
   typename TangentVectorType3, typename MatrixType1, typename MatrixType2, typename MatrixType3>
   inline void
-  ComputeModRNEASecondOrderDerivatives(const ModelTpl<Scalar,Options,JointCollectionTpl> & model,
+  cmputeModRNEASecondOrderDerivatives(const ModelTpl<Scalar,Options,JointCollectionTpl> & model,
                          DataTpl<Scalar,Options,JointCollectionTpl> & data,
                          const Eigen::MatrixBase<ConfigVectorType> & q,
                          const Eigen::MatrixBase<TangentVectorType1> & v,
@@ -116,14 +116,14 @@ namespace pinocchio
   ///
   template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl, typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2, typename TangentVectorType3>
   inline void
-  ComputeModRNEASecondOrderDerivatives(const ModelTpl<Scalar,Options,JointCollectionTpl> & model,
+  computeModRNEASecondOrderDerivatives(const ModelTpl<Scalar,Options,JointCollectionTpl> & model,
                          DataTpl<Scalar,Options,JointCollectionTpl> & data,
                          const Eigen::MatrixBase<ConfigVectorType> & q,
                          const Eigen::MatrixBase<TangentVectorType1> & v,
                          const Eigen::MatrixBase<TangentVectorType2> & a,
                          const Eigen::MatrixBase<TangentVectorType3> & lambda)
   {
-    ComputeModRNEASecondOrderDerivatives(model,data,q.derived(),v.derived(),a.derived(),lambda.derived(),
+    computeModRNEASecondOrderDerivatives(model,data,q.derived(),v.derived(),a.derived(),lambda.derived(),
                            data.d2tau_dqdq_mod, data.d2tau_dvdv_mod, data.d2tau_dvdq_mod);
   }
   
@@ -150,7 +150,7 @@ namespace pinocchio
   ///
   template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl, typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2, typename TangentVectorType3>
   inline void
-  ComputeModRNEASecondOrderDerivatives(const ModelTpl<Scalar,Options,JointCollectionTpl> & model,
+  computeModRNEASecondOrderDerivatives(const ModelTpl<Scalar,Options,JointCollectionTpl> & model,
                          DataTpl<Scalar,Options,JointCollectionTpl> & data,
                          const Eigen::MatrixBase<ConfigVectorType> & q,
                          const Eigen::MatrixBase<TangentVectorType1> & v,
@@ -158,7 +158,7 @@ namespace pinocchio
                          const Eigen::MatrixBase<TangentVectorType3> & lambda,
                          const container::aligned_vector< ForceTpl<Scalar,Options> > & fext)
   {
-    ComputeModRNEASecondOrderDerivatives(model,data,q.derived(),v.derived(),a.derived(),lambda.derived(),fext,
+    computeModRNEASecondOrderDerivatives(model,data,q.derived(),v.derived(),a.derived(),lambda.derived(),fext,
                            data.dtau_dqdq_mod, data.dtau_dvdv_mod, data.d2tau_dvdq_mod);
   }
 

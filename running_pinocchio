@@ -87,6 +87,7 @@ g++ test_spatial_force.cpp -DNDEBUG  -I /usr/include/eigen3 -O3 -I /usr/include 
 
 g++ test_modDynamics.cpp -DNDEBUG  -I /usr/include/eigen3 -O0 -I /usr/include -L /usr/local/lib -l pinocchio -ldl -o test_modDynamics
 
+g++ test_modDynamicsSO.cpp -DNDEBUG  -I /usr/include/eigen3 -O0 -I /usr/include -L /usr/local/lib -l pinocchio -ldl -o test_modDynamicsSO
 
 #-------------------------------------------------------------#
 #----- Sourcing files here
