@@ -390,6 +390,14 @@ namespace pinocchio
     /// \brief Partial derivative of the joint torque vector with respect to the joint configuration, contracted with a lambda vector.
     VectorXs dtau_dq_mod;
 
+    // first-order derivatives (6 × nv·njoints)
+    Matrix6x dv_dq, dv_dqd;
+    Matrix6x da_dq, dw_dq;
+    Matrix6x dh_dq, dz_dq, dz_dqd, df_dq;
+
+    // parent-propagation scratch
+    Matrix6x dv_dq_p, dv_dqd_p, da_dq_p, dw_dq_p;
+
     /// \brief Second-order Partial derivative of the joint torque vector with respect to the joint configuration, contracted with a lambda vector.
     MatrixXs d2tau_dqdq_mod;
 

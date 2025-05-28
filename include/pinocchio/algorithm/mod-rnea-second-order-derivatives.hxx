@@ -42,9 +42,28 @@ namespace pinocchio
         typedef typename Data::Motion Motion;
         typedef typename Data::Inertia Inertia;
         typedef typename Data::Coriolis Coriolis;
+        const JointIndex& i = jmodel.id();                         // joint index [1, model.njoints]
+        const JointIndex& parent = model.parents[i];               // parent joint index
+        const Eigen::DenseIndex nv = model.nv;                     // number of DoF in the tree
+        const JointIndex& j_idx = jmodel.idx_v();                  // start joint index 
+        const Eigen::Index joint_dofs = (Eigen::Index)jmodel.nv(); // number of dofs of the joint
 
-        const JointIndex& i = jmodel.id();
-        const JointIndex& parent = model.parents[i];
+
+        // Returns the corresponding column start index 
+        auto colStart = [nv](Eigen::DenseIndex b) constexpr -> Eigen::DenseIndex
+        {
+          return (b-1) * nv;          // 0-based
+        };
+        
+        Eigen::DenseIndex idx_i = colStart(i);          
+        std::cout << "----------------------------------------------" << std::endl;
+        std::cout <<  "i = " << i << std::endl;
+        std::cout << "parent " << parent << std::endl;
+        std::cout << "nv = " << nv << std::endl;
+        std::cout << "idx_i = " << idx_i << std::endl;
+        std::cout << "j_idx = " << j_idx << std::endl;
+        std::cout << "joint_dofs = " << joint_dofs << std::endl;
+
         Motion& ov = data.ov[i];
         Motion& oa = data.oa[i];
         Motion& ow = data.ow[i];
@@ -55,11 +74,26 @@ namespace pinocchio
 
         data.liMi[i] = model.jointPlacements[i] * jdata.M();
 
+        auto dv_dq_p  = data.dv_dq_p .middleCols(idx_i,nv); // dv_dq_p(:, i:i+nv)
+        auto da_dq_p  = data.da_dq_p .middleCols(idx_i,nv);
+        auto dw_dq_p  = data.dw_dq_p .middleCols(idx_i,nv);
+        auto dv_dqd_p = data.dv_dqd_p.middleCols(idx_i,nv);
+
+
         if (parent > 0) {
+            Eigen::DenseIndex idx_p = colStart(parent); // parent body
+            std::cout << "Parent idx_p = " << idx_p << std::endl;
+
             data.oMi[i] = data.oMi[parent] * data.liMi[i];
             ov = data.ov[parent];
             oa = data.oa[parent];
             ow = data.ow[parent];
+
+            dv_dq_p   = data.dv_dq .middleCols(idx_p,nv);
+            da_dq_p   = data.da_dq .middleCols(idx_p,nv);
+            dw_dq_p   = data.dw_dq .middleCols(idx_p,nv);
+            dv_dqd_p  = data.dv_dqd.middleCols(idx_p,nv);
+
         } else {
             data.oMi[i] = data.liMi[i];
             ov.setZero();
@@ -88,6 +122,14 @@ namespace pinocchio
         // vdJ
         motionSet::motionAction(vJ, J_cols, vdJ_cols);
         vdJ_cols.noalias() += dJ_cols + dJ_cols;
+
+        data.da_dq_p.middleCols(idx_i+j_idx,joint_dofs).noalias() = oa.toActionMatrix() * J_cols; 
+
+        if (parent > 0)
+        {
+          data.dv_dq_p.middleCols(idx_i+j_idx,joint_dofs).noalias() = ov.toActionMatrix() * J_cols;
+        
+        }
 
         // velocity and accelaration finishing
         ov += vJ;
@@ -162,17 +204,6 @@ namespace pinocchio
 
         motionSet::act(J_cols, data.of[i], tmp3); // S{i} x* f{i}
 
-        // rnea_partial_dqdq_mod_.segment(joint_idx, joint_dofs).noalias()
-        //   = tmp3.transpose() * data.ow[parent].toVector() + 
-        //      dJ_cols.transpose() * data.oz[i].toVector() + 
-        //      ddJ_cols.transpose() * data.oh_lam[i].toVector();
-
-        // rnea_partial_dvdv_mod_.segment(joint_idx, joint_dofs).noalias()
-        //   = vdJ_cols.transpose() * data.oh_lam[i].toVector()
-        //   + J_cols.transpose() * data.oz[i].toVector();
-
-        // rnea_partial_dvdq_mod_.segment(joint_idx, joint_dofs).noalias()
-        //   = J_cols.transpose() * data.oh_lam[i].toVector();  
 
         if (parent > 0) {
             data.oz[parent] += data.oz[i];

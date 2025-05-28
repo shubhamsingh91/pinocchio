@@ -39,11 +39,11 @@ int main(int argc, const char ** argv)
     
   std::vector<std::string> robot_name_vec;
 
-  robot_name_vec.push_back("double_pendulum"); // double pendulum
-  robot_name_vec.push_back("ur3_robot");       // UR3
+  // robot_name_vec.push_back("double_pendulum"); // double pendulum
+  // robot_name_vec.push_back("ur3_robot");       // UR3
   robot_name_vec.push_back("hyq");             // hyq
-  robot_name_vec.push_back("baxter_simple");   // baxter_simple
-  robot_name_vec.push_back("atlas");           // atlas
+  // robot_name_vec.push_back("baxter_simple");   // baxter_simple
+  // robot_name_vec.push_back("atlas");           // atlas
 
   char tmp[256];
   getcwd(tmp, 256); 
@@ -62,9 +62,9 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
     std ::string filename = "../models/" + robot_name + std::string(".urdf");
 
     bool with_ff = false; // All for only fixed-base models
-    if ((mm == 2) || (mm == 4) || (mm == 5)) {
-        with_ff = true; // True for hyQ and atlas, talos_full_v2
-    }
+    // if ((mm == 2) || (mm == 4) || (mm == 5)) {
+    with_ff = true; // True for hyQ and atlas, talos_full_v2
+    // }
     if (with_ff)
         pinocchio::urdf::buildModel(filename, JointModelFreeFlyer(), model);
     else
@@ -126,10 +126,6 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
     computeModRNEASecondOrderDerivatives(model, data, qs[_smooth], qdots[_smooth], 
                                         qddots[_smooth], lambdas[_smooth],
                                         dtau_dqq_mod, dtau_dvv_mod, dtau_dvq_mod);
-    
-    // dtau_dqq_mod = data.d2tau_dqdq_mod;
-    // dtau_dvv_mod = data.d2tau_dvdv_mod;
-    // dtau_dvq_mod = data.d2tau_dvdq_mod;
   
     // Running modID rnea derivatives
     computeModRNEADerivatives(model, data, qs[_smooth], qdots[_smooth], 
@@ -154,7 +150,11 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
       v_eps[k] -= alpha;
     }
 
-    std::cout << "dtau_dqq_mod_fd = " << dtau_dqq_mod_fd << std::endl;
+    // compare between analytical and finite-diff
+    MatrixXd dtau_dqq_mod_diff = dtau_dqq_mod - dtau_dqq_mod_fd;
+    
+    std::cout << "dtau_dqq_mod_diff = " << dtau_dqq_mod_diff.norm() << std::endl;
+
 
   }
 
