@@ -123,12 +123,12 @@ namespace pinocchio
         motionSet::motionAction(vJ, J_cols, vdJ_cols);
         vdJ_cols.noalias() += dJ_cols + dJ_cols;
 
-        data.da_dq_p.middleCols(idx_i+j_idx,joint_dofs).noalias() = oa.toActionMatrix() * J_cols; 
+        data.da_dq_p.middleCols(idx_i+j_idx,joint_dofs).noalias() = oa.toActionMatrix() * J_cols; // idx_i+j_idx, joint_dofs is equivalent to c_ii in MATLAB's version
 
         if (parent > 0)
         {
-          data.dv_dq_p.middleCols(idx_i+j_idx,joint_dofs).noalias() = ov.toActionMatrix() * J_cols;
-        
+          data.dv_dq_p.middleCols(idx_i+j_idx,joint_dofs).noalias() = ov.toActionMatrix() * J_cols; 
+          data.dw_dq_p.middleCols(idx_i+j_idx,joint_dofs).noalias() = ow.toActionMatrix() * J_cols;
         }
 
         // velocity and accelaration finishing
