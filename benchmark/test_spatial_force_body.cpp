@@ -31,6 +31,10 @@
 *  [[dfc2_dq1] [dfc2_dq2]  [dfc2_dqn]] - page 2 of tensor
 * .
 *  [[dfcn_dq1] [dfcn_dq2]  [dfcn_dqn]] - page n of tensor
+* Flags to compile 
+*  -DFO_DERIVS: to compute the first order derivatives of the spatial force
+*  -DSO_DERIVS: to compute the second order derivatives of the spatial force
+*  -DSPEED: to run the speed test
 */
 
 #ifdef FO_DERIVS
