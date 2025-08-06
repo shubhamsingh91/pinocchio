@@ -214,11 +214,16 @@ int main(int argc, const char ** argv)
               << std::endl;
   }
   int ee_link_id = model.getFrameId("ee_link");
+
+
+  getFrameVelocity(model,data,ee_link_id,WORLD);
+
   std::cout << "ee_link_id = " << ee_link_id << std::endl;
 
   std::cout << data.oMf.size() << " frames placements in data.oMf" << std::endl;
   std::cout << "data.oMf[ee_link_id] = " << data.oMf[ee_link_id].translation().transpose() << std::endl;
   std::cout << "data.oMf[ee_link_id] = " << data.oMf[ee_link_id].rotation().transpose() << std::endl;
+
  
   // running FK
   forwardKinematics(model,data,qs[NBT-1]);
@@ -226,8 +231,34 @@ int main(int argc, const char ** argv)
 
   std::cout << "data.oMf[ee_link_id] after FK= " << data.oMf[ee_link_id].translation().transpose() << std::endl;
   std::cout << "data.oMf[ee_link_id] after FK= " << data.oMf[ee_link_id].rotation().transpose() << std::endl;
+  // testing if data.liMi changes with q
 
+  std::cout << "data.liMi[3] = " << data.liMi[3].translation().transpose() << std::endl;
+  std::cout << "data.liMi[3] = " << data.liMi[3].rotation().transpose() << std::endl;
 
+  std::cout << "updating q" << std::endl;
+  qs[NBT-1] = Eigen::VectorXd::Ones(model.nq)*0.5;
+
+  forwardKinematics(model,data,qs[NBT-1],
+                    qdots[NBT-1]);
+  updateFramePlacements(model,data);
+
+  std::cout << "data.liMi[3] after q update = " << data.liMi[3].translation().transpose() << std::endl;
+  std::cout << "data.liMi[3] after q update = " << data.liMi[3].rotation().transpose() << std::endl;
+
+  std::cout << "-------------------------------------------------" << std::endl;
+
+  // print the data.v for all joints
+  std::cout << "data.v.size() = " << data.v.size() << std::endl;
+  for(JointIndex i=0; i<model.njoints; ++i)
+  {
+    std::cout << "data.v[" << i << "] = " << data.v[i].linear().transpose() << std::endl;
+    std::cout << "data.v[" << i << "] = " << data.v[i].angular().transpose() << std::endl;
+  }
+
+    getFrameVelocity(model,data,ee_link_id,WORLD);
+  std::cout << "data.v[ee_link_id] = " << data.v[ee_link_id].linear().transpose() << std::endl;
+  std::cout << "data.v[ee_link_id] = " << data.v[ee_link_id].angular().transpose() << std::endl;
 
 
   #ifdef FO_DERIVS

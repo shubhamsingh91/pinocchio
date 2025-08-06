@@ -25,11 +25,20 @@ namespace pinocchio
     
     // The following for loop starts by index 1 because the first frame is fixed
     // and corresponds to the universe.s
+    std::cout << "updateFramePlacements: " << model.nframes << " frames." << std::endl;
     for(FrameIndex i=1; i < (FrameIndex) model.nframes; ++i)
     {
       const Frame & frame = model.frames[i];
       const JointIndex & parent = frame.parent;
+      std::cout << "i = " << i << ", parent = " << parent << ", frame.name = " << frame.name << std::endl;
       data.oMf[i] = data.oMi[parent]*frame.placement;
+
+      if (i==20)
+      {
+        std::cout << "Frame " << i << " parent = " << parent << std::endl;
+        std::cout << "frame.placement = " << frame.placement.translation().transpose() << std::endl;
+        std::cout << "frame placement rotation = " << frame.placement.rotation().transpose() << std::endl;
+      }
     }
   }
   
@@ -76,6 +85,7 @@ namespace pinocchio
     const typename Model::Frame & frame = model.frames[frame_id];
     const typename Model::SE3 & oMi = data.oMi[frame.parent];
     const typename Model::Motion & v = data.v[frame.parent];
+    std::cout << "v = " << v.linear().transpose() << ", " << v.angular().transpose() << std::endl;
     switch(rf)
     {
       case LOCAL:
@@ -202,8 +212,8 @@ namespace pinocchio
         
         if(reference_frame == LOCAL_WORLD_ALIGNED)
         {
-          typename Data::SE3 & oMframe = data.oMf[frameId];
-          oMframe = data.oMi[joint_id] * frame.placement;
+          typename Data::SE3 & oMframe = data.oMf[frameId]; // oMframe is the placement of the frame in the world
+          oMframe = data.oMi[joint_id] * frame.placement; // computing oMf as oMi * placement, where oMi is the placement of the joint in the world, placement is transformation from joint to the frame
           
           Matrix6xLike & J_ = PINOCCHIO_EIGEN_CONST_CAST(Matrix6xLike,J);
           

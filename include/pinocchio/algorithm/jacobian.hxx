@@ -37,15 +37,17 @@ namespace pinocchio
       
       const JointIndex & i = jmodel.id();
       const JointIndex & parent = model.parents[i];
+      std::cout << " i = " << i << ", parent = " << parent << std::endl;
       
       jmodel.calc(jdata.derived(),q.derived());
       
-      data.liMi[i] = model.jointPlacements[i]*jdata.M();
+      data.liMi[i] = model.jointPlacements[i]*jdata.M(); // lambda(i) X  i
       if(parent>0) data.oMi[i] = data.oMi[parent]*data.liMi[i];
       else         data.oMi[i] = data.liMi[i];
       
       Matrix6xLike & J_ = PINOCCHIO_EIGEN_CONST_CAST(Matrix6xLike,J);
       jmodel.jointCols(J_) = data.oMi[i].act(jdata.S());
+      std::cout << "J_ = " << J_<< std::endl;
     }
   
   };
@@ -66,8 +68,10 @@ namespace pinocchio
     
     typedef JointJacobiansForwardStep<Scalar,Options,JointCollectionTpl,ConfigVectorType,Matrix6x> Pass;
     typedef typename Pass::ArgsType ArgsType;
+    std::cout << "Running computeJointJacobians with " << model.njoints << " joints." << std::endl;
     for(JointIndex i=1; i<(JointIndex) model.njoints; ++i)
     {
+      std::cout << " i = " << i << std::endl;
       Pass::run(model.joints[i],data.joints[i],
                 ArgsType(model,data,q.derived(),
                          PINOCCHIO_EIGEN_CONST_CAST(Matrix6x,data.J)));

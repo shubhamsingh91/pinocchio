@@ -55,7 +55,13 @@ namespace pinocchio
       const JointIndex & parent = model.parents[i];
 
       jmodel.calc(jdata.derived(),q.derived());
+      if (i==3)
+      {
+        std::cout << "Joint " << i << " parent = " << parent << std::endl;
+        std::cout << "model.jointPlacements[i] = " << model.jointPlacements[i].translation().transpose() << std::endl;
+        std::cout << "model.jointPlacements[i].rotation() = " << model.jointPlacements[i].rotation().transpose() << std::endl;
 
+      }
       data.liMi[i] = model.jointPlacements[i] * jdata.M();
 
       if (parent>0)
