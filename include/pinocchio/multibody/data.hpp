@@ -175,6 +175,9 @@ namespace pinocchio
         /// \brief Vector of sub-tree composite coriolis terms
     PINOCCHIO_ALIGNED_STD_VECTOR(Coriolis) oBcrb;
 
+    /// \brief Vector of sub-tree composite Composite coriolis term when qdot = -lambda.
+    PINOCCHIO_ALIGNED_STD_VECTOR(Coriolis) oDc;
+
     /// \brief The joint space inertia matrix (a square matrix of dim model.nv).
     MatrixXs M;
 
@@ -355,6 +358,9 @@ namespace pinocchio
       /// \brief Second derivative of the Jacobian with respect to the time.
     Matrix6x ddJ;
 
+      /// \brief  Similar to dJ but for the parent body moving and when qdot = lambda
+    Matrix6x Om; 
+
     /// \brief psidot Derivative of Jacobian w.r.t to the parent body moving
     /// v(p(j)) x Sj
     Matrix6x psid;
@@ -371,7 +377,8 @@ namespace pinocchio
     Matrix6x Ftmp2;
     Matrix6x Ftmp3;
     Matrix6x Ftmp4;
-    
+    Matrix6x Ftmp5;
+
     /// \brief Variation of the spatial velocity set with respect to the joint configuration.
     Matrix6x dVdq;
     

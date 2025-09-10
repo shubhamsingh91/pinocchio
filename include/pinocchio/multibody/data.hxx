@@ -45,6 +45,7 @@ namespace pinocchio
   , Ycrb((std::size_t)model.njoints,Inertia::Zero())
   , dYcrb((std::size_t)model.njoints,Inertia::Zero())
   , oBcrb((std::size_t)model.njoints, Coriolis::Zero())
+  , oDc((std::size_t)model.njoints, Coriolis::Zero())
   , M(MatrixXs::Zero(model.nv,model.nv))
   , M_mod(VectorXs::Zero(model.nv))
   , Minv(MatrixXs::Zero(model.nv,model.nv))
@@ -85,6 +86,7 @@ namespace pinocchio
   , J(Matrix6x::Zero(6,model.nv))
   , dJ(Matrix6x::Zero(6,model.nv))
   , ddJ(Matrix6x::Zero(6, model.nv))
+  , Om(Matrix6x::Zero(6, model.nv))
   , psid(Matrix6x::Zero(6, model.nv))
   , psidd(Matrix6x::Zero(6, model.nv))
   , vdJ(Matrix6x::Zero(6, model.nv))
@@ -92,6 +94,7 @@ namespace pinocchio
   , Ftmp2(Matrix6x::Zero(6, model.nv))
   , Ftmp3(Matrix6x::Zero(6, model.nv))
   , Ftmp4(Matrix6x::Zero(6, model.nv))
+  , Ftmp5(Matrix6x::Zero(6, model.nv))
   , dVdq(Matrix6x::Zero(6,model.nv))
   , dAdq(Matrix6x::Zero(6,model.nv))
   , dAdv(Matrix6x::Zero(6,model.nv))
@@ -323,6 +326,7 @@ namespace pinocchio
     && data1.J == data2.J
     && data1.dJ == data2.dJ
     && data1.ddJ == data2.ddJ
+    && data1.Om == data2.Om
     && data1.psid == data2.psid
     && data1.psidd == data2.psidd
     && data1.dVdq == data2.dVdq

@@ -63,7 +63,7 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
 
     bool with_ff = false; // All for only fixed-base models
     // if ((mm == 2) || (mm == 4) || (mm == 5)) {
-    with_ff = true; // True for hyQ and atlas, talos_full_v2
+    // with_ff = true; // True for hyQ and atlas, talos_full_v2
     // }
     if (with_ff)
         pinocchio::urdf::buildModel(filename, JointModelFreeFlyer(), model);
@@ -111,6 +111,10 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
     VectorXd dtau_dv_mod_orig(VectorXd::Zero(model.nv));
     VectorXd dtau_da_mod_orig(VectorXd::Zero(model.nv));
 
+    VectorXd dtau_dq_mod_plus(VectorXd::Zero(model.nv));
+    VectorXd dtau_dv_mod_plus(VectorXd::Zero(model.nv));
+    VectorXd dtau_da_mod_plus(VectorXd::Zero(model.nv));
+
     // SO derivs of mod-ID using finite-diff
     MatrixXd dtau_dqq_mod_fd(MatrixXd::Zero(model.nv, model.nv));
     MatrixXd dtau_dvv_mod_fd(MatrixXd::Zero(model.nv, model.nv));
@@ -137,24 +141,40 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
 
     VectorXd v_eps(VectorXd::Zero(model.nv));
     VectorXd q_plus(model.nq);
-    const double alpha = 1e-7;
+    const double alpha = 1e-6;
    
     // SO partial derivatives of modID using finite-differences
+    // for(int k = 0; k < model.nv; ++k)
+    // {
+    //   v_eps[k] += alpha;
+    //   pinocchio::integrate(model,qs[_smooth],v_eps,q_plus);
+    //   computeModRNEADerivatives(model, data, q_plus, qdots[_smooth], 
+    //                             qddots[_smooth], lambdas[_smooth]);
+    //   dtau_dqq_mod_fd.col(k) = (data.dtau_dq_mod - dtau_dq_mod_orig)/alpha;
+    //   v_eps[k] -= alpha;
+    // }
+
+    VectorXd v_plus(qdots[_smooth]);
+
     for(int k = 0; k < model.nv; ++k)
     {
-      v_eps[k] += alpha;
-      pinocchio::integrate(model,qs[_smooth],v_eps,q_plus);
-      computeModRNEADerivatives(model, data, q_plus, qdots[_smooth], 
-                                qddots[_smooth], lambdas[_smooth]);
-      dtau_dqq_mod_fd.col(k) = (data.dtau_dq_mod - dtau_dq_mod_orig)/alpha;
-      v_eps[k] -= alpha;
+      v_plus[k] += alpha;
+      computeModRNEADerivatives(model, data, qs[_smooth], v_plus, 
+                                qddots[_smooth], lambdas[_smooth], 
+                                dtau_dq_mod_plus, dtau_dv_mod_plus, dtau_da_mod_plus);
+
+      dtau_dvv_mod_fd.col(k) = (dtau_dv_mod_plus - dtau_dv_mod_orig)/alpha;
+      v_plus[k] -= alpha;
     }
 
     // compare between analytical and finite-diff
     MatrixXd dtau_dqq_mod_diff = dtau_dqq_mod - dtau_dqq_mod_fd;
+    MatrixXd dtau_dvv_mod_diff = dtau_dvv_mod - dtau_dvv_mod_fd;
     
-    std::cout << "dtau_dqq_mod_diff = " << dtau_dqq_mod_diff.norm() << std::endl;
-
+    // std::cout << "dtau_dqq_mod_diff = " << dtau_dqq_mod_diff.norm() << std::endl;
+    std::cout << "dtau_dvv_mod = \n" << dtau_dvv_mod << std::endl;
+    std::cout << "dtau_dvv_mod_fd \n= " << dtau_dvv_mod_fd << std::endl;
+    std::cout << "dtau_dvv_mod_diff = " << dtau_dvv_mod_diff.norm() << std::endl;
 
   }
 
