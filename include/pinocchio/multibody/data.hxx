@@ -95,6 +95,8 @@ namespace pinocchio
   , Ftmp3(Matrix6x::Zero(6, model.nv))
   , Ftmp4(Matrix6x::Zero(6, model.nv))
   , Ftmp5(Matrix6x::Zero(6, model.nv))
+  , Ftmp6(Matrix6x::Zero(6, model.nv))
+  , Ftmp7(Matrix6x::Zero(6, model.nv))
   , dVdq(Matrix6x::Zero(6,model.nv))
   , dAdq(Matrix6x::Zero(6,model.nv))
   , dAdv(Matrix6x::Zero(6,model.nv))
