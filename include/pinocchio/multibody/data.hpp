@@ -380,6 +380,7 @@ namespace pinocchio
     Matrix6x Ftmp5;
     Matrix6x Ftmp6;  // For F6 in SO derivatives
     Matrix6x Ftmp7;  // For F7 in SO derivatives
+    Matrix6x Ftmp8;  // For F8 = Ic*S in SO derivatives (dtau_qa)
 
     /// \brief Variation of the spatial velocity set with respect to the joint configuration.
     Matrix6x dVdq;

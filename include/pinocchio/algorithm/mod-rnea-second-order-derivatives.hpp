@@ -39,6 +39,22 @@ namespace pinocchio
   ///
   /// \sa pinocchio::rnea
   ///
+  // 4-matrix version (includes dqa = ∂M_mod/∂q)
+  template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl, typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2,
+  typename TangentVectorType3, typename MatrixType1, typename MatrixType2, typename MatrixType3, typename MatrixType4>
+  inline void
+  computeModRNEASecondOrderDerivatives(const ModelTpl<Scalar,Options,JointCollectionTpl> & model,
+                         DataTpl<Scalar,Options,JointCollectionTpl> & data,
+                         const Eigen::MatrixBase<ConfigVectorType> & q,
+                         const Eigen::MatrixBase<TangentVectorType1> & v,
+                         const Eigen::MatrixBase<TangentVectorType2> & a,
+                         const Eigen::MatrixBase<TangentVectorType3> & lambda,
+                         const Eigen::MatrixBase<MatrixType1> & rnea_partial_dqq_mod,
+                         const Eigen::MatrixBase<MatrixType2> & rnea_partial_dvv_mod,
+                         const Eigen::MatrixBase<MatrixType3> & rnea_partial_dvq_mod,
+                         const Eigen::MatrixBase<MatrixType4> & rnea_partial_dqa_mod);
+
+  // 3-matrix version (backward compatible, discards dqa)
   template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl, typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2,
   typename TangentVectorType3, typename MatrixType1, typename MatrixType2, typename MatrixType3>
   inline void
@@ -51,7 +67,7 @@ namespace pinocchio
                          const Eigen::MatrixBase<MatrixType1> & rnea_partial_dqq_mod,
                          const Eigen::MatrixBase<MatrixType2> & rnea_partial_dvv_mod,
                          const Eigen::MatrixBase<MatrixType3> & rnea_partial_dvq_mod);
-  
+
   ///
   /// \brief Computes the derivatives of the Recursive Newton Euler Algorithms
   ///        with respect to the joint configuration, the joint velocity and the joint acceleration.

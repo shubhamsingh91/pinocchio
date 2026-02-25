@@ -112,6 +112,7 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
     MatrixXd dtau_dqq_mod(MatrixXd::Zero(model.nv, model.nv));
     MatrixXd dtau_dvv_mod(MatrixXd::Zero(model.nv, model.nv));
     MatrixXd dtau_dvq_mod(MatrixXd::Zero(model.nv, model.nv));
+    MatrixXd dtau_qa_mod(MatrixXd::Zero(model.nv, model.nv));
 
     // SO derivs of mod-ID using finite-diff
     MatrixXd dtau_dqq_mod_fd(MatrixXd::Zero(model.nv, model.nv));
@@ -119,11 +120,11 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
     MatrixXd dtau_dvq_mod_fd(MatrixXd::Zero(model.nv, model.nv));
     MatrixXd dtau_qa_mod_fd(MatrixXd::Zero(model.nv, model.nv));
 
-    // Compute SO derivatives analytically
+    // Compute SO derivatives analytically (4-matrix version: dqq, dvv, dqv, dqa)
     print_pretty("mod ID SO derivatives");
     computeModRNEASecondOrderDerivatives(model, data, qs[_smooth], qdots[_smooth],
                                         qddots[_smooth], lambdas[_smooth],
-                                        dtau_dqq_mod, dtau_dvv_mod, dtau_dvq_mod);
+                                        dtau_dqq_mod, dtau_dvv_mod, dtau_dvq_mod, dtau_qa_mod);
 
     // Compute FO derivatives at nominal point (needed for FD of SO)
     computeModRNEADerivatives(model, data, qs[_smooth], qdots[_smooth],
@@ -219,32 +220,7 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
     // ===================== dtau_qa = ∂²(λτ)/(∂q∂a) = ∂M_mod/∂q =====================
     print_pretty("mod ID SO derivatives: dtau_qa");
 
-    // Analytical: τ is linear in a, so dtau_dq_mod(q,v,e_j,λ) - dtau_dq_mod(q,v,0,λ)
-    // gives exactly λ^T * (∂M/∂q) * e_j = dtau_qa(:,j)
-    MatrixXd dtau_qa_mod(MatrixXd::Zero(model.nv, model.nv));
-    VectorXd a_zero = VectorXd::Zero(model.nv);
-    VectorXd a_ej = VectorXd::Zero(model.nv);
-    VectorXd dtau_dq_base(VectorXd::Zero(model.nv));
-    VectorXd dtau_dq_ej(VectorXd::Zero(model.nv));
-    VectorXd dtau_dv_tmp(VectorXd::Zero(model.nv));
-    VectorXd dtau_da_tmp(VectorXd::Zero(model.nv));
-
-    // Base: a = 0
-    computeModRNEADerivatives(model, data, qs[_smooth], qdots[_smooth],
-                              a_zero, lambdas[_smooth],
-                              dtau_dq_base, dtau_dv_tmp, dtau_da_tmp);
-
-    for(int j = 0; j < model.nv; ++j)
-    {
-      a_ej[j] = 1.0;
-      computeModRNEADerivatives(model, data, qs[_smooth], qdots[_smooth],
-                                a_ej, lambdas[_smooth],
-                                dtau_dq_ej, dtau_dv_tmp, dtau_da_tmp);
-      dtau_qa_mod.col(j) = dtau_dq_ej - dtau_dq_base;
-      a_ej[j] = 0.0;
-    }
-
-    // dtau_qa_mod(i,j) = ∂²(λτ)/(∂q_i ∂a_j)
+    // dtau_qa_mod(i,j) = ∂²(λτ)/(∂q_i ∂a_j) — computed analytically by SO algorithm
     // dtau_qa_mod_fd(j,k) = ∂M_mod_j/∂q_k = ∂²(λτ)/(∂a_j ∂q_k)
     // By Schwarz: dtau_qa_mod = dtau_qa_mod_fd^T
     double qa_err = (dtau_qa_mod - dtau_qa_mod_fd.transpose()).norm();

@@ -124,36 +124,39 @@ namespace pinocchio
     
   };
   
-  template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl, typename MatrixType1, typename MatrixType2, typename MatrixType3>
+  template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl, typename MatrixType1, typename MatrixType2, typename MatrixType3, typename MatrixType4>
   struct computeModRNEASecondOrderDerivativesBackwardStep
-  : public fusion::JointUnaryVisitorBase<computeModRNEASecondOrderDerivativesBackwardStep<Scalar,Options,JointCollectionTpl,MatrixType1,MatrixType2,MatrixType3> >
+  : public fusion::JointUnaryVisitorBase<computeModRNEASecondOrderDerivativesBackwardStep<Scalar,Options,JointCollectionTpl,MatrixType1,MatrixType2,MatrixType3,MatrixType4> >
   {
     typedef ModelTpl<Scalar,Options,JointCollectionTpl> Model;
     typedef DataTpl<Scalar,Options,JointCollectionTpl> Data;
-    
+
     typedef boost::fusion::vector<const Model &,
                                   Data &,
                                   const MatrixType1 &,
                                   const MatrixType2 &,
-                                  const MatrixType3 &
+                                  const MatrixType3 &,
+                                  const MatrixType4 &
                                   > ArgsType;
-    
+
     template<typename JointModel>
     static void algo(const JointModelBase<JointModel> & jmodel,
                      const Model & model,
                      Data & data,
                      const Eigen::MatrixBase<MatrixType1> & rnea_partial_dqdq_mod,
                      const Eigen::MatrixBase<MatrixType2> & rnea_partial_dvdv_mod,
-                     const Eigen::MatrixBase<MatrixType3> & rnea_partial_dvdq_mod)
+                     const Eigen::MatrixBase<MatrixType3> & rnea_partial_dvdq_mod,
+                     const Eigen::MatrixBase<MatrixType4> & rnea_partial_dqa_mod)
     {
       typedef typename Model::JointIndex JointIndex;
-        
+
         const JointIndex& i = jmodel.id();
         const JointIndex& parent = model.parents[i];
 
         MatrixType1& rnea_partial_dqdq_mod_ = PINOCCHIO_EIGEN_CONST_CAST(MatrixType1,rnea_partial_dqdq_mod);
         MatrixType2& rnea_partial_dvdv_mod_ = PINOCCHIO_EIGEN_CONST_CAST(MatrixType2,rnea_partial_dvdv_mod);
         MatrixType3& rnea_partial_dvdq_mod_ = PINOCCHIO_EIGEN_CONST_CAST(MatrixType3,rnea_partial_dvdq_mod);
+        MatrixType4& rnea_partial_dqa_mod_ = PINOCCHIO_EIGEN_CONST_CAST(MatrixType4,rnea_partial_dqa_mod);
 
         typedef typename SizeDepType<JointModel::NV>::template ColsReturn<typename Data::Matrix6x>::Type ColsBlock;
 
@@ -264,6 +267,33 @@ namespace pinocchio
               + data.Ftmp7.middleCols(successor_idx, successor_dofs).transpose() * vdJ_cols;
         }
 
+        // ===================== dmod_dqa computation =====================
+        // dmod_dqa(m,j) = ∂²(λτ)/(∂q_m ∂a_j) = ∂M_mod_j/∂q_m
+        // Convention: row = q direction, col = a direction (same as dqv)
+        // F8(:,ii) = Ic_i^{comp} * S(:,ii)
+        ColsBlock tmp8 = jmodel.jointCols(data.Ftmp8);
+        motionSet::inertiaAction(data.oYcrb[i], J_cols, tmp8);
+
+        // Case 3: m in subtree(j=i), dqa(m,j) = S_j^T * F7(:,m)
+        // Block (jj, ii): rows = subtree q-indices, cols = joint i a-indices
+        rnea_partial_dqa_mod_.block(joint_idx, joint_idx, subtree_dofs, joint_dofs).noalias()
+          = data.Ftmp7.middleCols(joint_idx, subtree_dofs).transpose() * J_cols;
+
+        // Diagonal correction for multi-DOF joints (j=m same joint):
+        // F7(:,i)^T * S_i includes hphi^T * S = (icrf(h)*S)^T * S, but the ∂S_i/∂q_i
+        // contribution cancels it. Since icrf(h) is antisymmetric, hphi^T*S ≠ S^T*hphi.
+        // For single-DOF joints hphi^T*S=0 (v×*f)^T*v=0), but for multi-DOF (free-flyer)
+        // the off-diagonal elements are nonzero. We subtract hphi^T * S (= tmp1^T * J_cols).
+        rnea_partial_dqa_mod_.block(joint_idx, joint_idx, joint_dofs, joint_dofs).noalias()
+          -= tmp1.transpose() * J_cols;  // subtract hphi^T * S
+
+        // Case 2: j in subtree(m=i), dqa(m,j) = S_j^T * Ic_j * Om_m
+        // Block (ii, kk): rows = joint i q-indices, cols = successor a-indices
+        if (successor_dofs > 0) {
+            rnea_partial_dqa_mod_.block(joint_idx, successor_idx, joint_dofs, successor_dofs).noalias()
+              = Om_cols.transpose() * data.Ftmp8.middleCols(successor_idx, successor_dofs);
+        }
+
         if (parent > 0) {
             data.oz[parent] += data.oz[i];
             data.oh_lam[parent] += data.oh_lam[i];
@@ -286,6 +316,60 @@ namespace pinocchio
     }
   };
   
+  // 4-matrix version (with dqa output)
+  template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl, typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2,
+  typename TangentVectorType3, typename MatrixType1, typename MatrixType2, typename MatrixType3, typename MatrixType4>
+  inline void
+  computeModRNEASecondOrderDerivatives(const ModelTpl<Scalar,Options,JointCollectionTpl> & model,
+                         DataTpl<Scalar,Options,JointCollectionTpl> & data,
+                         const Eigen::MatrixBase<ConfigVectorType> & q,
+                         const Eigen::MatrixBase<TangentVectorType1> & v,
+                         const Eigen::MatrixBase<TangentVectorType2> & a,
+                         const Eigen::MatrixBase<TangentVectorType3> & lambda,
+                         const Eigen::MatrixBase<MatrixType1> & rnea_partial_dqdq_mod,
+                         const Eigen::MatrixBase<MatrixType2> & rnea_partial_dvdv_mod,
+                         const Eigen::MatrixBase<MatrixType3> & rnea_partial_dvdq_mod,
+                         const Eigen::MatrixBase<MatrixType4> & rnea_partial_dqa_mod)
+  {
+    PINOCCHIO_CHECK_ARGUMENT_SIZE(q.size(), model.nq, "The joint configuration vector is not of right size");
+    PINOCCHIO_CHECK_ARGUMENT_SIZE(v.size(), model.nv, "The joint velocity vector is not of right size");
+    PINOCCHIO_CHECK_ARGUMENT_SIZE(a.size(), model.nv, "The joint acceleration vector is not of right size");
+    PINOCCHIO_CHECK_ARGUMENT_SIZE(lambda.size(), model.nv, "The input vector is not of right size");
+    PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dqdq_mod.rows(), model.nv);
+    PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dqdq_mod.cols(), model.nv);
+    PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dvdv_mod.rows(), model.nv);
+    PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dvdv_mod.cols(), model.nv);
+    PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dvdq_mod.rows(), model.nv);
+    PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dvdq_mod.rows(), model.nv);
+    PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dqa_mod.rows(), model.nv);
+    PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dqa_mod.cols(), model.nv);
+    assert(model.check(data) && "data is not consistent with model.");
+
+    typedef ModelTpl<Scalar,Options,JointCollectionTpl> Model;
+    typedef typename Model::JointIndex JointIndex;
+
+    data.oa_gf[0] = -model.gravity;
+
+    typedef computeModRNEASecondOrderDerivativesForwardStep<Scalar,Options,JointCollectionTpl,ConfigVectorType,TangentVectorType1,TangentVectorType2,TangentVectorType3> Pass1;
+    for(JointIndex i=1; i<(JointIndex) model.njoints; ++i)
+    {
+      Pass1::run(model.joints[i],data.joints[i],
+                 typename Pass1::ArgsType(model,data,q.derived(),v.derived(),a.derived(),lambda.derived()));
+    }
+
+    typedef computeModRNEASecondOrderDerivativesBackwardStep<Scalar,Options,JointCollectionTpl,MatrixType1,MatrixType2,MatrixType3,MatrixType4> Pass2;
+    for(JointIndex i=(JointIndex)(model.njoints-1); i>0; --i)
+    {
+      Pass2::run(model.joints[i],
+                 typename Pass2::ArgsType(model,data,
+                                          PINOCCHIO_EIGEN_CONST_CAST(MatrixType1,rnea_partial_dqdq_mod),
+                                          PINOCCHIO_EIGEN_CONST_CAST(MatrixType2,rnea_partial_dvdv_mod),
+                                          PINOCCHIO_EIGEN_CONST_CAST(MatrixType3,rnea_partial_dvdq_mod),
+                                          PINOCCHIO_EIGEN_CONST_CAST(MatrixType4,rnea_partial_dqa_mod)));
+    }
+  }
+
+  // 3-matrix version (backward compatible, discards dqa)
   template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl, typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2,
   typename TangentVectorType3, typename MatrixType1, typename MatrixType2, typename MatrixType3>
   inline void
@@ -299,41 +383,70 @@ namespace pinocchio
                          const Eigen::MatrixBase<MatrixType2> & rnea_partial_dvdv_mod,
                          const Eigen::MatrixBase<MatrixType3> & rnea_partial_dvdq_mod)
   {
+    typedef typename Eigen::Matrix<Scalar,Eigen::Dynamic,Eigen::Dynamic> MatrixXs;
+    MatrixXs dummy_dqa = MatrixXs::Zero(model.nv, model.nv);
+    computeModRNEASecondOrderDerivatives(model, data, q, v, a, lambda,
+                                         rnea_partial_dqdq_mod, rnea_partial_dvdv_mod,
+                                         rnea_partial_dvdq_mod, dummy_dqa);
+  }
+
+  // 4-matrix version with fext
+  template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl, typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2,
+  typename TangentVectorType3, typename MatrixType1, typename MatrixType2, typename MatrixType3, typename MatrixType4>
+  inline void
+  computeModRNEASecondOrderDerivatives(const ModelTpl<Scalar,Options,JointCollectionTpl> & model,
+                         DataTpl<Scalar,Options,JointCollectionTpl> & data,
+                         const Eigen::MatrixBase<ConfigVectorType> & q,
+                         const Eigen::MatrixBase<TangentVectorType1> & v,
+                         const Eigen::MatrixBase<TangentVectorType2> & a,
+                         const Eigen::MatrixBase<TangentVectorType3> & lambda,
+                         const container::aligned_vector< ForceTpl<Scalar,Options> > & fext,
+                         const Eigen::MatrixBase<MatrixType1> & rnea_partial_dqdq_mod,
+                         const Eigen::MatrixBase<MatrixType2> & rnea_partial_dvdv_mod,
+                         const Eigen::MatrixBase<MatrixType3> & rnea_partial_dvdq_mod,
+                         const Eigen::MatrixBase<MatrixType4> & rnea_partial_dqa_mod)
+  {
     PINOCCHIO_CHECK_ARGUMENT_SIZE(q.size(), model.nq, "The joint configuration vector is not of right size");
     PINOCCHIO_CHECK_ARGUMENT_SIZE(v.size(), model.nv, "The joint velocity vector is not of right size");
     PINOCCHIO_CHECK_ARGUMENT_SIZE(a.size(), model.nv, "The joint acceleration vector is not of right size");
     PINOCCHIO_CHECK_ARGUMENT_SIZE(lambda.size(), model.nv, "The input vector is not of right size");
+    PINOCCHIO_CHECK_ARGUMENT_SIZE(fext.size(), (size_t)model.njoints, "The size of the external forces is not of right size");
     PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dqdq_mod.rows(), model.nv);
     PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dqdq_mod.cols(), model.nv);
     PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dvdv_mod.rows(), model.nv);
     PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dvdv_mod.cols(), model.nv);
     PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dvdq_mod.rows(), model.nv);
-    PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dvdq_mod.rows(), model.nv);
+    PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dvdq_mod.cols(), model.nv);
+    PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dqa_mod.rows(), model.nv);
+    PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dqa_mod.cols(), model.nv);
     assert(model.check(data) && "data is not consistent with model.");
-    
+
     typedef ModelTpl<Scalar,Options,JointCollectionTpl> Model;
     typedef typename Model::JointIndex JointIndex;
-    
+
     data.oa_gf[0] = -model.gravity;
-    
+
     typedef computeModRNEASecondOrderDerivativesForwardStep<Scalar,Options,JointCollectionTpl,ConfigVectorType,TangentVectorType1,TangentVectorType2,TangentVectorType3> Pass1;
     for(JointIndex i=1; i<(JointIndex) model.njoints; ++i)
     {
       Pass1::run(model.joints[i],data.joints[i],
                  typename Pass1::ArgsType(model,data,q.derived(),v.derived(),a.derived(),lambda.derived()));
+      data.of[i] -= data.oMi[i].act(fext[i]);
     }
-    
-    typedef computeModRNEASecondOrderDerivativesBackwardStep<Scalar,Options,JointCollectionTpl,MatrixType1,MatrixType2,MatrixType3> Pass2;
+
+    typedef computeModRNEASecondOrderDerivativesBackwardStep<Scalar,Options,JointCollectionTpl,MatrixType1,MatrixType2,MatrixType3,MatrixType4> Pass2;
     for(JointIndex i=(JointIndex)(model.njoints-1); i>0; --i)
     {
       Pass2::run(model.joints[i],
                  typename Pass2::ArgsType(model,data,
                                           PINOCCHIO_EIGEN_CONST_CAST(MatrixType1,rnea_partial_dqdq_mod),
                                           PINOCCHIO_EIGEN_CONST_CAST(MatrixType2,rnea_partial_dvdv_mod),
-                                          PINOCCHIO_EIGEN_CONST_CAST(MatrixType3,rnea_partial_dvdq_mod)));
+                                          PINOCCHIO_EIGEN_CONST_CAST(MatrixType3,rnea_partial_dvdq_mod),
+                                          PINOCCHIO_EIGEN_CONST_CAST(MatrixType4,rnea_partial_dqa_mod)));
     }
   }
-  
+
+  // 3-matrix version with fext (backward compatible)
   template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl, typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2,
   typename TangentVectorType3, typename MatrixType1, typename MatrixType2, typename MatrixType3>
   inline void
@@ -348,41 +461,11 @@ namespace pinocchio
                          const Eigen::MatrixBase<MatrixType2> & rnea_partial_dvdv_mod,
                          const Eigen::MatrixBase<MatrixType3> & rnea_partial_dvdq_mod)
   {
-    PINOCCHIO_CHECK_ARGUMENT_SIZE(q.size(), model.nq, "The joint configuration vector is not of right size");
-    PINOCCHIO_CHECK_ARGUMENT_SIZE(v.size(), model.nv, "The joint velocity vector is not of right size");
-    PINOCCHIO_CHECK_ARGUMENT_SIZE(a.size(), model.nv, "The joint acceleration vector is not of right size");
-    PINOCCHIO_CHECK_ARGUMENT_SIZE(lambda.size(), model.nv, "The input vector is not of right size");
-    PINOCCHIO_CHECK_ARGUMENT_SIZE(fext.size(), (size_t)model.njoints, "The size of the external forces is not of right size");
-    PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dqdq_mod.rows(), model.nv);
-    PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dqdq_mod.cols(), model.nv);
-    PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dvdv_mod.rows(), model.nv);
-    PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dvdv_mod.cols(), model.nv);
-    PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dvdq_mod.rows(), model.nv);
-    PINOCCHIO_CHECK_ARGUMENT_SIZE(rnea_partial_dvdq_mod.cols(), model.nv);
-    assert(model.check(data) && "data is not consistent with model.");
-    
-    typedef ModelTpl<Scalar,Options,JointCollectionTpl> Model;
-    typedef typename Model::JointIndex JointIndex;
-    
-    data.oa_gf[0] = -model.gravity;
-    
-    typedef computeModRNEASecondOrderDerivativesForwardStep<Scalar,Options,JointCollectionTpl,ConfigVectorType,TangentVectorType1,TangentVectorType2,TangentVectorType3> Pass1;
-    for(JointIndex i=1; i<(JointIndex) model.njoints; ++i)
-    {
-      Pass1::run(model.joints[i],data.joints[i],
-                 typename Pass1::ArgsType(model,data,q.derived(),v.derived(),a.derived(),lambda.derived()));
-      data.of[i] -= data.oMi[i].act(fext[i]);
-    }
-    
-    typedef computeModRNEASecondOrderDerivativesBackwardStep<Scalar,Options,JointCollectionTpl,MatrixType1,MatrixType2,MatrixType3> Pass2;
-    for(JointIndex i=(JointIndex)(model.njoints-1); i>0; --i)
-    {
-      Pass2::run(model.joints[i],
-                 typename Pass2::ArgsType(model,data,
-                                          PINOCCHIO_EIGEN_CONST_CAST(MatrixType1,rnea_partial_dqdq_mod),
-                                          PINOCCHIO_EIGEN_CONST_CAST(MatrixType2,rnea_partial_dvdv_mod),
-                                          PINOCCHIO_EIGEN_CONST_CAST(MatrixType3,rnea_partial_dvdq_mod)));
-    }
+    typedef typename Eigen::Matrix<Scalar,Eigen::Dynamic,Eigen::Dynamic> MatrixXs;
+    MatrixXs dummy_dqa = MatrixXs::Zero(model.nv, model.nv);
+    computeModRNEASecondOrderDerivatives(model, data, q, v, a, lambda, fext,
+                                         rnea_partial_dqdq_mod, rnea_partial_dvdv_mod,
+                                         rnea_partial_dvdq_mod, dummy_dqa);
   }
   
 
