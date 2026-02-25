@@ -369,27 +369,6 @@ namespace pinocchio
     }
   }
 
-  // 3-matrix version (backward compatible, discards dqa)
-  template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl, typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2,
-  typename TangentVectorType3, typename MatrixType1, typename MatrixType2, typename MatrixType3>
-  inline void
-  computeModRNEASecondOrderDerivatives(const ModelTpl<Scalar,Options,JointCollectionTpl> & model,
-                         DataTpl<Scalar,Options,JointCollectionTpl> & data,
-                         const Eigen::MatrixBase<ConfigVectorType> & q,
-                         const Eigen::MatrixBase<TangentVectorType1> & v,
-                         const Eigen::MatrixBase<TangentVectorType2> & a,
-                         const Eigen::MatrixBase<TangentVectorType3> & lambda,
-                         const Eigen::MatrixBase<MatrixType1> & rnea_partial_dqdq_mod,
-                         const Eigen::MatrixBase<MatrixType2> & rnea_partial_dvdv_mod,
-                         const Eigen::MatrixBase<MatrixType3> & rnea_partial_dvdq_mod)
-  {
-    typedef typename Eigen::Matrix<Scalar,Eigen::Dynamic,Eigen::Dynamic> MatrixXs;
-    MatrixXs dummy_dqa = MatrixXs::Zero(model.nv, model.nv);
-    computeModRNEASecondOrderDerivatives(model, data, q, v, a, lambda,
-                                         rnea_partial_dqdq_mod, rnea_partial_dvdv_mod,
-                                         rnea_partial_dvdq_mod, dummy_dqa);
-  }
-
   // 4-matrix version with fext
   template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl, typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2,
   typename TangentVectorType3, typename MatrixType1, typename MatrixType2, typename MatrixType3, typename MatrixType4>
@@ -445,29 +424,6 @@ namespace pinocchio
                                           PINOCCHIO_EIGEN_CONST_CAST(MatrixType4,rnea_partial_dqa_mod)));
     }
   }
-
-  // 3-matrix version with fext (backward compatible)
-  template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl, typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2,
-  typename TangentVectorType3, typename MatrixType1, typename MatrixType2, typename MatrixType3>
-  inline void
-  computeModRNEASecondOrderDerivatives(const ModelTpl<Scalar,Options,JointCollectionTpl> & model,
-                         DataTpl<Scalar,Options,JointCollectionTpl> & data,
-                         const Eigen::MatrixBase<ConfigVectorType> & q,
-                         const Eigen::MatrixBase<TangentVectorType1> & v,
-                         const Eigen::MatrixBase<TangentVectorType2> & a,
-                         const Eigen::MatrixBase<TangentVectorType3> & lambda,
-                         const container::aligned_vector< ForceTpl<Scalar,Options> > & fext,
-                         const Eigen::MatrixBase<MatrixType1> & rnea_partial_dqdq_mod,
-                         const Eigen::MatrixBase<MatrixType2> & rnea_partial_dvdv_mod,
-                         const Eigen::MatrixBase<MatrixType3> & rnea_partial_dvdq_mod)
-  {
-    typedef typename Eigen::Matrix<Scalar,Eigen::Dynamic,Eigen::Dynamic> MatrixXs;
-    MatrixXs dummy_dqa = MatrixXs::Zero(model.nv, model.nv);
-    computeModRNEASecondOrderDerivatives(model, data, q, v, a, lambda, fext,
-                                         rnea_partial_dqdq_mod, rnea_partial_dvdv_mod,
-                                         rnea_partial_dvdq_mod, dummy_dqa);
-  }
-  
 
 } // namespace pinocchio
 
