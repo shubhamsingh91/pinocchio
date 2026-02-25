@@ -151,8 +151,6 @@ namespace pinocchio
         const JointIndex& i = jmodel.id();
         const JointIndex& parent = model.parents[i];
 
-        std::cout << " i = " << i << " parent = " << parent << std::endl;
-
         MatrixType1& rnea_partial_dqdq_mod_ = PINOCCHIO_EIGEN_CONST_CAST(MatrixType1,rnea_partial_dqdq_mod);
         MatrixType2& rnea_partial_dvdv_mod_ = PINOCCHIO_EIGEN_CONST_CAST(MatrixType2,rnea_partial_dvdv_mod);
         MatrixType3& rnea_partial_dvdq_mod_ = PINOCCHIO_EIGEN_CONST_CAST(MatrixType3,rnea_partial_dvdq_mod);
@@ -164,19 +162,14 @@ namespace pinocchio
         ColsBlock ddJ_cols = jmodel.jointCols(data.ddJ);
         ColsBlock vdJ_cols = jmodel.jointCols(data.vdJ);
 
-        std::cout << "J_cols = " << J_cols << std::endl;
-
         ColsBlock tmp1 = jmodel.jointCols(data.Ftmp1);
         ColsBlock tmp2 = jmodel.jointCols(data.Ftmp2);
         ColsBlock tmp3 = jmodel.jointCols(data.Ftmp3); // tmp3 is for this joint only, Ftmp3 is for the full body
         ColsBlock tmp4 = jmodel.jointCols(data.Ftmp4);
         ColsBlock tmp5 = jmodel.jointCols(data.Ftmp5);// F5(:,i)
-
-        std::cout << "tmp3 = " << tmp3 << std::endl;
-
         //   hphi{i} = icrf(h{i})*S(:,ii); % Si x* hi
-        typename Data::Matrix6 hphi; hphi.setZero();
-        motionSet::act(J_cols, data.oh_lam[i], hphi); // S{i} x* h{i}
+        // Note: hphi should be 6 x nv_i, we use tmp1 as temporary storage
+        motionSet::act(J_cols, data.oh_lam[i], tmp1); // S{i} x* h{i}
 
 
         const Eigen::Index joint_idx = (Eigen::Index)jmodel.idx_v(); // starting index of the joint i
@@ -185,30 +178,91 @@ namespace pinocchio
         const Eigen::Index successor_idx = joint_idx + joint_dofs; // successor joint starting index
         const Eigen::Index successor_dofs = subtree_dofs - joint_dofs; // all successor joints dofs
 
-        std::cout << "joint_idx = " << joint_idx << std::endl;
-        std::cout << "joint_dofs = " << joint_dofs << std::endl;
-        std::cout << "subtree_dofs = " << subtree_dofs << std::endl;
-        std::cout << "successor_idx = " << successor_idx << std::endl;
-        std::cout << "successor_dofs = " << successor_dofs << std::endl;
+        motionSet::act(J_cols, data.of[i], tmp3); // fphi{i} = icrf(f{i})*S(:,ii)
 
-        motionSet::act(J_cols, data.of[i], tmp3); // S{i} x* f{i}
+        // F5(:,ii) = 2 * Dc{i}' * S(:,ii) in MATLAB (where Dc has factor 1/2 from factorFunctions)
+        // In C++, Coriolis constructor already includes the proper factor, so no multiplication by 2 needed
+        motionSet::coriolisTransposeAction(data.oDc[i], J_cols, tmp5);
 
-        motionSet::act(J_cols, 2.0 * data.oz[i], tmp5); // S{i} x* z{i}
-
+        // ===================== dmod_dvv computation =====================
         rnea_partial_dvdv_mod_.block(joint_idx, joint_idx, joint_dofs, subtree_dofs).noalias()
           = J_cols.transpose() * data.Ftmp5.middleCols(joint_idx, subtree_dofs); // dmod_dvv (ii,jj)  = S(:,ii).' *F5(:,jj);
-    
-    
-      //   dmod_dvv (ii,ii)  = dmod_dvv(ii,ii)   + hphi{i}.' *S(:,ii); 
 
+        //   dmod_dvv (ii,ii)  = dmod_dvv(ii,ii)   + hphi{i}.' *S(:,ii);
         rnea_partial_dvdv_mod_.block(joint_idx, joint_idx, joint_dofs, joint_dofs).noalias()
-          += hphi.transpose() * J_cols; // dmod_dvv (ii,ii)  = dmod_dvv(ii,ii)   + hphi{i}.' *S(:,ii);
+          += tmp1.transpose() * J_cols; // dmod_dvv (ii,ii)  = dmod_dvv(ii,ii)   + hphi{i}.' *S(:,ii);
 
-          if (successor_dofs > 0) {
+        if (successor_dofs > 0) {
+            rnea_partial_dvdv_mod_.block(successor_idx, joint_idx, successor_dofs, joint_dofs).noalias()
+                = rnea_partial_dvdv_mod_.block(joint_idx, successor_idx, joint_dofs, successor_dofs).transpose();
+        }
 
-              rnea_partial_dvdv_mod_.block(successor_idx, joint_idx, successor_dofs, joint_dofs).noalias()
-                  = rnea_partial_dvdv_mod_.block(joint_idx, successor_idx, joint_dofs, successor_dofs).transpose();
-          }
+        // ===================== dmod_dqq computation =====================
+        // Get Om_cols for this joint
+        ColsBlock Om_cols = jmodel.jointCols(data.Om);
+        ColsBlock tmp6 = jmodel.jointCols(data.Ftmp6);  // For F6
+        ColsBlock tmp7 = jmodel.jointCols(data.Ftmp7);  // For F7
+
+        // F2(:,ii) = Bc{i} * S(:,ii) + Ic{i} * Ud(:,ii)
+        // Note: MATLAB has "2 * Bc" but Bc = 1/2*(...), so 2*Bc cancels to full Coriolis
+        // C++ Coriolis implementation matches 2*Bc directly (no 1/2 factor)
+        motionSet::coriolisAction(data.oBcrb[i], J_cols, tmp2);
+        motionSet::inertiaAction<ADDTO>(data.oYcrb[i], vdJ_cols, tmp2);
+
+        // F3(:,ii) = Bc{i} * Yd(:,ii) + Ic{i} * Ydd(:,ii) + fphi{i}
+        // tmp4 used for F3 (stored in Ftmp4)
+        motionSet::coriolisAction(data.oBcrb[i], dJ_cols, tmp4);
+        motionSet::inertiaAction<ADDTO>(data.oYcrb[i], ddJ_cols, tmp4);
+        tmp4 += tmp3; // add fphi (which is in tmp3)
+
+        // F6(:,ii) = 2*Dc{i}*Yd(:,ii) + 2*Bc{i}'*Om(:,ii) + 2*icrf(h{i})*Yd(:,ii) + zphi{i}
+        //          where zphi = 2*icrf(z)*S  and  Dc_cpp=2*Dc_matlab, Bc_cpp=2*Bc_matlab, z_cpp=2*z_matlab
+        // The factor of 2 is absorbed by the Coriolis class for Dc, Bc, and z terms,
+        // but h = Ic*w has no such factor, so we must explicitly multiply by 2.
+        // Store in Ftmp6
+        motionSet::coriolisAction(data.oDc[i], dJ_cols, tmp6);                     // Dc_cpp * Yd = 2*Dc_matlab * Yd
+        motionSet::coriolisTransposeAction<ADDTO>(data.oBcrb[i], Om_cols, tmp6);   // + Bc_cpp' * Om = 2*Bc_matlab' * Om
+        motionSet::act<ADDTO>(dJ_cols, data.oh_lam[i], tmp6);                      // + icrf(h) * Yd (first copy)
+        motionSet::act<ADDTO>(dJ_cols, data.oh_lam[i], tmp6);                      // + icrf(h) * Yd (second copy, total = 2*icrf(h)*Yd)
+        // zphi = icrf(z_cpp) * S = icrf(2*z_matlab) * S = 2*icrf(z_matlab) * S
+        typename Data::Force z_force(data.oz[i]);
+        motionSet::act<ADDTO>(J_cols, z_force, tmp6);                              // + icrf(z_cpp) * S
+
+        // F7(:,ii) = Ic{i} * Om(:,ii) + hphi{i}
+        // Store in Ftmp7
+        motionSet::inertiaAction(data.oYcrb[i], Om_cols, tmp7);
+        tmp7 += tmp1;  // + hphi (which is in tmp1)
+
+        // dmod_dqq (jj,ii) = F3(:,jj).'*Om(:,ii) + F6(:,jj).'*Yd(:,ii) + F7(:,jj).'*Ydd(:,ii)
+        // In MATLAB: jj = subtree_vinds{i} (this joint + descendants)
+        //            ii = vinds{i} (this joint only)
+        // F3(:,jj), F6(:,jj), F7(:,jj) were computed in previous iterations for descendant joints
+        // and just now for this joint (stored in tmp4, tmp6, tmp7 -> Ftmp4, Ftmp6, Ftmp7)
+
+        rnea_partial_dqdq_mod_.block(joint_idx, joint_idx, subtree_dofs, joint_dofs).noalias()
+          = data.Ftmp4.middleCols(joint_idx, subtree_dofs).transpose() * Om_cols
+          + data.Ftmp6.middleCols(joint_idx, subtree_dofs).transpose() * dJ_cols
+          + data.Ftmp7.middleCols(joint_idx, subtree_dofs).transpose() * ddJ_cols;
+
+        // Symmetry: dmod_dqq(ii, kk) = dmod_dqq(kk, ii)'
+        if (successor_dofs > 0) {
+            rnea_partial_dqdq_mod_.block(joint_idx, successor_idx, joint_dofs, successor_dofs).noalias()
+                = rnea_partial_dqdq_mod_.block(successor_idx, joint_idx, successor_dofs, joint_dofs).transpose();
+        }
+
+        // ===================== dmod_dqv computation =====================
+        // dmod_dqv (ii,jj)  = Om(:,ii).'*F2(:,jj)  + Yd(:,ii).'*F5(:,jj);
+        rnea_partial_dvdq_mod_.block(joint_idx, joint_idx, joint_dofs, subtree_dofs).noalias()
+          = Om_cols.transpose() * data.Ftmp2.middleCols(joint_idx, subtree_dofs)
+          + dJ_cols.transpose() * data.Ftmp5.middleCols(joint_idx, subtree_dofs);
+
+        // dmod_dqv (kk,ii)  = F6(:,kk).'*S(:,ii)   + F7(:,kk).'*Ud(:,ii);
+        // kk = successor indices
+        if (successor_dofs > 0) {
+            rnea_partial_dvdq_mod_.block(successor_idx, joint_idx, successor_dofs, joint_dofs).noalias()
+              = data.Ftmp6.middleCols(successor_idx, successor_dofs).transpose() * J_cols
+              + data.Ftmp7.middleCols(successor_idx, successor_dofs).transpose() * vdJ_cols;
+        }
 
         if (parent > 0) {
             data.oz[parent] += data.oz[i];
