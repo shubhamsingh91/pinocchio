@@ -5,6 +5,9 @@
 #include "pinocchio/algorithm/mod-rnea-second-order-derivatives.hpp"
 #include "pinocchio/algorithm/mod-rnea-derivatives.hpp"
 #include "pinocchio/algorithm/rnea.hpp"
+#include "pinocchio/algorithm/aba.hpp"
+#include "pinocchio/algorithm/aba-derivatives.hpp"
+#include "pinocchio/algorithm/mod-aba-derivatives.hpp"
 #include "pinocchio/parsers/urdf.hpp"
 #include "pinocchio/parsers/sample-models.hpp"
 #include "pinocchio/container/aligned-vector.hpp"
@@ -230,6 +233,174 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
     if (qa_err > std::sqrt(alpha)) {
       std::cout << "dtau_qa_mod_diff = " << qa_err << std::endl;
       throw std::runtime_error("dtau_qa_mod is not correct");
+    }
+
+    // ===================== Second-Order Forward Dynamics Derivatives =====================
+    // Compute SO FD derivatives analytically from SO ID derivatives using chain rule,
+    // and verify against finite differences of FO modABA derivatives.
+    //
+    // Key formulas (μ·ä = modaba, λ = M^{-1}μ, ä = FD(q,v,τ)):
+    //   d²(μä)/dqdq = -d2tau_dqq - dqa · ∂ä/∂q - (∂ä/∂q)^T · dqa^T
+    //   d²(μä)/dvdv = -d2tau_dvv
+    //   d²(μä)/dqdv = -d2tau_dqv - dqa · ∂ä/∂v
+    //   d²(μä)/dqτ  = -dqa · M^{-1}
+    //   d²(μä)/dvτ  = 0
+    //   d²(μä)/dττ  = 0
+
+    // Relaxed threshold for SO FD: the analytical formula involves matrix products
+    // that amplify FD truncation error, especially for larger models.
+    const double fd_so_thr = 10 * std::sqrt(alpha);
+
+    print_pretty("mod FD SO derivatives");
+
+    // 1. Compute FD solution: a = aba(q, v, tau)
+    VectorXd qddot_fd = aba(model, data, qs[_smooth], qdots[_smooth], taus[_smooth]);
+
+    // 2. Compute ABA derivatives (gives ddq_dq, ddq_dv, Minv)
+    computeABADerivatives(model, data, qs[_smooth], qdots[_smooth], taus[_smooth]);
+    MatrixXd ddq_dq_mat = data.ddq_dq;
+    MatrixXd ddq_dv_mat = data.ddq_dv;
+    MatrixXd Minv_mat = data.Minv;
+    Minv_mat.triangularView<Eigen::StrictlyLower>() =
+      Minv_mat.transpose().triangularView<Eigen::StrictlyLower>();
+
+    // 3. Compute lambda = M^{-1} * mu
+    VectorXd lambda_fd = Minv_mat * mus[_smooth];
+
+    // 4. Compute SO modID derivatives at (q, v, a_fd, lambda_fd)
+    MatrixXd d2tau_dqq_fd(MatrixXd::Zero(model.nv, model.nv));
+    MatrixXd d2tau_dvv_fd(MatrixXd::Zero(model.nv, model.nv));
+    MatrixXd d2tau_dqv_fd(MatrixXd::Zero(model.nv, model.nv));
+    MatrixXd d2tau_dqa_fd(MatrixXd::Zero(model.nv, model.nv));
+
+    computeModRNEASecondOrderDerivatives(model, data, qs[_smooth], qdots[_smooth],
+                                          qddot_fd, lambda_fd,
+                                          d2tau_dqq_fd, d2tau_dvv_fd, d2tau_dqv_fd, d2tau_dqa_fd);
+
+    // 5. Compute analytical SO FD derivatives
+    MatrixXd d2qdd_dqq_ana = -d2tau_dqq_fd - d2tau_dqa_fd * ddq_dq_mat
+                               - ddq_dq_mat.transpose() * d2tau_dqa_fd.transpose();
+    MatrixXd d2qdd_dvv_ana = -d2tau_dvv_fd;
+    MatrixXd d2qdd_dqv_ana = -d2tau_dqv_fd - d2tau_dqa_fd * ddq_dv_mat;
+    MatrixXd d2qdd_dqtau_ana = -d2tau_dqa_fd * Minv_mat;
+
+    // 6. Compute FD SO derivatives by perturbing FO modABA derivatives
+    VectorXd dqdd_dq_fd_orig(VectorXd::Zero(model.nv));
+    VectorXd dqdd_dv_fd_orig(VectorXd::Zero(model.nv));
+    VectorXd dqdd_dtau_fd_orig(VectorXd::Zero(model.nv));
+
+    computeModABADerivatives(model, data, qs[_smooth], qdots[_smooth], taus[_smooth], mus[_smooth],
+                              dqdd_dq_fd_orig, dqdd_dv_fd_orig, dqdd_dtau_fd_orig);
+
+    VectorXd dqdd_dq_fd_plus(VectorXd::Zero(model.nv));
+    VectorXd dqdd_dv_fd_plus(VectorXd::Zero(model.nv));
+    VectorXd dqdd_dtau_fd_plus(VectorXd::Zero(model.nv));
+
+    // ---- Perturb q ----
+    MatrixXd d2qdd_dqq_fdiff(MatrixXd::Zero(model.nv, model.nv));
+    MatrixXd d2qdd_dvq_fdiff(MatrixXd::Zero(model.nv, model.nv));
+    MatrixXd d2qdd_tauq_fdiff(MatrixXd::Zero(model.nv, model.nv));
+
+    VectorXd v_eps_fd(VectorXd::Zero(model.nv));
+    VectorXd q_plus_fd(model.nq);
+
+    for(int k = 0; k < model.nv; ++k) {
+      v_eps_fd[k] += alpha;
+      pinocchio::integrate(model, qs[_smooth], v_eps_fd, q_plus_fd);
+      computeModABADerivatives(model, data, q_plus_fd, qdots[_smooth], taus[_smooth], mus[_smooth],
+                                dqdd_dq_fd_plus, dqdd_dv_fd_plus, dqdd_dtau_fd_plus);
+      d2qdd_dqq_fdiff.col(k) = (dqdd_dq_fd_plus - dqdd_dq_fd_orig) / alpha;
+      d2qdd_dvq_fdiff.col(k) = (dqdd_dv_fd_plus - dqdd_dv_fd_orig) / alpha;
+      d2qdd_tauq_fdiff.col(k) = (dqdd_dtau_fd_plus - dqdd_dtau_fd_orig) / alpha;
+      v_eps_fd[k] -= alpha;
+    }
+
+    double dqq_fd2_err = (d2qdd_dqq_ana - d2qdd_dqq_fdiff).norm();
+    std::cout << "d2qdd_dqq_diff = " << dqq_fd2_err << std::endl;
+    if (dqq_fd2_err > fd_so_thr) {
+      throw std::runtime_error("d2qdd_dqq is not correct");
+    }
+
+    double dvq_fd2_err = (d2qdd_dqv_ana.transpose() - d2qdd_dvq_fdiff).norm();
+    std::cout << "d2qdd_dvq_diff = " << dvq_fd2_err << std::endl;
+    if (dvq_fd2_err > fd_so_thr) {
+      throw std::runtime_error("d2qdd_dvq is not correct");
+    }
+
+    double tauq_fd2_err = (d2qdd_dqtau_ana.transpose() - d2qdd_tauq_fdiff).norm();
+    std::cout << "d2qdd_tauq_diff = " << tauq_fd2_err << std::endl;
+    if (tauq_fd2_err > fd_so_thr) {
+      throw std::runtime_error("d2qdd_tauq is not correct");
+    }
+
+    // ---- Perturb v ----
+    MatrixXd d2qdd_dqv_fdiff(MatrixXd::Zero(model.nv, model.nv));
+    MatrixXd d2qdd_dvv_fdiff(MatrixXd::Zero(model.nv, model.nv));
+    MatrixXd d2qdd_tauv_fdiff(MatrixXd::Zero(model.nv, model.nv));
+
+    VectorXd v_plus_fd(qdots[_smooth]);
+
+    for(int k = 0; k < model.nv; ++k) {
+      v_plus_fd[k] += alpha;
+      computeModABADerivatives(model, data, qs[_smooth], v_plus_fd, taus[_smooth], mus[_smooth],
+                                dqdd_dq_fd_plus, dqdd_dv_fd_plus, dqdd_dtau_fd_plus);
+      d2qdd_dqv_fdiff.col(k) = (dqdd_dq_fd_plus - dqdd_dq_fd_orig) / alpha;
+      d2qdd_dvv_fdiff.col(k) = (dqdd_dv_fd_plus - dqdd_dv_fd_orig) / alpha;
+      d2qdd_tauv_fdiff.col(k) = (dqdd_dtau_fd_plus - dqdd_dtau_fd_orig) / alpha;
+      v_plus_fd[k] -= alpha;
+    }
+
+    double dqv_fd2_err = (d2qdd_dqv_ana - d2qdd_dqv_fdiff).norm();
+    std::cout << "d2qdd_dqv_diff = " << dqv_fd2_err << std::endl;
+    if (dqv_fd2_err > fd_so_thr) {
+      throw std::runtime_error("d2qdd_dqv is not correct");
+    }
+
+    double dvv_fd2_err = (d2qdd_dvv_ana - d2qdd_dvv_fdiff).norm();
+    std::cout << "d2qdd_dvv_diff = " << dvv_fd2_err << std::endl;
+    if (dvv_fd2_err > fd_so_thr) {
+      throw std::runtime_error("d2qdd_dvv is not correct");
+    }
+
+    double tauv_fd2_err = d2qdd_tauv_fdiff.norm();
+    std::cout << "d2qdd_tauv_diff (expect ~0) = " << tauv_fd2_err << std::endl;
+    if (tauv_fd2_err > fd_so_thr) {
+      throw std::runtime_error("d2qdd_tauv is not zero");
+    }
+
+    // ---- Perturb tau ----
+    MatrixXd d2qdd_dqtau_fdiff(MatrixXd::Zero(model.nv, model.nv));
+    MatrixXd d2qdd_dvtau_fdiff(MatrixXd::Zero(model.nv, model.nv));
+    MatrixXd d2qdd_tautau_fdiff(MatrixXd::Zero(model.nv, model.nv));
+
+    VectorXd tau_plus_fd(taus[_smooth]);
+
+    for(int k = 0; k < model.nv; ++k) {
+      tau_plus_fd[k] += alpha;
+      computeModABADerivatives(model, data, qs[_smooth], qdots[_smooth], tau_plus_fd, mus[_smooth],
+                                dqdd_dq_fd_plus, dqdd_dv_fd_plus, dqdd_dtau_fd_plus);
+      d2qdd_dqtau_fdiff.col(k) = (dqdd_dq_fd_plus - dqdd_dq_fd_orig) / alpha;
+      d2qdd_dvtau_fdiff.col(k) = (dqdd_dv_fd_plus - dqdd_dv_fd_orig) / alpha;
+      d2qdd_tautau_fdiff.col(k) = (dqdd_dtau_fd_plus - dqdd_dtau_fd_orig) / alpha;
+      tau_plus_fd[k] -= alpha;
+    }
+
+    double dqtau_fd2_err = (d2qdd_dqtau_ana - d2qdd_dqtau_fdiff).norm();
+    std::cout << "d2qdd_dqtau_diff = " << dqtau_fd2_err << std::endl;
+    if (dqtau_fd2_err > fd_so_thr) {
+      throw std::runtime_error("d2qdd_dqtau is not correct");
+    }
+
+    double dvtau_fd2_err = d2qdd_dvtau_fdiff.norm();
+    std::cout << "d2qdd_dvtau_diff (expect ~0) = " << dvtau_fd2_err << std::endl;
+    if (dvtau_fd2_err > fd_so_thr) {
+      throw std::runtime_error("d2qdd_dvtau is not zero");
+    }
+
+    double tautau_fd2_err = d2qdd_tautau_fdiff.norm();
+    std::cout << "d2qdd_tautau_diff (expect ~0) = " << tautau_fd2_err << std::endl;
+    if (tautau_fd2_err > fd_so_thr) {
+      throw std::runtime_error("d2qdd_tautau is not zero");
     }
 
   }
