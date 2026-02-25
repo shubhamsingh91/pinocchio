@@ -185,6 +185,35 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
       throw std::runtime_error("dtau_dvq_mod is not correct");
     }
 
+    // ===================== dtau_vq = dtau_qv^T (Schwarz's theorem) =====================
+    print_pretty("mod ID SO derivatives: dtau_vq");
+
+    // dtau_dvq_mod stores ∂²(λτ)/(∂q_i ∂v_j), so dtau_vq = dtau_dvq_mod^T
+    MatrixXd dtau_vq_mod = dtau_dvq_mod.transpose();
+
+    // Verify with FD: perturb v_k, observe change in dtau_dq_mod
+    MatrixXd dtau_vq_mod_fd(MatrixXd::Zero(model.nv, model.nv));
+    VectorXd v_plus_vq(qdots[_smooth]);
+    for(int k = 0; k < model.nv; ++k)
+    {
+      v_plus_vq[k] += alpha;
+      computeModRNEADerivatives(model, data, qs[_smooth], v_plus_vq,
+                                qddots[_smooth], lambdas[_smooth],
+                                dtau_dq_mod_plus, dtau_dv_mod_plus, dtau_da_mod_plus);
+      dtau_vq_mod_fd.col(k) = (dtau_dq_mod_plus - dtau_dq_mod_orig) / alpha;
+      v_plus_vq[k] -= alpha;
+    }
+
+    // dtau_vq_mod_fd(j,k) = ∂²(λτ)/(∂q_j ∂v_k), so dtau_vq = dtau_vq_mod_fd^T
+    double vq_err = (dtau_vq_mod - dtau_vq_mod_fd.transpose()).norm();
+
+    std::cout << "dtau_vq_mod_diff = " << vq_err << std::endl;
+
+    if (vq_err > std::sqrt(alpha)) {
+      std::cout << "dtau_vq_mod_diff = " << vq_err << std::endl;
+      throw std::runtime_error("dtau_vq_mod is not correct");
+    }
+
   }
 
 }
