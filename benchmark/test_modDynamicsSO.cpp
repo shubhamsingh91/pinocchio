@@ -75,7 +75,7 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
         robot_name += std::string("_f");
     }
 
-  cout << "Model is" << robot_name << endl;
+  cout << "\n Model is" << robot_name << endl;
   std::cout << "nq = " << model.nq << std::endl;
   std::cout << "nv = " << model.nv << std::endl;
 
