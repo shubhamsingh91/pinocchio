@@ -74,8 +74,10 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
     if (with_ff) {
         robot_name += std::string("_f");
     }
-
-  cout << "\n Model is" << robot_name << endl;
+  
+  std::cout << "-------------------------------------------" << std::endl;
+  std::cout << "-------------------------------------------" << std::endl;
+  cout << "\nModel is" << robot_name << endl;
   std::cout << "nq = " << model.nq << std::endl;
   std::cout << "nv = " << model.nv << std::endl;
 
@@ -121,7 +123,7 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
     MatrixXd dtau_dqq_mod_fd(MatrixXd::Zero(model.nv, model.nv));
     MatrixXd dtau_dvv_mod_fd(MatrixXd::Zero(model.nv, model.nv));
     MatrixXd dtau_dvq_mod_fd(MatrixXd::Zero(model.nv, model.nv));
-    MatrixXd dtau_qa_mod_fd(MatrixXd::Zero(model.nv, model.nv));
+    MatrixXd dtau_aq_mod_fd(MatrixXd::Zero(model.nv, model.nv));
 
     // Compute SO derivatives analytically (4-matrix version: dqq, dvv, dqv, dqa)
     print_pretty("mod ID SO derivatives");
@@ -151,7 +153,7 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
                                 dtau_dq_mod_plus, dtau_dv_mod_plus, dtau_da_mod_plus);
       dtau_dqq_mod_fd.col(k) = (dtau_dq_mod_plus - dtau_dq_mod_orig)/alpha;
       dtau_dvq_mod_fd.col(k) = (dtau_dv_mod_plus - dtau_dv_mod_orig)/alpha;
-      dtau_qa_mod_fd.col(k) = (dtau_da_mod_plus - dtau_da_mod_orig)/alpha;
+      dtau_aq_mod_fd.col(k) = (dtau_da_mod_plus - dtau_da_mod_orig)/alpha;
       v_eps[k] -= alpha;
     }
 
@@ -191,42 +193,42 @@ for (int mm = 0; mm < robot_name_vec.size(); mm++) {
       throw std::runtime_error("dtau_dvq_mod is not correct");
     }
 
-    // ===================== dtau_vq = dtau_qv^T (Schwarz's theorem) =====================
-    print_pretty("mod ID SO derivatives: dtau_vq");
+    // ===================== dtau_qv = dtau_dvq^T (Schwarz's theorem) =====================
+    print_pretty("mod ID SO derivatives: dtau_qv");
 
-    // dtau_dvq_mod stores ∂²(λτ)/(∂q_i ∂v_j), so dtau_vq = dtau_dvq_mod^T
-    MatrixXd dtau_vq_mod = dtau_dvq_mod.transpose();
+    // dtau_dvq_mod stores ∂²(λτ)/(∂q_i ∂v_j), so dtau_qv = dtau_dvq_mod^T
+    MatrixXd dtau_qv_mod = dtau_dvq_mod.transpose();
 
     // Verify with FD: perturb v_k, observe change in dtau_dq_mod
-    MatrixXd dtau_vq_mod_fd(MatrixXd::Zero(model.nv, model.nv));
-    VectorXd v_plus_vq(qdots[_smooth]);
+    MatrixXd dtau_qv_mod_fd(MatrixXd::Zero(model.nv, model.nv));
+    VectorXd v_plus_qv(qdots[_smooth]);
     for(int k = 0; k < model.nv; ++k)
     {
-      v_plus_vq[k] += alpha;
-      computeModRNEADerivatives(model, data, qs[_smooth], v_plus_vq,
+      v_plus_qv[k] += alpha;
+      computeModRNEADerivatives(model, data, qs[_smooth], v_plus_qv,
                                 qddots[_smooth], lambdas[_smooth],
                                 dtau_dq_mod_plus, dtau_dv_mod_plus, dtau_da_mod_plus);
-      dtau_vq_mod_fd.col(k) = (dtau_dq_mod_plus - dtau_dq_mod_orig) / alpha;
-      v_plus_vq[k] -= alpha;
+      dtau_qv_mod_fd.col(k) = (dtau_dq_mod_plus - dtau_dq_mod_orig) / alpha;
+      v_plus_qv[k] -= alpha;
     }
 
-    // dtau_vq_mod_fd(j,k) = ∂²(λτ)/(∂q_j ∂v_k), so dtau_vq = dtau_vq_mod_fd^T
-    double vq_err = (dtau_vq_mod - dtau_vq_mod_fd.transpose()).norm();
+    // dtau_qv_mod_fd(j,k) = ∂²(λτ)/(∂q_j ∂v_k), so dtau_qv = dtau_qv_mod_fd^T
+    double qv_err = (dtau_qv_mod - dtau_qv_mod_fd.transpose()).norm();
 
-    std::cout << "dtau_vq_mod_diff = " << vq_err << std::endl;
+    std::cout << "dtau_qv_mod_diff = " << qv_err << std::endl;
 
-    if (vq_err > std::sqrt(alpha)) {
-      std::cout << "dtau_vq_mod_diff = " << vq_err << std::endl;
-      throw std::runtime_error("dtau_vq_mod is not correct");
+    if (qv_err > std::sqrt(alpha)) {
+      std::cout << "dtau_qv_mod_diff = " << qv_err << std::endl;
+      throw std::runtime_error("dtau_qv_mod is not correct");
     }
 
     // ===================== dtau_qa = ∂²(λτ)/(∂q∂a) = ∂M_mod/∂q =====================
     print_pretty("mod ID SO derivatives: dtau_qa");
 
     // dtau_qa_mod(i,j) = ∂²(λτ)/(∂q_i ∂a_j) — computed analytically by SO algorithm
-    // dtau_qa_mod_fd(j,k) = ∂M_mod_j/∂q_k = ∂²(λτ)/(∂a_j ∂q_k)
-    // By Schwarz: dtau_qa_mod = dtau_qa_mod_fd^T
-    double qa_err = (dtau_qa_mod - dtau_qa_mod_fd.transpose()).norm();
+    // dtau_aq_mod_fd(j,k) = ∂M_mod_j/∂q_k = ∂²(λτ)/(∂a_j ∂q_k)
+    // By Schwarz: dtau_qa_mod = dtau_aq_mod_fd^T
+    double qa_err = (dtau_qa_mod - dtau_aq_mod_fd.transpose()).norm();
 
     std::cout << "dtau_qa_mod_diff = " << qa_err << std::endl;
 
