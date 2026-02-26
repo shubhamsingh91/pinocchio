@@ -11,3 +11,6 @@ running_pinocchio
 
 # Ignore sources.cmake
 sources.cmake
+
+# Ignore codegen output
+benchmark/codegen/
