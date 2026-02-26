@@ -32,6 +32,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstring>
+#include <cstdio>
 
 using namespace std;
 using namespace Eigen;
@@ -204,33 +205,26 @@ int main(int argc, const char* argv[])
                 });
             std::cout << " done" << std::endl;
 
-            // Generate C code and compile to .so in codegen/
+            // Generate C code, move to codegen/, compile .so in parallel
             system(("mkdir -p " + codegen_dir).c_str());
-            string compile_cmd;
-            int flag;
 
-            std::cout << "Generating " << fn_case1 << "..." << std::flush;
+            std::cout << "Generating C code..." << std::flush;
             eval_case1.generate(fn_case1);
-            compile_cmd = "gcc -fPIC -shared -O3 -march=native "
-                + fn_case1 + ".c -o " + codegen_dir + fn_case1 + ".so"
-                + " && mv " + fn_case1 + ".c " + codegen_dir;
-            flag = system(compile_cmd.c_str());
-            std::cout << (flag == 0 ? " ok" : " FAILED") << std::endl;
-
-            std::cout << "Generating " << fn_case2a << "..." << std::flush;
             eval_case2a.generate(fn_case2a);
-            compile_cmd = "gcc -fPIC -shared -O3 -march=native "
-                + fn_case2a + ".c -o " + codegen_dir + fn_case2a + ".so"
-                + " && mv " + fn_case2a + ".c " + codegen_dir;
-            flag = system(compile_cmd.c_str());
-            std::cout << (flag == 0 ? " ok" : " FAILED") << std::endl;
-
-            std::cout << "Generating " << fn_case2b << "..." << std::flush;
             eval_case2b.generate(fn_case2b);
-            compile_cmd = "gcc -fPIC -shared -O3 -march=native "
-                + fn_case2b + ".c -o " + codegen_dir + fn_case2b + ".so"
-                + " && mv " + fn_case2b + ".c " + codegen_dir;
-            flag = system(compile_cmd.c_str());
+            // Move .c files into codegen/ immediately
+            rename((fn_case1  + ".c").c_str(), (codegen_dir + fn_case1  + ".c").c_str());
+            rename((fn_case2a + ".c").c_str(), (codegen_dir + fn_case2a + ".c").c_str());
+            rename((fn_case2b + ".c").c_str(), (codegen_dir + fn_case2b + ".c").c_str());
+            std::cout << " done" << std::endl;
+
+            std::cout << "Compiling .so (3 in parallel)..." << std::flush;
+            string par_cmd =
+                "gcc -fPIC -shared -O3 -march=native " + codegen_dir + fn_case1  + ".c -o " + codegen_dir + fn_case1  + ".so & "
+                "gcc -fPIC -shared -O3 -march=native " + codegen_dir + fn_case2a + ".c -o " + codegen_dir + fn_case2a + ".so & "
+                "gcc -fPIC -shared -O3 -march=native " + codegen_dir + fn_case2b + ".c -o " + codegen_dir + fn_case2b + ".so & "
+                "wait";
+            int flag = system(par_cmd.c_str());
             std::cout << (flag == 0 ? " ok" : " FAILED") << std::endl;
         }
 
