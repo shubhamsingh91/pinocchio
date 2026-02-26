@@ -111,6 +111,16 @@ int main(int argc, const char* argv[])
         // CODEGEN PHASE
         // ================================================================
         if (do_codegen) {
+            // Skip if all 3 .so files already exist
+            FILE* f1 = fopen((codegen_dir + fn_case1  + ".so").c_str(), "r");
+            FILE* f2 = fopen((codegen_dir + fn_case2a + ".so").c_str(), "r");
+            FILE* f3 = fopen((codegen_dir + fn_case2b + ".so").c_str(), "r");
+            bool all_exist = (f1 && f2 && f3);
+            if (f1) fclose(f1); if (f2) fclose(f2); if (f3) fclose(f3);
+
+            if (all_exist) {
+                std::cout << "\n--- Codegen: all .so files found, skipping ---" << std::endl;
+            } else {
             std::cout << "\n--- Codegen phase ---" << std::endl;
 
             typedef ::casadi::SX ADcScalar;
@@ -226,6 +236,7 @@ int main(int argc, const char* argv[])
                 "wait";
             int flag = system(par_cmd.c_str());
             std::cout << (flag == 0 ? " ok" : " FAILED") << std::endl;
+            } // end else (not all_exist)
         }
 
         // ================================================================
