@@ -170,9 +170,7 @@ int main()
         // Evaluate at a single point
         // ================================================================
         std::vector<double> q_vec((size_t)nq);
-        VectorXd v_int_val = 1e-10 * VectorXd::Random(nv);
-        std::vector<double> v_int_vec((size_t)nv);
-        Eigen::Map<Model::TangentVectorType>(v_int_vec.data(), nv, 1) = v_int_val;
+        std::vector<double> v_int_vec((size_t)nv, 0.0);
         std::vector<double> v_vec((size_t)nv);
         std::vector<double> a_vec((size_t)nv);
         std::vector<double> lambda_vec((size_t)nv);
