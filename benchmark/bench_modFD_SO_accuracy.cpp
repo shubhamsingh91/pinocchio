@@ -6,6 +6,7 @@
  *   Case 2a: FO AD over full FO — trace computeABADerivativesFaster(), contract, Jacobian (1 AD diff)
  *   Case 2b: FO AD over mod FO — trace computeModABADerivatives(), Jacobian (1 AD diff)
  *   Case 3:  Analytical chain-rule from computeModRNEASecondOrderDerivatives() + computeABADerivatives()
+ *   Case 4:  Full SO tensors (ComputeRNEASecondOrderDerivatives) + lambda contraction + FD chain-rule vs Case 3
  */
 
 #include "pinocchio/algorithm/joint-configuration.hpp"
@@ -15,6 +16,7 @@
 #include "pinocchio/algorithm/aba-derivatives.hpp"
 #include "pinocchio/algorithm/mod-aba-derivatives.hpp"
 #include "pinocchio/algorithm/mod-rnea-second-order-derivatives.hpp"
+#include "pinocchio/algorithm/rnea-second-order-derivatives.hpp"
 #include "pinocchio/codegen/code-generator-algo.hpp"
 #include "pinocchio/parsers/urdf.hpp"
 #include "pinocchio/container/aligned-vector.hpp"
@@ -22,6 +24,7 @@
 #include <casadi/casadi.hpp>
 #include "pinocchio/autodiff/casadi.hpp"
 
+#include <unsupported/Eigen/CXX11/Tensor>
 #include <iostream>
 #include <limits>
 
@@ -208,6 +211,44 @@ int main()
             -d2tau_dqa * Minv_mat                                                                    // dqtau
         };
 
+        // Case 4: Full SO tensors + lambda contraction + FD chain-rule
+        Eigen::Tensor<double, 3> d2tau_dqdq_t(nv, nv, nv);
+        Eigen::Tensor<double, 3> d2tau_dvdv_t(nv, nv, nv);
+        Eigen::Tensor<double, 3> d2tau_dqdv_t(nv, nv, nv);
+        Eigen::Tensor<double, 3> d2tau_dadq_t(nv, nv, nv);
+        d2tau_dqdq_t.setZero();
+        d2tau_dvdv_t.setZero();
+        d2tau_dqdv_t.setZero();
+        d2tau_dadq_t.setZero();
+
+        ComputeRNEASecondOrderDerivatives(model, data, q, v, qddot_fd,
+            d2tau_dqdq_t, d2tau_dvdv_t, d2tau_dqdv_t, d2tau_dadq_t);
+
+        // Contract each ID SO tensor with lambda_fd: result(i,j) = sum_k lambda_fd(k) * tensor(k,i,j)
+        // Note: d2tau_dadq_t(k,i,j) = d²τ_k/(da_i dq_j), contraction gives d²(λ·τ)/(da_i dq_j)
+        //   → transpose to get d²(λ·τ)/(dq_i da_j) matching dqa convention
+        MatrixXd dqq_t(MatrixXd::Zero(nv, nv)), dvv_t(MatrixXd::Zero(nv, nv));
+        MatrixXd dqv_t(MatrixXd::Zero(nv, nv)), dqa_t(MatrixXd::Zero(nv, nv));
+        for (int i = 0; i < nv; i++) {
+            for (int j = 0; j < nv; j++) {
+                for (int k = 0; k < nv; k++) {
+                    dqq_t(i, j) += lambda_fd(k) * d2tau_dqdq_t(k, i, j);
+                    dvv_t(i, j) += lambda_fd(k) * d2tau_dvdv_t(k, i, j);
+                    dqv_t(i, j) += lambda_fd(k) * d2tau_dqdv_t(k, i, j);
+                    dqa_t(i, j) += lambda_fd(k) * d2tau_dadq_t(k, i, j);
+                }
+            }
+        }
+        dqa_t.transposeInPlace();  // dadq -> dqa
+
+        // Apply FD chain-rule with tensor-derived mod ID SO matrices
+        MatrixXd tens_fd[] = {
+            -dqq_t - dqa_t * ddq_dq_mat - ddq_dq_mat.transpose() * dqa_t.transpose(),  // dqq
+            -dvv_t,                                                                       // dvv
+            -dqv_t - dqa_t * ddq_dv_mat,                                                 // dqv
+            -dqa_t * Minv_mat                                                             // dqtau
+        };
+
         auto res1 = eval_case1(input);
         auto res2a = eval_case2a(input);
         auto res2b = eval_case2b(input);
@@ -231,9 +272,22 @@ int main()
             }
         };
 
+        auto check_matrix = [&](const string& case_name, const MatrixXd mats[], const MatrixXd ref[]) {
+            std::cout << "\n" << case_name << ":" << std::endl;
+            for (int k = 0; k < 4; k++) {
+                bool has_nan = mats[k].hasNaN();
+                double err = has_nan ? std::numeric_limits<double>::quiet_NaN() : (mats[k] - ref[k]).norm();
+                bool pass = !has_nan && (err < tol);
+                if (!pass) all_pass = false;
+                std::cout << "  " << names[k] << ": " << err
+                          << (has_nan ? " [NAN!]" : (pass ? " [OK]" : " [FAIL]")) << std::endl;
+            }
+        };
+
         check_result("Case 1 vs 3 (full SO AD vs analytical)", res1, ana_arr);
         check_result("Case 2a vs 3 (AD over full FO vs analytical)", res2a, ana_arr);
         check_result("Case 2b vs 3 (AD over mod FO vs analytical)", res2b, ana_arr);
+        check_matrix("Case 4 vs 3 (full SO tensor + lambda + FD chain-rule vs mod FD)", tens_fd, ana_arr);
 
         if (all_pass)
             std::cout << "\n>>> ALL PASSED for " << robot_name << " <<<" << std::endl;

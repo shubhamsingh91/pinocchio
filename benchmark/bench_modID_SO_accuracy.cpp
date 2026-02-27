@@ -6,6 +6,7 @@
  *   Case 2a: FO AD over full FO — trace computeRNEADerivativesFaster(), contract, Jacobian (1 AD diff)
  *   Case 2b: FO AD over mod FO — trace computeModRNEADerivatives(), Jacobian (1 AD diff)
  *   Case 3:  Analytical — computeModRNEASecondOrderDerivatives() (reference)
+ *   Case 4:  Full SO tensors (ComputeRNEASecondOrderDerivatives) + lambda contraction vs Case 3
  */
 
 #include "pinocchio/algorithm/joint-configuration.hpp"
@@ -15,12 +16,14 @@
 #include "pinocchio/algorithm/mod-rnea-derivatives.hpp"
 #include "pinocchio/codegen/code-generator-algo.hpp"
 #include "pinocchio/algorithm/mod-rnea-second-order-derivatives.hpp"
+#include "pinocchio/algorithm/rnea-second-order-derivatives.hpp"
 #include "pinocchio/parsers/urdf.hpp"
 #include "pinocchio/container/aligned-vector.hpp"
 
 #include <casadi/casadi.hpp>
 #include "pinocchio/autodiff/casadi.hpp"
 
+#include <unsupported/Eigen/CXX11/Tensor>
 #include <iostream>
 #include <limits>
 
@@ -187,11 +190,41 @@ int main()
             return Eigen::Map<MatrixXd>(vals.data(), nv, nv);
         };
 
-        // Case 3: Analytical reference
+        // Case 3: Analytical mod SO reference
         MatrixXd dqq_ana(MatrixXd::Zero(nv, nv)), dvv_ana(MatrixXd::Zero(nv, nv));
         MatrixXd dvq_ana(MatrixXd::Zero(nv, nv)), dqa_ana(MatrixXd::Zero(nv, nv));
         computeModRNEASecondOrderDerivatives(model, data, q, v, a, lambda,
             dqq_ana, dvv_ana, dvq_ana, dqa_ana);
+
+        // Case 4: Full SO tensors + lambda contraction
+        Eigen::Tensor<double, 3> d2tau_dqdq(nv, nv, nv);
+        Eigen::Tensor<double, 3> d2tau_dvdv(nv, nv, nv);
+        Eigen::Tensor<double, 3> d2tau_dqdv(nv, nv, nv);
+        Eigen::Tensor<double, 3> d2tau_dadq(nv, nv, nv);
+        d2tau_dqdq.setZero();
+        d2tau_dvdv.setZero();
+        d2tau_dqdv.setZero();
+        d2tau_dadq.setZero();
+
+        ComputeRNEASecondOrderDerivatives(model, data, q, v, a,
+            d2tau_dqdq, d2tau_dvdv, d2tau_dqdv, d2tau_dadq);
+
+        // Contract each tensor with lambda: result(i,j) = sum_k lambda(k) * tensor(k, i, j)
+        // Note: d2tau_dadq(k,i,j) = d²τ_k/(da_i dq_j), so contraction gives d²(λ·τ)/(da_i dq_j)
+        //   but dqa_ana(i,j) = d²(λ·τ)/(dq_i da_j), so we transpose the dadq result.
+        MatrixXd dqq_tens(MatrixXd::Zero(nv, nv)), dvv_tens(MatrixXd::Zero(nv, nv));
+        MatrixXd dvq_tens(MatrixXd::Zero(nv, nv)), dqa_tens(MatrixXd::Zero(nv, nv));
+        for (int i = 0; i < nv; i++) {
+            for (int j = 0; j < nv; j++) {
+                for (int k = 0; k < nv; k++) {
+                    dqq_tens(i, j) += lambda(k) * d2tau_dqdq(k, i, j);
+                    dvv_tens(i, j) += lambda(k) * d2tau_dvdv(k, i, j);
+                    dvq_tens(i, j) += lambda(k) * d2tau_dqdv(k, i, j);
+                    dqa_tens(i, j) += lambda(k) * d2tau_dadq(k, i, j);
+                }
+            }
+        }
+        dqa_tens.transposeInPlace();  // dadq -> dqa
 
         auto res1 = eval_case1(input);
         auto res2a = eval_case2a(input);
@@ -216,9 +249,24 @@ int main()
             }
         };
 
+        auto check_matrix = [&](const string& case_name, const MatrixXd mats[], const MatrixXd ref[]) {
+            std::cout << "\n" << case_name << ":" << std::endl;
+            for (int k = 0; k < 4; k++) {
+                bool has_nan = mats[k].hasNaN();
+                double err = has_nan ? std::numeric_limits<double>::quiet_NaN() : (mats[k] - ref[k]).norm();
+                bool pass = !has_nan && (err < tol);
+                if (!pass) all_pass = false;
+                std::cout << "  " << names[k] << ": " << err
+                          << (has_nan ? " [NAN!]" : (pass ? " [OK]" : " [FAIL]")) << std::endl;
+            }
+        };
+
         check_result("Case 1 vs 3 (full SO AD vs analytical)", res1, ana);
         check_result("Case 2a vs 3 (AD over full FO vs analytical)", res2a, ana);
         check_result("Case 2b vs 3 (AD over mod FO vs analytical)", res2b, ana);
+
+        MatrixXd tens_arr[] = {dqq_tens, dvv_tens, dvq_tens, dqa_tens};
+        check_matrix("Case 4 vs 3 (full SO tensor + lambda contraction vs mod SO)", tens_arr, ana);
 
         if (all_pass)
             std::cout << "\n>>> ALL PASSED for " << robot_name << " <<<" << std::endl;
