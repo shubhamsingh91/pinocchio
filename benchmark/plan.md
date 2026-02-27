@@ -2,7 +2,9 @@
 
 ## Context
 
-Compare four approaches for computing second-order modified (lambda-contracted) derivatives. All four compute the Hessian of a scalar function (lambda*tau for ID, mu*qddot for FD), producing nv x nv matrices. They differ in how much work is analytical vs AD.
+Compare approaches for computing second-order modified (lambda-contracted) derivatives. All approaches compute the Hessian of a scalar function (lambda*tau for ID, mu*qddot for FD), producing nv x nv matrices. They differ in how much work is analytical vs AD.
+
+**Key insight (Pat):** The modified SO algorithm sits between FO (fast) and full SO tensor (slow), showing it's competitive with FO while computing second-order information. Even the "souped up" AD baseline (Case 1: SO AD on modrnea, which fuses lambda into the recursion) is slower than the analytical mod SO.
 
 ### Function hierarchy (ID)
 
@@ -11,6 +13,7 @@ Compare four approaches for computing second-order modified (lambda-contracted) 
 | Base | `modrnea(q,v,a,l)` | -> scalar l*tau |
 | FO derivs (full) | `computeRNEADerivatives(q,v,a)` | -> matrices dtau/dq, dtau/dv, M (nv x nv) |
 | FO derivs (mod) | `computeModRNEADerivatives(q,v,a,l)` | -> vectors d(l*tau)/dq, d(l*tau)/dv, d(l*tau)/da (nv) |
+| SO derivs (full) | `ComputeRNEASecondOrderDerivatives(q,v,a)` | -> tensors d2tau/dq2, etc. (nv x nv x nv) |
 | SO derivs (mod) | `computeModRNEASecondOrderDerivatives(q,v,a,l)` | -> matrices d2(l*tau)/dq2, etc. (nv x nv) |
 
 ### Function hierarchy (FD)
@@ -20,162 +23,101 @@ Compare four approaches for computing second-order modified (lambda-contracted) 
 | Base | `modaba(q,v,tau,mu)` | -> scalar mu*qddot |
 | FO derivs (full) | `computeABADerivatives(q,v,tau)` | -> matrices dqddot/dq, dqddot/dv, M^-1 (nv x nv) |
 | FO derivs (mod) | `computeModABADerivatives(q,v,tau,mu)` | -> vectors d(mu*qddot)/dq, d(mu*qddot)/dv, d(mu*qddot)/dtau (nv) |
-| SO derivs (mod) | chain-rule formula | -> matrices d2(mu*qddot)/dq2, etc. (nv x nv) |
+| SO derivs (full FD) | chain-rule with full ID SO tensors | -> tensors d2(qddot)/dq2 etc (nv x nv x nv) |
+| SO derivs (mod) | chain-rule with mod ID SO matrices | -> matrices d2(mu*qddot)/dq2, etc. (nv x nv) |
 
-### The 4 Approaches
+### The 6 Timing Approaches (bar chart)
 
-| # | Name | What CasADi traces | AD diffs |
-|---|------|---------------------|----------|
-| 1 | **Full SO AD** | `modrnea(q,v,a,l)` / `modaba(q,v,tau,mu)` -> scalar -> Hessian | 2 (fwd over rev) |
-| 2a | **FO AD over full FO derivs** | `computeRNEADerivatives()` / `computeABADerivatives()` -> nv x nv matrices -> contract with l/mu -> Jacobian | 1 |
-| 2b | **FO AD over mod FO derivs** | `computeModRNEADerivatives()` / `computeModABADerivatives()` -> nv vectors -> Jacobian | 1 |
-| 3 | **Full analytical** | `computeModRNEASecondOrderDerivatives()` / chain-rule | 0 |
+| # | Name | What it computes | Notes |
+|---|------|-----------------|-------|
+| FO | **FO analytical** | computeRNEADerivativesFaster / aba+computeABADerivativesFaster | Baseline from RAL |
+| Full SO | **Full SO analytical (tensor)** | ComputeRNEASecondOrderDerivatives / full FD chain-rule | From T-Ro, O(nv^4) |
+| Mod SO | **Mod SO analytical** | computeModRNEASecondOrderDerivatives / mod FD chain-rule | Our new algo, O(nv^2) |
+| Case 1 | **Full SO AD (codegen)** | CasADi SO AD on modrnea/modaba, compiled .so | 2 AD diffs, souped-up baseline |
+| Case 2a | **FO AD over full FO (codegen)** | CasADi Jacobian of FO derivs + lambda contraction, compiled .so | 1 AD diff |
+| Case 2b | **FO AD over mod FO (codegen)** | CasADi Jacobian of mod FO derivs, compiled .so | 1 AD diff |
 
-**CasADi only** (no CppAD). Codegen deferred. MATLAB for plotting. 4 bars per model.
+## Current Status
 
-## Deliverables
+### Completed
+- [x] bench_modID_SO.cpp - timing with CasADi codegen (Cases 1, 2a, 2b, 3)
+- [x] bench_modFD_SO.cpp - timing with CasADi codegen (Cases 1, 2a, 2b, 3)
+- [x] bench_modID_SO_accuracy.cpp - accuracy checks (Cases 1, 2a, 2b vs analytical)
+- [x] bench_modFD_SO_accuracy.cpp - accuracy checks (Cases 1, 2a, 2b vs analytical)
+- [x] plot_modSO_benchmarks.py - Python bar charts (4 bars per model)
+- [x] CasADi codegen pipeline (--codegen / --eval, codegen/ dir, parallel gcc, skip existing .so)
+- [x] Per-case .so skip logic in eval (gracefully handles missing .so files)
+- [x] ID codegen complete for all 5 models
+- [x] FD codegen complete for double_pendulum, ur3_robot, hyq_f (atlas/talos OOM)
 
-1. `benchmark/bench_modSO_plan.md` - This design document
-2. `benchmark/bench_modID_SO.cpp` - ID SO benchmark (accuracy + timing, 4 approaches)
-3. `benchmark/bench_modFD_SO.cpp` - FD SO benchmark (accuracy + timing, 4 approaches)
-4. MATLAB plotting - New .m functions adapted from `figure_pinocchio_bar_IDSVA_SO.m`, 4 bars per model
+### TODO — New work
+- [ ] **Part 1a:** Add full SO (tensor) + lambda contraction to bench_modID_SO_accuracy.cpp
+- [ ] **Part 1b:** Add full FD SO chain-rule + mu contraction to bench_modFD_SO_accuracy.cpp
+- [ ] **Part 2a:** Add FO + full SO timing to bench_modID_SO.cpp eval phase
+- [ ] **Part 2b:** Add FO + full FD SO timing to bench_modFD_SO.cpp eval phase
+- [ ] **Part 3:** Update data file format (4 lines -> 6 lines) and add --outdir CLI arg
+- [ ] **Part 4:** Update plot_modSO_benchmarks.py for 6 bars, gcc/clang support
+- [ ] **Part 5:** Compile with both gcc and clang, run timing, generate plots
 
-## Implementation Steps
+## Data File Format (NEW: 6 lines)
 
-### Step 1: Create this plan and git add
-
-### Step 2: bench_modID_SO.cpp - Inverse Dynamics SO benchmark
-
-Per-model structure:
-
-```
-ACCURACY (single eval at same q,v,a,lambda):
-  Case 3  (analytical):    computeModRNEASecondOrderDerivatives -> dqq, dvv, dvq, dqa
-  Case 1  (full SO AD):    CasADi trace modrnea -> scalar -> Hessian -> dqq, dvv, dvq, dqa
-  Case 2a (AD over full):  CasADi trace computeRNEADerivatives -> contract l -> Jacobian
-  Case 2b (AD over mod):   CasADi trace computeModRNEADerivatives -> Jacobian
-  Print: ||case1 - case3||, ||case2a - case3||, ||case2b - case3|| per matrix
-
-TIMING (NBT iterations):
-  Time each case. Write avg microseconds to data file.
-```
-
-**Case 1** (trace modrnea, take Hessian):
-```cpp
-// modrnea returns scalar l*tau directly via data.modtau
-modrnea(adc_model, adc_data, q_int_ad, v_ad, a_ad, lambda_ad);
-::casadi::SX lambda_tau = adc_data.modtau;  // scalar
-// Hessian via 2 jacobian calls (fwd over rev)
-::casadi::SX grad_q = jacobian(lambda_tau, cs_v_int);   // 1 x nv
-::casadi::SX hess_qq = jacobian(grad_q, cs_v_int);      // nv x nv
-::casadi::SX grad_v = jacobian(lambda_tau, cs_v);
-::casadi::SX hess_vv = jacobian(grad_v, cs_v);          // nv x nv
-::casadi::SX hess_vq = jacobian(grad_v, cs_v_int);      // nv x nv
-::casadi::SX grad_a = jacobian(lambda_tau, cs_a);
-::casadi::SX hess_qa = jacobian(grad_a, cs_v_int);      // nv x nv
-```
-
-**Case 2a** (trace computeRNEADerivatives, contract with l, take Jacobian):
-```cpp
-computeRNEADerivatives(adc_model, adc_data, q_int_ad, v_ad, a_ad);
-// Contract: g_q(i) = sum_j l(j) * dtau_dq(j,i)
-::casadi::SX g_q(nv, 1), g_v(nv, 1), g_a(nv, 1);
-for (int i = 0; i < nv; i++)
-  for (int j = 0; j < nv; j++) {
-    g_q(i) += lambda_val[j] * adc_data.dtau_dq(j, i);
-    g_v(i) += lambda_val[j] * adc_data.dtau_dv(j, i);
-    g_a(i) += lambda_val[j] * adc_data.M(j, i);
-  }
-// 1 Jacobian call (forward)
-::casadi::SX hess_qq = jacobian(g_q, cs_v_int);  // nv x nv
-::casadi::SX hess_vv = jacobian(g_v, cs_v);
-::casadi::SX hess_vq = jacobian(g_v, cs_v_int);
-::casadi::SX hess_qa = jacobian(g_a, cs_v_int);
-```
-
-**Case 2b** (trace computeModRNEADerivatives, take Jacobian):
-```cpp
-computeModRNEADerivatives(adc_model, adc_data, q_int_ad, v_ad, a_ad, lambda_ad);
-// Outputs already contracted: vectors of length nv
-::casadi::SX g_q(nv, 1), g_v(nv, 1), g_a(nv, 1);
-for (int i = 0; i < nv; i++) {
-  g_q(i) = adc_data.dtau_dq_mod[i];
-  g_v(i) = adc_data.dtau_dv_mod[i];
-  g_a(i) = adc_data.M_mod[i];
-}
-// 1 Jacobian call (forward)
-::casadi::SX hess_qq = jacobian(g_q, cs_v_int);  // nv x nv
-::casadi::SX hess_vv = jacobian(g_v, cs_v);
-::casadi::SX hess_vq = jacobian(g_v, cs_v_int);
-::casadi::SX hess_qa = jacobian(g_a, cs_v_int);
-```
-
-**Case 3** (analytical):
-```cpp
-computeModRNEASecondOrderDerivatives(model, data, q, v, a, lambda,
-    dtau_dqq_mod, dtau_dvv_mod, dtau_dvq_mod, dtau_dqa_mod);
-```
-
-**Models**: double_pendulum(2), ur3_robot(6), hyq(18,ff), atlas(36,ff), talos_full_v2(50,ff)
-
-### Step 3: bench_modFD_SO.cpp - Forward Dynamics SO benchmark
-
-Same structure, 4 approaches for FD:
-
-**Case 1**: Trace `modaba(q,v,tau,mu)` -> scalar mu*qddot -> Hessian (2 diffs)
-
-**Case 2a**: Trace `computeABADerivatives(q,v,tau)` -> contract mu^T * daba_dq etc -> Jacobian (1 diff)
-
-**Case 2b**: Trace `computeModABADerivatives(q,v,tau,mu)` -> gradient vectors -> Jacobian (1 diff)
-
-**Case 3**: Chain-rule (from test_modDynamicsSO.cpp):
-```
-lambda_fd = Minv * mu
-computeModRNEASecondOrderDerivatives(model, data, q, v, qddot_fd, lambda_fd, dqq, dvv, dvq, dqa)
-computeABADerivatives(model, data, q, v, tau) -> ddq_dq, ddq_dv, Minv
-d2(mu*qddot)/dqq = -dqq - dqa*ddq_dq - ddq_dq^T*dqa^T
-d2(mu*qddot)/dvv = -dvv
-d2(mu*qddot)/dqv = -dvq - dqa*ddq_dv
-d2(mu*qddot)/dqtau = -dqa*Minv
-```
-
-### Step 4: MATLAB plotting
-
-Adapt `figure_pinocchio_bar_IDSVA_SO.m`. **4 bars per model**:
-- Green: Case 3 - Full analytical
-- Red: Case 2b - FO AD over modID/modFD
-- Blue: Case 2a - FO AD over full FO derivs + contract
-- Magenta: Case 1 - Full SO AD
-
-Log y-axis, LaTeX labels, same figure size/formatting as existing plots.
-
-### Step 5: Run and verify
-1. Compile -O0, run double_pendulum only -> verify accuracy (norms < 1e-6)
-2. Recompile -O3, run all 5 models -> timing data to .txt files
-3. Run MATLAB plotter -> save bar chart figures
-
-## Output Data Format
 Each {model}.txt in benchmark/data/modID_SO/ and modFD_SO/:
 ```
-<case3_analytical_time_us>
-<case1_full_SO_AD_time_us>
-<case2a_AD_over_full_FO_time_us>
-<case2b_AD_over_mod_FO_time_us>
+<FO_analytical_time_us>
+<full_SO_analytical_time_us>
+<mod_SO_analytical_time_us>
+<case1_full_SO_AD_codegen_time_us>
+<case2a_AD_full_FO_codegen_time_us>
+<case2b_AD_mod_FO_codegen_time_us>
 ```
+(-1 for unavailable cases, e.g. codegen OOM for large models)
 
-## Compile Command
-```
+## Bar Chart (6 bars per model)
+
+1. FO analytical (cyan)
+2. Full SO analytical (orange) — from T-Ro, the slow tensor approach
+3. Mod SO analytical (green) — our new algorithm
+4. Case 1: Full SO AD codegen (magenta)
+5. Case 2a: AD full FO codegen (blue)
+6. Case 2b: AD mod FO codegen (red)
+
+Log y-axis. Key visual: Mod SO bar close to FO, far below Full SO.
+
+## Compile Commands
+
+### gcc (timing)
+```bash
 g++ bench_modID_SO.cpp -DNDEBUG -I /usr/include/eigen3 -O3 \
   -I /home/shubham/Desktop/pinocchio/include -I /usr/include \
-  -L /usr/local/lib -lpinocchio -lcasadi -ldl -o bench_modID_SO
+  -L /usr/local/lib -lpinocchio -lcasadi -ldl -march=native -o bench_modID_SO
 ```
 
+### clang (timing)
+```bash
+clang++ bench_modID_SO.cpp -DNDEBUG -I /usr/include/eigen3 -O3 \
+  -I /home/shubham/Desktop/pinocchio/include -I /usr/include \
+  -L /usr/local/lib -lpinocchio -lcasadi -ldl -march=native -std=c++11 -o bench_modID_SO_clang
+```
+
+### accuracy (no optimization)
+```bash
+g++ bench_modID_SO_accuracy.cpp -I /usr/include/eigen3 -O0 \
+  -I /home/shubham/Desktop/pinocchio/include -I /usr/include \
+  -L /usr/local/lib -lpinocchio -lcasadi -ldl -o bench_modID_SO_accuracy
+```
+
+## Models
+- double_pendulum (2 DOF)
+- ur3_robot (6 DOF)
+- hyq_f (18 DOF, free-flyer)
+- atlas_f (36 DOF, free-flyer)
+- talos_full_v2_f (50 DOF, free-flyer)
+
 ## Key Reference Files
-- include/pinocchio/algorithm/modrnea.hpp - modrnea() returns scalar via data.modtau
-- include/pinocchio/algorithm/modaba.hpp - modaba() returns scalar mu*qddot
-- include/pinocchio/algorithm/mod-rnea-derivatives.hpp - computeModRNEADerivatives() returns gradient vectors
-- include/pinocchio/algorithm/mod-aba-derivatives.hpp - computeModABADerivatives() returns gradient vectors
-- include/pinocchio/algorithm/mod-rnea-second-order-derivatives.hpp - analytical SO API
-- benchmark/AD_mdof_v1.cpp - CasADi trace patterns (lines 235-340 FO, 443-545 SO)
-- benchmark/test_modDynamicsSO.cpp - FD chain-rule formula (lines 240-287)
-- /home/shubham/Desktop/spatial_v2_extended/plotter/figure_pinocchio_bar_IDSVA_SO.m - plot template
+- `include/pinocchio/algorithm/modrnea.hpp` — modrnea() scalar
+- `include/pinocchio/algorithm/modaba.hpp` — modaba() scalar
+- `include/pinocchio/algorithm/rnea-second-order-derivatives.hpp` — full SO tensors
+- `include/pinocchio/algorithm/mod-rnea-second-order-derivatives.hpp` — mod SO matrices
+- `include/pinocchio/utils/tensor_utils.hpp` — tensor helper functions
+- `benchmark/FD_SO_deriv.cpp` — full FD SO chain-rule pattern (lines 173-229)
+- `benchmark/test_modDynamicsSO.cpp` — mod FD chain-rule + FD validation
