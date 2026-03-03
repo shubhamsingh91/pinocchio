@@ -110,12 +110,10 @@ def plot_benchmark(data_dir, title_prefix, output_file, ylim_max=None):
     ax.set_xticks(x)
     ax.set_xticklabels(MODEL_LABELS)
     ax.set_yscale('log')
-    if ylim_max is not None:
-        ax.set_ylim(0.5, ylim_max)
-    else:
-        all_vals = np.concatenate([fo, full_so, mod_so, case1, case2a, case2b])
-        max_val = np.nanmax(all_vals)
-        ax.set_ylim(0.5, max_val * 3)
+    all_vals = np.concatenate([fo, full_so, mod_so, case1, case2a, case2b])
+    min_val = np.nanmin(all_vals[all_vals > 0])
+    max_val = np.nanmax(all_vals)
+    ax.set_ylim(min_val * 0.3, ylim_max if ylim_max is not None else max_val * 3)
     ax.legend(fontsize=8, loc='upper left', ncol=2)
     ax.grid(True, which='both', axis='y', alpha=0.3)
 
