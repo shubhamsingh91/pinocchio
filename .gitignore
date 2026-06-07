@@ -6,3 +6,24 @@ coverage*
 .travis
 .vscode*
 *.sh
+# Ignore running_pinocchio
+running_pinocchio
+
+# Ignore sources.cmake
+sources.cmake
+
+# Ignore codegen output
+benchmark/codegen/
+
+# Ignore compiled binaries
+benchmark/bench_modFD_SO
+benchmark/bench_modFD_SO_accuracy
+benchmark/bench_modFD_SO_clang
+benchmark/bench_modFD_SO_gcc
+benchmark/bench_modID_SO
+benchmark/bench_modID_SO_accuracy
+benchmark/bench_modID_SO_clang
+benchmark/bench_modID_SO_gcc
+benchmark/test_modDynamics
+benchmark/test_modDynamicsSO
+test_modDynamicsSO

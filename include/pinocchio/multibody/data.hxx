@@ -22,15 +22,20 @@ namespace pinocchio
   : joints(0)
   , a((std::size_t)model.njoints,Motion::Zero())
   , oa((std::size_t)model.njoints,Motion::Zero())
+  , ow((std::size_t)model.njoints,Motion::Zero())
   , a_gf((std::size_t)model.njoints,Motion::Zero())
   , oa_gf((std::size_t)model.njoints,Motion::Zero())
   , v((std::size_t)model.njoints,Motion::Zero())
+  , w((std::size_t)model.njoints,Motion::Zero())
   , vJ((std::size_t)model.njoints, Motion::Zero())
+  , wJ((std::size_t)model.njoints,Motion::Zero())
   , ov((std::size_t)model.njoints,Motion::Zero())
   , f((std::size_t)model.njoints,Force::Zero())
   , of((std::size_t)model.njoints,Force::Zero())
   , h((std::size_t)model.njoints,Force::Zero())
   , oh((std::size_t)model.njoints,Force::Zero())
+  , oh_lam((std::size_t)model.njoints,Force::Zero())
+  , oz((std::size_t)model.njoints,Force::Zero())
   , oMi((std::size_t)model.njoints,SE3::Identity())
   , liMi((std::size_t)model.njoints,SE3::Identity())
   , tau(VectorXs::Zero(model.nv))
@@ -40,7 +45,9 @@ namespace pinocchio
   , Ycrb((std::size_t)model.njoints,Inertia::Zero())
   , dYcrb((std::size_t)model.njoints,Inertia::Zero())
   , oBcrb((std::size_t)model.njoints, Coriolis::Zero())
+  , oDc((std::size_t)model.njoints, Coriolis::Zero())
   , M(MatrixXs::Zero(model.nv,model.nv))
+  , M_mod(VectorXs::Zero(model.nv))
   , Minv(MatrixXs::Zero(model.nv,model.nv))
   , C(MatrixXs::Zero(model.nv,model.nv))
   , dHdq(Matrix6x::Zero(6,model.nv))
@@ -79,6 +86,7 @@ namespace pinocchio
   , J(Matrix6x::Zero(6,model.nv))
   , dJ(Matrix6x::Zero(6,model.nv))
   , ddJ(Matrix6x::Zero(6, model.nv))
+  , Om(Matrix6x::Zero(6, model.nv))
   , psid(Matrix6x::Zero(6, model.nv))
   , psidd(Matrix6x::Zero(6, model.nv))
   , vdJ(Matrix6x::Zero(6, model.nv))
@@ -86,13 +94,34 @@ namespace pinocchio
   , Ftmp2(Matrix6x::Zero(6, model.nv))
   , Ftmp3(Matrix6x::Zero(6, model.nv))
   , Ftmp4(Matrix6x::Zero(6, model.nv))
+  , Ftmp5(Matrix6x::Zero(6, model.nv))
+  , Ftmp6(Matrix6x::Zero(6, model.nv))
+  , Ftmp7(Matrix6x::Zero(6, model.nv))
+  , Ftmp8(Matrix6x::Zero(6, model.nv))
   , dVdq(Matrix6x::Zero(6,model.nv))
   , dAdq(Matrix6x::Zero(6,model.nv))
   , dAdv(Matrix6x::Zero(6,model.nv))
   , dtau_dq(MatrixXs::Zero(model.nv,model.nv))
   , dtau_dv(MatrixXs::Zero(model.nv,model.nv))
+  , dtau_dq_mod(VectorXs::Zero(model.nv))
+  , dtau_dv_mod(VectorXs::Zero(model.nv))  
+  , dv_dq(Matrix6x::Zero(6,model.nv * model.njoints))
+  , dv_dqd(Matrix6x::Zero(6,model.nv * model.njoints))
+  , da_dq(Matrix6x::Zero(6,model.nv * model.njoints))
+  , dw_dq(Matrix6x::Zero(6,model.nv * model.njoints))
+  , dh_dq(Matrix6x::Zero(6,model.nv * model.njoints))
+  , dz_dq(Matrix6x::Zero(6,model.nv * model.njoints))
+  , dz_dqd(Matrix6x::Zero(6,model.nv * model.njoints))
+  , df_dq(Matrix6x::Zero(6,model.nv * model.njoints))
+  , dv_dq_p(Matrix6x::Zero(6,model.nv * model.njoints))
+  , dv_dqd_p(Matrix6x::Zero(6,model.nv * model.njoints))
+  , da_dq_p(Matrix6x::Zero(6,model.nv * model.njoints))
+  , dw_dq_p(Matrix6x::Zero(6,model.nv * model.njoints))
   , ddq_dq(MatrixXs::Zero(model.nv,model.nv))
   , ddq_dv(MatrixXs::Zero(model.nv,model.nv))
+  , ddq_dq_mod(VectorXs::Zero(model.nv))
+  , ddq_dv_mod(VectorXs::Zero(model.nv))
+  , ddq_dtau_mod(VectorXs::Zero(model.nv))
   , iMf((std::size_t)model.njoints,SE3::Identity())
   , com((std::size_t)model.njoints,Vector3::Zero())
   , vcom((std::size_t)model.njoints,Vector3::Zero())
@@ -101,6 +130,7 @@ namespace pinocchio
   , Jcom(Matrix3x::Zero(3,model.nv))
   , kinetic_energy((Scalar)-1)
   , potential_energy((Scalar)-1)
+  , modtau((Scalar)-1)
   , JMinvJt()
   , llt_JMinvJt()
   , lambda_c()
@@ -242,6 +272,7 @@ namespace pinocchio
        data1.joints == data2.joints
     && data1.a == data2.a
     && data1.oa == data2.oa
+    && data1.ow == data2.ow
     && data1.a_gf == data2.a_gf
     && data1.oa_gf == data2.oa_gf
     && data1.v == data2.v
@@ -250,6 +281,8 @@ namespace pinocchio
     && data1.of == data2.of
     && data1.h == data2.h
     && data1.oh == data2.oh
+    && data1.oh_lam == data2.oh_lam
+    && data1.oz == data2.oz
     && data1.oMi == data2.oMi
     && data1.liMi == data2.liMi
     && data1.tau == data2.tau
@@ -259,6 +292,7 @@ namespace pinocchio
     && data1.Ycrb == data2.Ycrb
     && data1.dYcrb == data2.dYcrb
     && data1.M == data2.M
+    && data1.M_mod == data2.M_mod
     && data1.Minv == data2.Minv
     && data1.C == data2.C
     && data1.dHdq == data2.dHdq
@@ -295,6 +329,7 @@ namespace pinocchio
     && data1.J == data2.J
     && data1.dJ == data2.dJ
     && data1.ddJ == data2.ddJ
+    && data1.Om == data2.Om
     && data1.psid == data2.psid
     && data1.psidd == data2.psidd
     && data1.dVdq == data2.dVdq
@@ -302,6 +337,8 @@ namespace pinocchio
     && data1.dAdv == data2.dAdv
     && data1.dtau_dq == data2.dtau_dq
     && data1.dtau_dv == data2.dtau_dv
+    && data1.dtau_dq_mod == data2.dtau_dq_mod
+    && data1.dtau_dv_mod == data2.dtau_dv_mod
     && data1.ddq_dq == data2.ddq_dq
     && data1.ddq_dv == data2.ddq_dv
     && data1.iMf == data2.iMf

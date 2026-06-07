@@ -51,11 +51,16 @@ SET(${PROJECT_NAME}_CORE_PUBLIC_HEADERS
   include/pinocchio/algorithm/cholesky.hpp
   include/pinocchio/algorithm/kinematics.hpp
   include/pinocchio/algorithm/rnea.hxx
+  include/pinocchio/algorithm/modrnea.hxx
+  include/pinocchio/algorithm/modaba.hxx
   include/pinocchio/algorithm/regressor.hpp
   include/pinocchio/algorithm/frames.hpp
   include/pinocchio/algorithm/kinematics-derivatives.hxx
   include/pinocchio/algorithm/jacobian.hxx
   include/pinocchio/algorithm/rnea-derivatives.hpp
+  include/pinocchio/algorithm/mod-rnea-derivatives.hpp
+  include/pinocchio/algorithm/mod-rnea-second-order-derivatives.hpp
+  include/pinocchio/algorithm/mod-aba-derivatives.hpp
   include/pinocchio/algorithm/ID_FO_AZA.hpp
   include/pinocchio/algorithm/rnea-derivatives-faster.hpp
   include/pinocchio/algorithm/spatial-force-derivatives.hpp
@@ -70,6 +75,9 @@ SET(${PROJECT_NAME}_CORE_PUBLIC_HEADERS
   include/pinocchio/algorithm/centroidal.hxx
   include/pinocchio/algorithm/model.hpp
   include/pinocchio/algorithm/rnea-derivatives.hxx
+  include/pinocchio/algorithm/mod-rnea-derivatives.hxx
+  include/pinocchio/algorithm/mod-rnea-second-order-derivatives.hxx
+  include/pinocchio/algorithm/mod-aba-derivatives.hxx
   include/pinocchio/algorithm/rnea-derivatives-faster.hxx
   include/pinocchio/algorithm/spatial-force-derivatives.hxx
   include/pinocchio/algorithm/spatial-force-second-order-derivatives.hxx
@@ -85,6 +93,8 @@ SET(${PROJECT_NAME}_CORE_PUBLIC_HEADERS
   include/pinocchio/algorithm/energy.hxx
   include/pinocchio/algorithm/geometry.hxx
   include/pinocchio/algorithm/rnea.hpp
+  include/pinocchio/algorithm/modrnea.hpp
+  include/pinocchio/algorithm/modaba.hpp
   include/pinocchio/algorithm/parallel/geometry.hpp
   include/pinocchio/algorithm/parallel/aba.hpp
   include/pinocchio/algorithm/parallel/rnea.hpp

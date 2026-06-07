@@ -105,11 +105,23 @@ namespace pinocchio
     /// \brief Vector of joint velocities expressed at the centers of the joints.
     PINOCCHIO_ALIGNED_STD_VECTOR(Motion) v;
     
-        /// \brief Vector of joint velocities expressed at the centers of the joints.
+    /// \brief Vector of lambda velocities expressed at the centers of the joints.
+    PINOCCHIO_ALIGNED_STD_VECTOR(Motion) w;
+
+    /// \brief Vector of joint velocities expressed at the centers of the joints.
     PINOCCHIO_ALIGNED_STD_VECTOR(Motion) vJ;
+    
+    /// \brief Vector of lambda velocities expressed at the centers of the joints.
+    PINOCCHIO_ALIGNED_STD_VECTOR(Motion) wJ;
+
+    /// @brief Joint torques contracted with a lambda vector
+    Scalar modtau;
 
     /// \brief Vector of joint velocities expressed at the origin.
     PINOCCHIO_ALIGNED_STD_VECTOR(Motion) ov;
+
+    /// \brief Vector of  lambda velocities expressed at the origin of the world.
+    PINOCCHIO_ALIGNED_STD_VECTOR(Motion) ow;
     
     /// \brief Vector of body forces expressed in the local frame of the joint. For each body, the force represents the sum of
     ///        all external forces acting on the body.
@@ -125,6 +137,12 @@ namespace pinocchio
     /// \brief Vector of spatial momenta expressed in the world frame.
     PINOCCHIO_ALIGNED_STD_VECTOR(Force) oh;
     
+    /// \brief Vector of spatial momenta using lambda expressed in the world frame.
+    PINOCCHIO_ALIGNED_STD_VECTOR(Force) oh_lam;
+
+     /// \brief Vector of spatial momenta using lambda expressed in the world frame.
+    PINOCCHIO_ALIGNED_STD_VECTOR(Force) oz;
+
     /// \brief Vector of absolute joint placements (wrt the world).
     PINOCCHIO_ALIGNED_STD_VECTOR(SE3) oMi;
 
@@ -157,8 +175,14 @@ namespace pinocchio
         /// \brief Vector of sub-tree composite coriolis terms
     PINOCCHIO_ALIGNED_STD_VECTOR(Coriolis) oBcrb;
 
+    /// \brief Vector of sub-tree composite Composite coriolis term when qdot = -lambda.
+    PINOCCHIO_ALIGNED_STD_VECTOR(Coriolis) oDc;
+
     /// \brief The joint space inertia matrix (a square matrix of dim model.nv).
     MatrixXs M;
+
+    /// \brief The joint space inertia matrix (a square matrix of dim model.nv), contracted with lambda.
+    VectorXs M_mod;
     
     /// \brief The inverse of the joint space inertia matrix (a square matrix of dim model.nv).
     RowMatrixXs Minv;
@@ -334,6 +358,9 @@ namespace pinocchio
       /// \brief Second derivative of the Jacobian with respect to the time.
     Matrix6x ddJ;
 
+      /// \brief  Similar to dJ but for the parent body moving and when qdot = lambda
+    Matrix6x Om; 
+
     /// \brief psidot Derivative of Jacobian w.r.t to the parent body moving
     /// v(p(j)) x Sj
     Matrix6x psid;
@@ -350,7 +377,11 @@ namespace pinocchio
     Matrix6x Ftmp2;
     Matrix6x Ftmp3;
     Matrix6x Ftmp4;
-    
+    Matrix6x Ftmp5;
+    Matrix6x Ftmp6;  // For F6 in SO derivatives
+    Matrix6x Ftmp7;  // For F7 in SO derivatives
+    Matrix6x Ftmp8;  // For F8 = Ic*S in SO derivatives (dtau_qa)
+
     /// \brief Variation of the spatial velocity set with respect to the joint configuration.
     Matrix6x dVdq;
     
@@ -366,11 +397,49 @@ namespace pinocchio
     /// \brief Partial derivative of the joint torque vector with respect to the joint velocity.
     MatrixXs dtau_dv;
     
+    /// \brief Partial derivative of the joint torque vector with respect to the joint configuration, contracted with a lambda vector.
+    VectorXs dtau_dq_mod;
+
+    // first-order derivatives (6 × nv·njoints)
+    Matrix6x dv_dq, dv_dqd;
+    Matrix6x da_dq, dw_dq;
+    Matrix6x dh_dq, dz_dq, dz_dqd, df_dq;
+
+    // parent-propagation scratch
+    Matrix6x dv_dq_p, dv_dqd_p, da_dq_p, dw_dq_p;
+
+    /// \brief Second-order Partial derivative of the joint torque vector with respect to the joint configuration, contracted with a lambda vector.
+    MatrixXs d2tau_dqdq_mod;
+
+    /// \brief Second-order Partial derivative of the joint torque vector with respect to the joint velocity, contracted with a lambda vector.
+    MatrixXs d2tau_dvdv_mod;
+
+    /// \brief Cross-Partial derivative of the joint torque vector with respect to the joint configuration/velocity, contracted with a lambda vector.
+    MatrixXs d2tau_dqdv_mod;
+
+    /// \brief Cross-Partial derivative of the joint torque vector with respect to the joint acceleration/configuration, contracted with a lambda vector.
+    MatrixXs d2tau_dadq_mod;
+
+    /// \brief Cross-Partial derivative of the joint torque vector with respect to the joint velocity/configuration, contracted with a lambda vector.
+    MatrixXs d2tau_dvdq_mod;
+    
+    /// \brief Partial derivative of the joint torque vector with respect to the joint velocity, contracted with a lambda vector.
+    VectorXs dtau_dv_mod;
+    
     /// \brief Partial derivative of the joint acceleration vector with respect to the joint configuration.
     MatrixXs ddq_dq;
-    
+
     /// \brief Partial derivative of the joint acceleration vector with respect to the joint velocity.
     MatrixXs ddq_dv;
+
+    /// \brief Partial derivative of the modified joint acceleration vector with respect to the joint configuration.
+    VectorXs ddq_dq_mod;
+
+    /// \brief Partial derivative of the modified joint acceleration vector with respect to the joint velocity.
+    VectorXs ddq_dv_mod;
+
+    /// \brief Partial derivative of the modified joint acceleration vector with respect to the joint torque.
+    VectorXs ddq_dtau_mod;
     
     /// \brief Vector of joint placements wrt to algorithm end effector.
     PINOCCHIO_ALIGNED_STD_VECTOR(SE3) iMf;
